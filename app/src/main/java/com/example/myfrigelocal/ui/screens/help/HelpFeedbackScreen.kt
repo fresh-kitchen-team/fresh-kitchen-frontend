@@ -116,42 +116,44 @@ fun HelpFeedbackScreen(
 
         item {
             SettingCard {
-                Text(
-                    text = "AI가 레시피를 생성하는 동안 시간이 소요\n될 수 있습니다.\n생성이 완료되면 알림으로 안내됩니다.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF111827),
-                )
+                Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)) {
+                    Text(
+                        text = "AI가 레시피를 생성하는 동안 시간이 소요\n될 수 있습니다.\n생성이 완료되면 알림으로 안내됩니다.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color(0xFF111827),
+                    )
 
-                Spacer(modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.size(14.dp))
 
-                Card(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(
-                            text = "생성 완료 알림 받기",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF111827),
-                            modifier = Modifier.weight(1f),
-                        )
-                        Switch(
-                            checked = receiveCompletedNotification,
-                            onCheckedChange = { receiveCompletedNotification = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF2EEA92),
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color(0xFFD1D5DB),
-                            ),
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "생성 완료 알림 받기",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color(0xFF111827),
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(
+                                checked = receiveCompletedNotification,
+                                onCheckedChange = { receiveCompletedNotification = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF2EEA92),
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = Color(0xFFD1D5DB),
+                                ),
+                            )
+                        }
                     }
                 }
             }

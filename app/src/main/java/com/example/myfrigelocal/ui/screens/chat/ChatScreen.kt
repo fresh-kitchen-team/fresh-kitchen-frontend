@@ -99,6 +99,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.example.myfrigelocal.ui.screens.help.HelpFeedbackScreen
+import com.example.myfrigelocal.ui.screens.help.ContactSupportScreen
+import com.example.myfrigelocal.ui.screens.help.ReportIssueScreen
 
 data class ChatMessage(
     val id: String,
@@ -146,6 +148,8 @@ fun ChatScreen(
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
     var isAiSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
+    var isContactSupportOpen by rememberSaveable { mutableStateOf(false) }
+    var isReportIssueOpen by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -287,6 +291,28 @@ fun ChatScreen(
             HelpFeedbackScreen(
                 onClose = { isHelpFeedbackOpen = false },
                 modifier = Modifier.zIndex(3f),
+                onContactSupportClick = {
+                    isContactSupportOpen = true
+                },
+                onReportIssueClick = {
+                    isReportIssueOpen = true
+                },
+            )
+        }
+
+        if (isContactSupportOpen) {
+            BackHandler { isContactSupportOpen = false }
+            ContactSupportScreen(
+                onClose = { isContactSupportOpen = false },
+                modifier = Modifier.zIndex(4f),
+            )
+        }
+
+        if (isReportIssueOpen) {
+            BackHandler { isReportIssueOpen = false }
+            ReportIssueScreen(
+                onClose = { isReportIssueOpen = false },
+                modifier = Modifier.zIndex(4f),
             )
         }
     }
