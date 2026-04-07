@@ -13,11 +13,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,24 +31,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -71,7 +72,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myfrigelocal.R
@@ -79,7 +79,6 @@ import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.BottomNavUnselected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -96,6 +95,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.zIndex
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.example.myfrigelocal.ui.screens.help.HelpFeedbackScreen
 
 data class ChatMessage(
     val id: String,
@@ -110,31 +113,39 @@ enum class Sender {
 
 @Composable
 fun ChatScreen(
+    reselectToken: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage(
-                id = UUID.randomUUID().toString(),
-                sender = Sender.Ai,
-                text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
-            ),
-            ChatMessage(
-                id = UUID.randomUUID().toString(),
-                sender = Sender.User,
-                text = "냉장고에 토마토랑 달걀만 있어요.",
-            ),
-            ChatMessage(
-                id = UUID.randomUUID().toString(),
-                sender = Sender.Ai,
-                text = "토마토 달걀 볶음 어떠세요? 맛있고 빠르게 만들 수 있어요.",
-            ),
-        )
+    fun initialMessages(): List<ChatMessage> = listOf(
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.User,
+            text = "냉장고에 토마토랑 달걀만 있어요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = "토마토 달걀 볶음 어떠세요? 맛있고 빠르게 만들 수 있어요.",
+        ),
+    )
+
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    LaunchedEffect(Unit) {
+        if (messages.isEmpty()) {
+            messages.addAll(initialMessages())
+        }
     }
 
     var input by rememberSaveable { mutableStateOf("") }
     var attachedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
+    var isAiSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -163,6 +174,17 @@ fun ChatScreen(
             listState.animateScrollToItem(messages.lastIndex)
         }
     }
+
+    // Bottom-nav reselect: return to base chat state without clearing history.
+    LaunchedEffect(reselectToken) {
+        if (reselectToken == 0L) return@LaunchedEffect
+        isSideMenuOpen = false
+        isAiSettingsOpen = false
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
+
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -243,8 +265,30 @@ fun ChatScreen(
         SideMenuDrawer(
             isOpen = isSideMenuOpen,
             onClose = { isSideMenuOpen = false },
+            onSettingsClick = {
+                isAiSettingsOpen = true
+            },
+            onHelpClick = {
+                isHelpFeedbackOpen = true
+            },
             modifier = Modifier.zIndex(1f),
         )
+
+        if (isAiSettingsOpen) {
+            BackHandler { isAiSettingsOpen = false }
+            AiSettingsScreen(
+                onClose = { isAiSettingsOpen = false },
+                modifier = Modifier.zIndex(2f),
+            )
+        }
+
+        if (isHelpFeedbackOpen) {
+            BackHandler { isHelpFeedbackOpen = false }
+            HelpFeedbackScreen(
+                onClose = { isHelpFeedbackOpen = false },
+                modifier = Modifier.zIndex(3f),
+            )
+        }
     }
 }
 
@@ -258,6 +302,8 @@ private data class SideMenuItem(
 private fun SideMenuDrawer(
     isOpen: Boolean,
     onClose: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onHelpClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val config = LocalConfiguration.current
@@ -318,6 +364,8 @@ private fun SideMenuDrawer(
                 modifier = Modifier.fillMaxSize(),
                 onItemClick = { /* TODO: navigate to conversation */ },
                 onNewChat = { /* TODO */ },
+                onSettingsClick = onSettingsClick,
+                onHelpClick = onHelpClick,
             )
         }
     }
@@ -328,6 +376,8 @@ private fun SideMenuContent(
     modifier: Modifier = Modifier,
     onItemClick: (SideMenuItem) -> Unit,
     onNewChat: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onHelpClick: () -> Unit,
 ) {
     val items = remember {
         listOf(
@@ -456,11 +506,13 @@ private fun SideMenuContent(
             icon = Icons.Outlined.Settings,
             text = "Settings",
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            onClick = onSettingsClick,
         )
         DrawerFooterRow(
             icon = Icons.Outlined.HelpOutline,
             text = "Help & Feedback",
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            onClick = onHelpClick,
         )
 
         Spacer(modifier = Modifier.size(10.dp))
@@ -472,12 +524,13 @@ private fun DrawerFooterRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .clickable { }
+            .clickable { onClick() }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -492,6 +545,263 @@ private fun DrawerFooterRow(
             text = text,
             color = Color(0xFF111827),
             style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
+private enum class AiResponseStyle { Friendly, Simple }
+
+@Composable
+private fun AiSettingsScreen(
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Defaults match the reference image (green = on, gray = off)
+    var extraInfo by rememberSaveable { mutableStateOf(true) }
+    var recommendExpiryFirst by rememberSaveable { mutableStateOf(true) }
+    var recommendNutritionBalanced by rememberSaveable { mutableStateOf(false) }
+    var recommendFavoriteIngredients by rememberSaveable { mutableStateOf(true) }
+    var notifyRecipeDone by rememberSaveable { mutableStateOf(true) }
+    var notifyAiRecommend by rememberSaveable { mutableStateOf(false) }
+    var responseStyle by rememberSaveable { mutableStateOf(AiResponseStyle.Friendly) }
+    var includeImages by rememberSaveable { mutableStateOf(true) }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF3F4F6)),
+    ) {
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 18.dp),
+        ) {
+            Spacer(modifier = Modifier.size(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "AI 설정",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF111827),
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onClose) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = Color(0xFF111827),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.size(8.dp))
+
+            SettingsCard {
+                SettingsSectionTitle("AI 기능")
+                SettingsToggleRow(
+                    label = "추가 정보 제공 (영양, 팁 등)",
+                    checked = extraInfo,
+                    onCheckedChange = { extraInfo = it },
+                )
+            }
+
+            Spacer(modifier = Modifier.size(14.dp))
+
+            SettingsCard {
+                SettingsSectionTitle("추천 기준")
+                Text(
+                    text = "(여러 개 선택 가능)",
+                    color = Color(0xFF9CA3AF),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                )
+                SettingsToggleRow(
+                    label = "유통기한 우선 추천",
+                    checked = recommendExpiryFirst,
+                    onCheckedChange = { recommendExpiryFirst = it },
+                )
+                SettingsToggleRow(
+                    label = "영양 균형 기반 추천",
+                    checked = recommendNutritionBalanced,
+                    onCheckedChange = { recommendNutritionBalanced = it },
+                )
+                SettingsToggleRow(
+                    label = "자주 사용하는 재료 우선",
+                    checked = recommendFavoriteIngredients,
+                    onCheckedChange = { recommendFavoriteIngredients = it },
+                )
+            }
+
+            Spacer(modifier = Modifier.size(14.dp))
+
+            SettingsCard {
+                SettingsSectionTitle("알림 설정")
+                SettingsToggleRow(
+                    label = "레시피 생성 완료 알림",
+                    checked = notifyRecipeDone,
+                    onCheckedChange = { notifyRecipeDone = it },
+                )
+                SettingsToggleRow(
+                    label = "AI 추천 알림",
+                    checked = notifyAiRecommend,
+                    onCheckedChange = { notifyAiRecommend = it },
+                )
+            }
+
+            Spacer(modifier = Modifier.size(14.dp))
+
+            SettingsCard {
+                SettingsSectionTitle("AI 응답 설정")
+                Text(
+                    text = "응답 스타일",
+                    color = Color(0xFF6B7280),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
+                )
+
+                ResponseStyleSegment(
+                    selected = responseStyle,
+                    onSelect = { responseStyle = it },
+                )
+
+                Spacer(modifier = Modifier.size(14.dp))
+
+                SettingsToggleRow(
+                    label = "이미지 포함 응답",
+                    checked = includeImages,
+                    onCheckedChange = { includeImages = it },
+                )
+            }
+
+            Spacer(modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        color = Color(0xFF111827),
+    )
+}
+
+@Composable
+private fun SettingsToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF111827),
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF2EEA92),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFD1D5DB),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun ResponseStyleSegment(
+    selected: AiResponseStyle,
+    onSelect: (AiResponseStyle) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFFF3F4F6),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+        ) {
+            SegmentOption(
+                text = "친절",
+                selected = selected == AiResponseStyle.Friendly,
+                onClick = { onSelect(AiResponseStyle.Friendly) },
+                modifier = Modifier.weight(1f),
+            )
+            SegmentOption(
+                text = "간단",
+                selected = selected == AiResponseStyle.Simple,
+                onClick = { onSelect(AiResponseStyle.Simple) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SegmentOption(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = if (selected) BottomNavSelected else Color.Transparent
+    val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(20.dp))
+            .background(bg)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = fg,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
         )
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.NavBackStackEntry
 import com.example.myfrigelocal.ui.screens.AiChatScreen
 import com.example.myfrigelocal.ui.screens.AnalyticsTipsScreen
 import com.example.myfrigelocal.ui.screens.HomeScreen
@@ -22,7 +23,9 @@ fun AppNavHost(
     ) {
         composable(BottomNavRoute.Home.route) { HomeScreen() }
         composable(BottomNavRoute.Scan.route) { ScanScreen() }
-        composable(BottomNavRoute.AiChat.route) { AiChatScreen() }
+        composable(BottomNavRoute.AiChat.route) { backStackEntry ->
+            AiChatScreen(backStackEntry = backStackEntry)
+        }
         composable(BottomNavRoute.AnalyticsTips.route) { AnalyticsTipsScreen() }
     }
 }

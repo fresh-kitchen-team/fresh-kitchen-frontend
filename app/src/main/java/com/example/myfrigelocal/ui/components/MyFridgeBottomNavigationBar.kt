@@ -43,12 +43,21 @@ fun MyFridgeBottomNavigationBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    navController.navigate(destination.route) {
-                        popUpTo(BottomNavRoute.start.route) {
-                            saveState = true
+                    // Reselect behavior:
+                    // If the user taps the already-selected AI Chat tab, return to the "base" AI chat state
+                    // (close overlays and scroll to the latest message) without clearing message history.
+                    if (selected && destination == BottomNavRoute.AiChat) {
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("ai_chat_reselect", System.currentTimeMillis())
+                    } else if (!selected) {
+                        navController.navigate(destination.route) {
+                            popUpTo(BottomNavRoute.start.route) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
                 },
                 icon = {
