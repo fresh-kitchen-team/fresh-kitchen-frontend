@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">MyFrigeLocal</string>
+    <string name="nav_home">홈</string>
+    <string name="nav_scan">스캔</string>
+    <string name="nav_ai_chat">AI 채팅</string>
+    <string name="nav_analytics_tips">분석 / 팁</string>
+    <string name="screen_home_placeholder">재료 관리 화면 (준비 중)</string>
+    <string name="screen_scan_placeholder">카메라 스캔 화면 (준비 중)</string>
+    <string name="screen_ai_chat_placeholder">AI 대화 화면 (준비 중)</string>
+    <string name="screen_analytics_placeholder">소비 분석·팁 화면 (준비 중)</string>
+</resources>
