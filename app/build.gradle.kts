@@ -57,5 +57,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.4.1")
     implementation("androidx.camera:camera-view:1.4.1")
 
+    // Image loading for result preview
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     testImplementation(libs.junit)
 }
