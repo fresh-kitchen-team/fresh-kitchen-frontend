@@ -1,12 +1,16 @@
 package com.example.myfrigelocal.ui.screens.chat
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -39,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.LifecycleOwner
@@ -130,6 +136,7 @@ private fun CameraCaptureScreen(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val preview = remember { Preview.Builder().build() }
@@ -166,11 +173,19 @@ private fun CameraCaptureScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        BackHandler {
+            onClose()
+            activity?.finish()
+        }
+
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 PreviewView(ctx).also { pv ->
                     pv.scaleType = PreviewView.ScaleType.FILL_CENTER
+                    pv.isClickable = false
+                    pv.isFocusable = false
+                    pv.isFocusableInTouchMode = false
                     preview.setSurfaceProvider(pv.surfaceProvider)
                 }
             },
@@ -182,11 +197,20 @@ private fun CameraCaptureScreen(
         // Top bar
         Row(
             modifier = Modifier
+                .zIndex(2f)
                 .fillMaxWidth()
+                .statusBarsPadding()
+                .background(Color.Black.copy(alpha = 0.15f))
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onClose) {
+            IconButton(
+                onClick = {
+                    // Be defensive: finish the Activity even if higher-level callback is blocked.
+                    onClose()
+                    activity?.finish()
+                },
+            ) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Close",
@@ -216,6 +240,7 @@ private fun CameraCaptureScreen(
         // Capture button
         Column(
             modifier = Modifier
+                .zIndex(2f)
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(bottom = 28.dp),
@@ -271,6 +296,15 @@ private fun CameraCaptureScreen(
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var cur: Context? = this
+    while (cur is ContextWrapper) {
+        if (cur is Activity) return cur
+        cur = cur.baseContext
+    }
+    return null
 }
 
 private suspend fun android.content.Context.getCameraProvider(): ProcessCameraProvider =
