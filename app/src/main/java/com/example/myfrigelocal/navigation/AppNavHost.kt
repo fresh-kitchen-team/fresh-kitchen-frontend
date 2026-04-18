@@ -10,7 +10,7 @@ import com.example.myfrigelocal.ui.screens.AiChatScreen
 import com.example.myfrigelocal.ui.screens.AnalyticsTipsScreen
 import com.example.myfrigelocal.ui.screens.HomeScreen
 import com.example.myfrigelocal.ui.screens.ScanScreen
-
+import com.example.myfrigelocal.ui.screens.InventoryListScreen
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -25,6 +25,9 @@ fun AppNavHost(
         composable(BottomNavRoute.Scan.route) { ScanScreen() }
         composable(BottomNavRoute.AiChat.route) { backStackEntry ->
             AiChatScreen(backStackEntry = backStackEntry)
+        }
+        composable("inventory_list") {
+            InventoryListScreen(onBackClick = { navController.popBackStack() })
         }
         composable(BottomNavRoute.AnalyticsTips.route) { AnalyticsTipsScreen() }
     }
