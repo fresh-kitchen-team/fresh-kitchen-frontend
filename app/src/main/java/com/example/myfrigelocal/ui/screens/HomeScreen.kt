@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +38,7 @@ val LightGray = Color(0xFFF5F5F5)
 // ───────────────────────────────────────────
 @Composable
 fun HomeScreen(
+    onNavigateToInventory: (String) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -57,7 +59,8 @@ fun HomeScreen(
             // 전체 품목 카드
             TotalItemCard(
                 totalCount = uiState.totalItemCount,
-                recentAdded = uiState.recentAddedCount
+                recentAdded = uiState.recentAddedCount,
+                onClick = { onNavigateToInventory("all") }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -72,14 +75,16 @@ fun HomeScreen(
                     icon = Icons.Default.Warning,
                     iconColor = WarnOrange,
                     label = "소비임박",
-                    count = uiState.nearExpiryCount
+                    count = uiState.nearExpiryCount,
+                    onClick = { onNavigateToInventory("near_expiry") }
                 )
                 AlertCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Error,
                     iconColor = WarnRed,
                     label = "유통기한 경과",
-                    count = uiState.expiredCount
+                    count = uiState.expiredCount,
+                    onClick = { onNavigateToInventory("expired") }
                 )
             }
 
@@ -94,7 +99,7 @@ fun HomeScreen(
                     emoji = storage.emoji,
                     name = storage.name,
                     itemCount = storage.itemCount,
-                    onClick = { /* TODO: 각 저장공간 화면으로 이동 */ }
+                    onClick = { onNavigateToInventory(storage.filterKey) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -165,7 +170,10 @@ fun HomeTopBar() {
 // 전체 품목 카드 (그린 그라데이션)
 // ───────────────────────────────────────────
 @Composable
-fun TotalItemCard(totalCount: Int, recentAdded: Int) {
+fun TotalItemCard(totalCount: Int,
+                  recentAdded: Int,
+                  onClick: () -> Unit = {}
+                  ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,6 +185,7 @@ fun TotalItemCard(totalCount: Int, recentAdded: Int) {
                 )
             )
             .padding(20.dp)
+            .clickable{onClick()}
     ) {
         Column {
             Text("전체 품목", color = Color.Black, fontSize = 13.sp)
@@ -212,13 +221,15 @@ fun AlertCard(
     icon: ImageVector,
     iconColor: Color,
     label: String,
-    count: Int
+    count: Int,
+    onClick: () -> Unit = {}
 ) {
     Card(
         modifier = modifier.height(80.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = LightGray),
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(0.dp),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.padding(14.dp),

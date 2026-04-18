@@ -11,7 +11,7 @@ import com.example.myfrigelocal.ui.screens.HomeScreen
 import com.example.myfrigelocal.ui.screens.ScanScreen
 import com.example.myfrigelocal.ui.screens.ScanResultScreen
 import com.example.myfrigelocal.navigation.ScanNav
-
+import com.example.myfrigelocal.ui.screens.InventoryListScreen
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -22,7 +22,13 @@ fun AppNavHost(
         startDestination = BottomNavRoute.start.route,
         modifier = modifier,
     ) {
-        composable(BottomNavRoute.Home.route) { HomeScreen() }
+        composable(BottomNavRoute.Home.route) {
+            HomeScreen(
+                onNavigateToInventory = { filter ->
+                    navController.navigate("inventory_list/$filter")
+                }
+            )
+        }
         composable(BottomNavRoute.Scan.route) { backStackEntry ->
             ScanScreen(
                 navController = navController,
@@ -36,5 +42,11 @@ fun AppNavHost(
 
         // Not a bottom-tab destination. Reached after a successful scan.
         composable(ScanNav.routeResult) { ScanResultScreen(navController = navController) }
+
+        composable("inventory_list/{filter}") {
+            InventoryListScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
     }
 }
