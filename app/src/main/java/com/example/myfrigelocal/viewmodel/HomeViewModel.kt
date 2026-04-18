@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 data class StorageInfo(
     val emoji: String,
     val name: String,
-    val itemCount: Int
+    val itemCount: Int,
+    val filterKey: String
 )
 
 // 홈 화면 UI 상태
@@ -41,9 +42,9 @@ class HomeViewModel : ViewModel() {
             nearExpiryCount = 5,
             expiredCount = 2,
             storageList = listOf(
-                StorageInfo(emoji = "❄️", name = "냉동실", itemCount = 12),
-                StorageInfo(emoji = "🥛", name = "냉장실", itemCount = 24),
-                StorageInfo(emoji = "🥫", name = "팬트리", itemCount = 6),
+                StorageInfo(emoji = "❄️", name = "냉동실", itemCount = 12, filterKey = "freezer"),
+                StorageInfo(emoji = "🥛", name = "냉장실", itemCount = 24, filterKey = "fridge"),
+                StorageInfo(emoji = "🥫", name = "팬트리", itemCount = 6, filterKey = "pantry"),
             ),
             recentItems = listOf("🥛", "🥩", "🥦", "🥚")
         )
