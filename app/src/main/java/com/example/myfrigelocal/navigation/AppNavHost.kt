@@ -5,7 +5,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.NavBackStackEntry
 import com.example.myfrigelocal.ui.screens.AiChatScreen
 import com.example.myfrigelocal.ui.screens.AnalyticsTipsScreen
 import com.example.myfrigelocal.ui.screens.ConsumptionDetailScreen
@@ -42,7 +41,7 @@ fun AppNavHost(
         composable(BottomNavRoute.AiChat.route) { backStackEntry ->
             AiChatScreen(backStackEntry = backStackEntry)
         }
-        composable(BottomNavRoute.AnalyticsTips.route) { AnalyticsTipsScreen() }
+        composable(BottomNavRoute.AnalyticsTips.route) { AnalyticsTipsScreen(navController = navController) }
 
         // Not a bottom-tab destination. Reached after a successful scan.
         composable(ScanNav.routeResult) { ScanResultScreen(navController = navController) }
@@ -52,7 +51,6 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() }
             )
         }
-        composable(BottomNavRoute.AnalyticsTips.route) { AnalyticsTipsScreen(navController = navController) }
 
         composable("consumption_detail") {
             ConsumptionDetailScreen(navController = navController)
