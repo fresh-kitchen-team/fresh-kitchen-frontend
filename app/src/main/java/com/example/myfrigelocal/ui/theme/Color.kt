@@ -9,3 +9,8 @@ val BottomNavSelected = Color(0xFF32E0A1)
 val BottomNavUnselected = Color(0xFFAAB4C1)
 
 val BottomNavBarBackground = Color(0xFFFFFFFF)
+
+// ui/theme/Color.kt
+val FreshGreen = Color(0xFF4ADE80)
+val FreshGreenDark = Color(0xFF22C55E)
+val LightGray = Color(0xFFF5F5F5)
