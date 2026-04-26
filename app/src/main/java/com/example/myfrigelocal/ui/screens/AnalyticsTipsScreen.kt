@@ -54,6 +54,7 @@ fun AnalyticsTipsScreen(
     AnalyticsTipsContent(
         onConsumptionCardClick = { navController.navigate("consumption_detail") },
         onStorageTipCardClick = { navController.navigate("storage_tip_detail") },
+        onDisposalGuideCardClick = { navController.navigate("disposal_guide") },
     )
 }
 
@@ -62,6 +63,7 @@ private fun AnalyticsTipsContent(
     modifier: Modifier = Modifier,
     onConsumptionCardClick: () -> Unit,
     onStorageTipCardClick: () -> Unit,
+    onDisposalGuideCardClick: () -> Unit,
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
@@ -162,6 +164,9 @@ private fun AnalyticsTipsContent(
                     iconTint = Color(0xFFFF3B30),
                     title = "폐기 가이드",
                     body = "만료된 식재료는 음식물 쓰레기 분류 기준에 맞춰 배출해주세요.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDisposalGuideCardClick),
                 ) {
                     Text(
                         text = "• 채소, 껍질, 씨앗 등은 일반 쓰레기입니다.",

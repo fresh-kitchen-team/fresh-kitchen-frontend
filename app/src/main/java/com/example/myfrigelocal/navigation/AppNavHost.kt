@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.example.myfrigelocal.ui.screens.AiChatScreen
 import com.example.myfrigelocal.ui.screens.AnalyticsTipsScreen
 import com.example.myfrigelocal.ui.screens.ConsumptionDetailScreen
@@ -13,6 +15,8 @@ import com.example.myfrigelocal.ui.screens.ScanScreen
 import com.example.myfrigelocal.ui.screens.ScanResultScreen
 import com.example.myfrigelocal.navigation.ScanNav
 import com.example.myfrigelocal.ui.screens.InventoryListScreen
+import com.example.myfrigelocal.ui.screens.DisposalGuideScreen
+import com.example.myfrigelocal.ui.screens.StorageTipCategoryScreen
 import com.example.myfrigelocal.ui.screens.StorageTipDetailScreen
 
 @Composable
@@ -56,8 +60,23 @@ fun AppNavHost(
             ConsumptionDetailScreen(navController = navController)
         }
 
+        composable("disposal_guide") {
+            DisposalGuideScreen(navController = navController)
+        }
+
         composable("storage_tip_detail") {
             StorageTipDetailScreen(navController = navController)
+        }
+
+        composable(
+            route = "storage_tip_category/{type}",
+            arguments = listOf(navArgument("type") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type").orEmpty()
+            StorageTipCategoryScreen(
+                navController = navController,
+                type = type,
+            )
         }
     }
 }
