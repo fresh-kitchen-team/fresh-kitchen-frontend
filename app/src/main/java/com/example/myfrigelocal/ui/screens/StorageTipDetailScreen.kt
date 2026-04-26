@@ -57,10 +57,11 @@ fun StorageTipDetailScreen(
                 title = "채소 및 과일",
                 headerIconRes = R.drawable.ic_tip_veg,
                 headerIconBg = Color(0xFFEAF7F2),
+                type = "vegetable",
                 tip = StorageTip(
                     title = "에틸렌 가스 분리",
                     description = "사과, 복숭아 등 에틸렌 가스를 내뿜는 과일은\n다른 채소와 따로 보관해야 빨리 시드는 것을 막을 수 있습니다.",
-                    iconRes = R.drawable.ic_tip_veg,
+                    iconRes = R.drawable.ic_bg_10,
                     iconBg = Color(0xFFEAF7F2),
                 ),
             ),
@@ -69,10 +70,11 @@ fun StorageTipDetailScreen(
                 title = "육류",
                 headerIconRes = R.drawable.ic_tip_meat,
                 headerIconBg = Color(0xFFFFE9EA),
+                type = "meat",
                 tip = StorageTip(
                     title = "표면 산화 방지",
                     description = "고기 표면에 식용유를 살짝 바르면 공기와의 접촉을 막아 신선도를 더 오래 유지할 수 있습니다.",
-                    iconRes = R.drawable.ic_tip_meat,
+                    iconRes = R.drawable.ic_bg_0,
                     iconBg = Color(0xFFFFE9EA),
                 ),
             ),
@@ -81,10 +83,11 @@ fun StorageTipDetailScreen(
                 title = "수산물",
                 headerIconRes = R.drawable.ic_tip_fish,
                 headerIconBg = Color(0xFFEAF2FF),
+                type = "seafood",
                 tip = StorageTip(
                     title = "내장 제거",
                     description = "생선은 내장부터 부패가 시작되므로 반드시 내장을 제거하고 깨끗이 씻어 보관하세요.",
-                    iconRes = R.drawable.ic_tip_fish,
+                    iconRes = R.drawable.ic_bg_5,
                     iconBg = Color(0xFFEAF2FF),
                 ),
             ),
@@ -122,6 +125,9 @@ fun StorageTipDetailScreen(
             items(categories, key = { it.id }) { category ->
                 CategorySection(
                     category = category,
+                    onMoreClick = {
+                        navController.navigate("storage_tip_category/${category.type}")
+                    },
                 )
             }
         }
@@ -180,6 +186,7 @@ private data class StorageTipCategory(
     val title: String,
     val headerIconRes: Int,
     val headerIconBg: Color,
+    val type: String,
     val tip: StorageTip,
 )
 
@@ -194,6 +201,7 @@ private data class StorageTip(
 @Composable
 private fun CategorySection(
     category: StorageTipCategory,
+    onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -204,6 +212,7 @@ private fun CategorySection(
             iconRes = category.headerIconRes,
             iconBg = category.headerIconBg,
             title = category.title,
+            onMoreClick = onMoreClick,
         )
 
         StorageTipCard(
@@ -217,6 +226,7 @@ private fun CategoryHeaderRow(
     iconRes: Int,
     iconBg: Color,
     title: String,
+    onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -247,12 +257,13 @@ private fun CategoryHeaderRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        MoreChip()
+        MoreChip(onClick = onMoreClick)
     }
 }
 
 @Composable
 private fun MoreChip(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -260,6 +271,7 @@ private fun MoreChip(
             .height(32.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xFFE8ECEF))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -295,21 +307,12 @@ private fun StorageTipCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(tip.iconBg)
-                    .border(1.dp, Color(0xFFE5EAEE), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(tip.iconRes),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            Icon(
+                painter = painterResource(tip.iconRes),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(40.dp),
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
