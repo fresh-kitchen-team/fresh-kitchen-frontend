@@ -31,7 +31,9 @@ data class FoodItem(
     val amount: String,
     val expiryDate: String,
     val status: FoodStatus,
-    val emoji: String
+    val emoji: String,
+    val purchaseDate: String = "",
+    val memo: String = ""
 )
 
 // 화면 UI 상태
@@ -46,13 +48,15 @@ data class InventoryListUiState(
     val isLoading: Boolean = false
 )
 
-class InventoryListViewModel : ViewModel() {
+class InventoryListViewModel(
+    savedStateHandle: androidx.lifecycle.SavedStateHandle
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InventoryListUiState())
     val uiState: StateFlow<InventoryListUiState> = _uiState.asStateFlow()
 
     // 더미 데이터 (실제 API 연동 시 교체)
-    private val dummyItems = listOf(
+    private var dummyItems = mutableListOf(
         FoodItem(1, "신선한 우유", "유제품", StorageType.FRIDGE, "1L", "2026-03-25", FoodStatus.FRESH, "🥛"),
         FoodItem(2, "소고기 안심", "육류", StorageType.FREEZER, "500g", "2026-04-15", FoodStatus.FRESH, "🥩"),
         FoodItem(3, "유기농 브로콜리", "채소", StorageType.FRIDGE, "1개", "2026-03-28", FoodStatus.FRESH, "🥦"),
@@ -66,15 +70,30 @@ class InventoryListViewModel : ViewModel() {
     )
 
     init {
-        loadItems()
-    }
-
-    private fun loadItems() {
-        updateState(InventoryFilter.ALL)
+        // 네비게이션으로 전달된 초기 필터 적용
+        val filterKey = savedStateHandle.get<String>("filter") ?: "all"
+        val initialFilter = when (filterKey) {
+            "fridge" -> InventoryFilter.FRIDGE
+            "freezer" -> InventoryFilter.FREEZER
+            "pantry" -> InventoryFilter.PANTRY
+            "recent" -> InventoryFilter.RECENT
+            "near_expiry" -> InventoryFilter.NEAR_EXPIRY
+            "expired" -> InventoryFilter.EXPIRED
+            else -> InventoryFilter.ALL
+        }
+        updateState(initialFilter)
     }
 
     fun onFilterSelected(filter: InventoryFilter) {
         updateState(filter)
+    }
+
+    fun updateItem(updatedItem: FoodItem) {
+        val index = dummyItems.indexOfFirst { it.id == updatedItem.id }
+        if (index != -1) {
+            dummyItems[index] = updatedItem
+            updateState(_uiState.value.selectedFilter)
+        }
     }
 
     private fun updateState(filter: InventoryFilter) {
