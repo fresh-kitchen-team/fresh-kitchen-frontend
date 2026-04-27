@@ -113,7 +113,7 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SectionTitle(title = "최근 추가된 품목")
-                TextButton(onClick = { /* TODO: 전체보기 이동 */ }) {
+                TextButton(onClick = { onNavigateToInventory("recent") }) {
                     Text("전체보기", color = FreshGreenDark, fontSize = 13.sp)
                 }
             }
