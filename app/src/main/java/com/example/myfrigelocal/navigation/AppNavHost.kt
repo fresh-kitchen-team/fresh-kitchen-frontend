@@ -62,8 +62,10 @@ fun AppNavHost(
         // Not a bottom-tab destination. Reached after a successful scan.
         composable(ScanNav.routeResult) { ScanResultScreen(navController = navController) }
 
-        composable("inventory_list/{filter}") {
+        composable("inventory_list/{filter}") { backStackEntry ->
+            val filter = backStackEntry.arguments?.getString("filter") ?: "all"
             InventoryListScreen(
+                initialFilter = filter,
                 onBackClick = { navController.popBackStack() }
             )
         }

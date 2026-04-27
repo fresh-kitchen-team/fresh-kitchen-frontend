@@ -27,6 +27,7 @@ import com.example.myfrigelocal.viewmodel.*
 import com.example.myfrigelocal.ui.theme.FreshGreen
 import com.example.myfrigelocal.ui.theme.FreshGreenDark
 import com.example.myfrigelocal.ui.theme.LightGray
+import androidx.compose.runtime.LaunchedEffect
 
 
 // 상태별 색상
@@ -42,9 +43,23 @@ val StatusExpiredBgColor = Color(0xFFFEF2F2)
 // ───────────────────────────────────────────
 @Composable
 fun InventoryListScreen(
+    initialFilter: String = "all",
     onBackClick: () -> Unit = {},
     viewModel: InventoryListViewModel = viewModel(),
 ) {
+    // 초기 필터 적용 ← 추가
+    LaunchedEffect(initialFilter) {
+        val filter = when (initialFilter) {
+            "fridge" -> InventoryFilter.FRIDGE
+            "freezer" -> InventoryFilter.FREEZER
+            "pantry" -> InventoryFilter.PANTRY
+            "recent" -> InventoryFilter.RECENT
+            "near_expiry" -> InventoryFilter.NEAR_EXPIRY
+            "expired" -> InventoryFilter.EXPIRED
+            else -> InventoryFilter.ALL
+        }
+        viewModel.onFilterSelected(filter)
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
