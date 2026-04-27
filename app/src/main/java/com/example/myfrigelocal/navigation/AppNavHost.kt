@@ -18,6 +18,7 @@ import com.example.myfrigelocal.ui.screens.InventoryListScreen
 import com.example.myfrigelocal.ui.screens.DisposalGuideScreen
 import com.example.myfrigelocal.ui.screens.StorageTipCategoryScreen
 import com.example.myfrigelocal.ui.screens.StorageTipDetailScreen
+import com.example.myfrigelocal.ui.screens.OnboardingScreen
 
 @Composable
 fun AppNavHost(
@@ -26,9 +27,20 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = BottomNavRoute.start.route,
+        startDestination = "onboarding",
         modifier = modifier,
     ) {
+        // 온보딩 (앱 첫 실행 시 시작점)
+        composable("onboarding") {
+            OnboardingScreen(
+                onFinish = {
+                    navController.navigate(BottomNavRoute.Home.route) {
+                        popUpTo("onboarding") { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(BottomNavRoute.Home.route) {
             HomeScreen(
                 onNavigateToInventory = { filter ->

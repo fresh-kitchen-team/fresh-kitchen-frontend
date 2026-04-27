@@ -9,6 +9,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myfrigelocal.navigation.AppNavHost
 import com.example.myfrigelocal.ui.components.MyFridgeBottomNavigationBar
 import com.example.myfrigelocal.viewmodel.MainScaffoldViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun MainScaffold(
@@ -17,12 +19,19 @@ fun MainScaffold(
     val navController = rememberNavController()
     val destinations = mainScaffoldViewModel.bottomNavDestinations()
 
+    // 현재 라우트 확인
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     Scaffold(
         bottomBar = {
-            MyFridgeBottomNavigationBar(
-                navController = navController,
-                destinations = destinations,
-            )
+            // 온보딩일 때는 하단바 숨김
+            if (currentRoute != "onboarding") {
+                MyFridgeBottomNavigationBar(
+                    navController = navController,
+                    destinations = destinations,
+                )
+            }
         },
     ) { innerPadding ->
         AppNavHost(
