@@ -10,8 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,11 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.viewmodel.*
-import com.example.myfrigelocal.ui.theme.FreshGreen
-import com.example.myfrigelocal.ui.theme.FreshGreenDark
-import com.example.myfrigelocal.ui.theme.LightGray
 import androidx.compose.runtime.LaunchedEffect
-
 
 // 상태별 색상
 val StatusFreshColor = Color(0xFF22C55E)
@@ -39,7 +39,7 @@ val StatusNearExpiryBgColor = Color(0xFFFFF7ED)
 val StatusExpiredBgColor = Color(0xFFFEF2F2)
 
 // ───────────────────────────────────────────
-// 재고 리스트 스크린
+// ViewModel 연결 진입점 (실제 앱에서 사용)
 // ───────────────────────────────────────────
 @Composable
 fun InventoryListScreen(
@@ -47,20 +47,67 @@ fun InventoryListScreen(
     onBackClick: () -> Unit = {},
     viewModel: InventoryListViewModel = viewModel(),
 ) {
-    // 초기 필터 적용 ← 추가
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     LaunchedEffect(initialFilter) {
         val filter = when (initialFilter) {
             "fridge" -> InventoryFilter.FRIDGE
             "freezer" -> InventoryFilter.FREEZER
             "pantry" -> InventoryFilter.PANTRY
-            "recent" -> InventoryFilter.RECENT
             "near_expiry" -> InventoryFilter.NEAR_EXPIRY
             "expired" -> InventoryFilter.EXPIRED
+            "recent" -> InventoryFilter.RECENT
             else -> InventoryFilter.ALL
         }
         viewModel.onFilterSelected(filter)
     }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    InventoryListContent(
+        uiState = uiState,
+        onBackClick = onBackClick,
+        onFilterSelected = { viewModel.onFilterSelected(it) },
+        onUpdateItem = { viewModel.updateItem(it) }
+    )
+}
+
+// ───────────────────────────────────────────
+// 실제 UI (프리뷰/테스트용으로 분리)
+// ───────────────────────────────────────────
+@Composable
+fun InventoryListContent(
+    uiState: InventoryListUiState,
+    onBackClick: () -> Unit = {},
+    onFilterSelected: (InventoryFilter) -> Unit = {},
+    onUpdateItem: (FoodItem) -> Unit = {},
+) {
+    // 상세 팝업 상태
+    var selectedItem by remember { mutableStateOf<FoodItem?>(null) }
+    // 수정 팝업 상태
+    var editingItem by remember { mutableStateOf<FoodItem?>(null) }
+
+    // 상세 팝업 표시
+    selectedItem?.let { item ->
+        FoodItemDetailDialog(
+            item = item,
+            onDismiss = { selectedItem = null },
+            onEdit = {
+                selectedItem = null   // 상세 팝업 닫고
+                editingItem = it      // 수정 팝업 열기
+            }
+        )
+    }
+
+    // 수정 팝업 표시
+    editingItem?.let { item ->
+        FoodItemEditDialog(
+            item = item,
+            onDismiss = { editingItem = null },
+            onSave = { updatedItem ->
+                onUpdateItem(updatedItem)
+                editingItem = null
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -87,7 +134,7 @@ fun InventoryListScreen(
             // 필터 탭
             FilterTabRow(
                 selectedFilter = uiState.selectedFilter,
-                onFilterSelected = { viewModel.onFilterSelected(it) }
+                onFilterSelected = onFilterSelected
             )
 
             // 요약 카드
@@ -114,10 +161,16 @@ fun InventoryListScreen(
                 uiState.selectedFilter == InventoryFilter.EXPIRED
             ) {
                 // 임박/경과는 저장공간별 그룹핑
-                GroupedFoodList(items = uiState.filteredItems)
+                GroupedFoodList(
+                    items = uiState.filteredItems,
+                    onItemClick = { selectedItem = it }
+                )
             } else {
                 // 나머지는 일반 리스트
-                FoodItemList(items = uiState.filteredItems)
+                FoodItemList(
+                    items = uiState.filteredItems,
+                    onItemClick = { selectedItem = it }
+                )
             }
         }
     }
@@ -252,14 +305,14 @@ fun StatusBadgeSmall(text: String, color: Color) {
 // 일반 식재료 리스트
 // ───────────────────────────────────────────
 @Composable
-fun FoodItemList(items: List<FoodItem>) {
+fun FoodItemList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {}) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(items) { item ->
-            FoodItemCard(item = item)
+            FoodItemCard(item = item, onClick = { onItemClick(item) })
         }
     }
 }
@@ -268,7 +321,7 @@ fun FoodItemList(items: List<FoodItem>) {
 // 저장공간별 그룹핑 리스트 (임박/경과용)
 // ───────────────────────────────────────────
 @Composable
-fun GroupedFoodList(items: List<FoodItem>) {
+fun GroupedFoodList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {}) {
     val grouped = mapOf(
         StorageType.FRIDGE to (items.filter { it.storage == StorageType.FRIDGE } to ("🥛" to "냉장실")),
         StorageType.FREEZER to (items.filter { it.storage == StorageType.FREEZER } to ("❄️" to "냉동실")),
@@ -316,7 +369,7 @@ fun GroupedFoodList(items: List<FoodItem>) {
                 }
             } else {
                 items(groupItems) { item ->
-                    FoodItemCard(item = item)
+                    FoodItemCard(item = item, onClick = { onItemClick(item) })
                 }
             }
         }
@@ -327,7 +380,7 @@ fun GroupedFoodList(items: List<FoodItem>) {
 // 식재료 카드
 // ───────────────────────────────────────────
 @Composable
-fun FoodItemCard(item: FoodItem) {
+fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
     val (statusText, statusTextColor, statusBgColor) = when (item.status) {
         FoodStatus.FRESH -> Triple("신선", StatusFreshColor, StatusFreshBgColor)
         FoodStatus.NEAR_EXPIRY -> Triple("소비임박", StatusNearExpiryColor, StatusNearExpiryBgColor)
@@ -335,7 +388,9 @@ fun FoodItemCard(item: FoodItem) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(1.dp)
@@ -413,8 +468,41 @@ fun StorageBadge(text: String) {
 // ───────────────────────────────────────────
 // 미리보기
 // ───────────────────────────────────────────
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true, showSystemUi = true, name = "전체 리스트")
 @Composable
-fun InventoryListScreenPreview() {
-    InventoryListScreen()
+fun InventoryListPreview() {
+    val dummyState = InventoryListUiState(
+        selectedFilter = InventoryFilter.ALL,
+        totalCount = 42,
+        freshCount = 35,
+        nearExpiryCount = 5,
+        expiredCount = 2,
+        filteredItems = listOf(
+            FoodItem(1, "신선한 우유", "유제품", StorageType.FRIDGE, "1L", "2026-03-25", FoodStatus.FRESH, "🥛"),
+            FoodItem(2, "소고기 안심", "육류", StorageType.FREEZER, "500g", "2026-04-15", FoodStatus.FRESH, "🥩"),
+            FoodItem(3, "유기농 브로콜리", "채소", StorageType.FRIDGE, "1개", "2026-03-28", FoodStatus.FRESH, "🥦"),
+            FoodItem(4, "계란", "유제품", StorageType.FRIDGE, "10개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🥚"),
+            FoodItem(5, "토마토", "채소", StorageType.FRIDGE, "5개", "2026-03-23", FoodStatus.NEAR_EXPIRY, "🍅"),
+            FoodItem(6, "햄", "육류", StorageType.FRIDGE, "300g", "2026-03-20", FoodStatus.EXPIRED, "🍖"),
+        )
+    )
+    InventoryListContent(uiState = dummyState)
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "소비임박 리스트")
+@Composable
+fun InventoryListNearExpiryPreview() {
+    val dummyState = InventoryListUiState(
+        selectedFilter = InventoryFilter.NEAR_EXPIRY,
+        totalCount = 5,
+        freshCount = 0,
+        nearExpiryCount = 5,
+        expiredCount = 0,
+        filteredItems = listOf(
+            FoodItem(4, "계란", "유제품", StorageType.FRIDGE, "10개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🥚"),
+            FoodItem(5, "토마토", "채소", StorageType.FRIDGE, "5개", "2026-03-23", FoodStatus.NEAR_EXPIRY, "🍅"),
+            FoodItem(9, "바나나", "과일", StorageType.PANTRY, "5개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🍌"),
+        )
+    )
+    InventoryListContent(uiState = dummyState)
 }
