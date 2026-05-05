@@ -19,6 +19,8 @@ import com.example.myfrigelocal.ui.screens.DisposalGuideScreen
 import com.example.myfrigelocal.ui.screens.StorageTipCategoryScreen
 import com.example.myfrigelocal.ui.screens.StorageTipDetailScreen
 import com.example.myfrigelocal.ui.screens.OnboardingScreen
+import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
+import com.example.myfrigelocal.ui.screens.LoginScreen
 
 @Composable
 fun AppNavHost(
@@ -30,13 +32,48 @@ fun AppNavHost(
         startDestination = "onboarding",
         modifier = modifier,
     ) {
-        // 온보딩 (앱 첫 실행 시 시작점)
+        // 온보딩 서비스 소개 (앱 첫 실행 시 시작점)
         composable("onboarding") {
             OnboardingScreen(
                 onFinish = {
-                    navController.navigate(BottomNavRoute.Home.route) {
+                    navController.navigate("login") {
                         popUpTo("onboarding") { inclusive = true }
                     }
+                }
+            )
+        }
+
+        // 로그인 화면
+        composable("login") {
+            LoginScreen(
+                onNewUser = {
+                    // 신규 회원 → 기본 정보 입력 설정 화면
+                    navController.navigate("onboarding_setup")
+                },
+                onExistingUser = {
+                    // 기존 회원 → 바로 홈으로
+                    navController.navigate(BottomNavRoute.Home.route) {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onBackClick = {
+                    // 서비스 소개로 뒤로가기
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // 온보딩 설정 (알러지 / 선호 음식 스타일 / 식재료 간편 등록)
+        composable("onboarding_setup") {
+            OnboardingSetupScreen(
+                onFinish = {
+                    navController.navigate(BottomNavRoute.Home.route) {
+                        popUpTo("onboarding_setup") { inclusive = true }
+                    }
+                },
+                onBackToLogin = {
+                    // 로그인 화면으로 뒤로가기
+                    navController.popBackStack()
                 }
             )
         }
@@ -62,10 +99,8 @@ fun AppNavHost(
         // Not a bottom-tab destination. Reached after a successful scan.
         composable(ScanNav.routeResult) { ScanResultScreen(navController = navController) }
 
-        composable("inventory_list/{filter}") { backStackEntry ->
-            val filter = backStackEntry.arguments?.getString("filter") ?: "all"
+        composable("inventory_list/{filter}") {
             InventoryListScreen(
-                initialFilter = filter,
                 onBackClick = { navController.popBackStack() }
             )
         }
