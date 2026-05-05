@@ -26,7 +26,8 @@ fun MainScaffold(
     Scaffold(
         bottomBar = {
             // 온보딩일 때는 하단바 숨김
-            if (currentRoute != "onboarding") {
+            val noNavBarRoutes = setOf("onboarding", "login", "onboarding_setup")
+            if (currentRoute !in noNavBarRoutes) {
                 MyFridgeBottomNavigationBar(
                     navController = navController,
                     destinations = destinations,
