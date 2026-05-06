@@ -24,8 +24,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.FlipCameraAndroid
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -60,7 +60,7 @@ fun ScanScreen(
     navController: NavController,
     lifecycleOwner: LifecycleOwner,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(ScanTab.Camera) }
+    var selectedTab by rememberSaveable { mutableStateOf(ScanTab.Ingredient) }
     var scanState by rememberSaveable { mutableStateOf(ScanState.IDLE) }
     var lensFacing by rememberSaveable { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var lastSelectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -137,13 +137,6 @@ fun ScanScreen(
             lifecycleOwner = lifecycleOwner,
         )
 
-        // Dark vignette overlay (helps match design + legibility).
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0x99010B17)),
-        )
-
         Column(modifier = Modifier.fillMaxSize()) {
             ScanTopBar(
                 onClose = {
@@ -157,13 +150,7 @@ fun ScanScreen(
 
             ScanTabs(
                 selectedTab = selectedTab,
-                onSelect = { tab ->
-                    selectedTab = tab
-                    if (tab == ScanTab.Gallery) {
-                        // Launch system picker immediately, as requested.
-                        galleryLauncher.launch("image/*")
-                    }
-                },
+                onSelect = { tab -> selectedTab = tab },
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -175,18 +162,13 @@ fun ScanScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 when (selectedTab) {
-                    ScanTab.Camera -> CameraGuideOverlay(
-                        headline = "음식물을 프레임 안에 맞춰주세요",
+                    ScanTab.Ingredient -> ScanFrameBox(
+                        headline = "식재료를 프레임 안에 맞춰주세요",
                         frameStyle = FrameStyle.Corners,
                     )
 
-                    ScanTab.Gallery -> CameraGuideOverlay(
-                        headline = "갤러리에서 이미지를 선택해주세요",
-                        frameStyle = FrameStyle.Corners,
-                    )
-
-                    ScanTab.Barcode -> CameraGuideOverlay(
-                        headline = "바코드를 프레임 안에 맞춰주세요",
+                    ScanTab.Receipt -> ScanFrameBox(
+                        headline = "영수증을 프레임 안에 맞춰주세요",
                         frameStyle = FrameStyle.RoundedRect,
                     )
                 }
@@ -207,19 +189,19 @@ fun ScanScreen(
                         // No real processing per spec; simulate instant success.
                         scanState = ScanState.SUCCESS
                     },
-                    onPickFromGallery = { galleryLauncher.launch("image/*") },
-                    onSwitchCamera = {
-                        lensFacing =
-                            if (lensFacing == CameraSelector.LENS_FACING_BACK) {
-                                CameraSelector.LENS_FACING_FRONT
-                            } else {
-                                CameraSelector.LENS_FACING_BACK
-                            }
-                    },
                     onBarcodeScan = {
                         scanState = ScanState.SCANNING
                         scanState = ScanState.SUCCESS
                     },
+                )
+
+                // Floating Gallery button (shared launcher) - visible on both tabs.
+                FloatingGalleryButton(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(end = 20.dp, bottom = 20.dp),
+                    onClick = { galleryLauncher.launch("image/*") },
                 )
             }
         }
@@ -232,7 +214,7 @@ enum class ScanState {
     SUCCESS,
 }
 
-private enum class ScanTab { Camera, Gallery, Barcode }
+private enum class ScanTab { Ingredient, Receipt }
 
 private val PrimaryGreen = Color(0xFF00C853)
 
@@ -288,24 +270,17 @@ private fun ScanTabs(
         ) {
             TabItem(
                 modifier = Modifier.weight(1f),
-                selected = selectedTab == ScanTab.Camera,
+                selected = selectedTab == ScanTab.Ingredient,
                 icon = Icons.Outlined.PhotoCamera,
-                label = "촬영하기",
-                onClick = { onSelect(ScanTab.Camera) },
+                label = "식재료 촬영",
+                onClick = { onSelect(ScanTab.Ingredient) },
             )
             TabItem(
                 modifier = Modifier.weight(1f),
-                selected = selectedTab == ScanTab.Gallery,
-                icon = Icons.Outlined.Image,
-                label = "갤러리",
-                onClick = { onSelect(ScanTab.Gallery) },
-            )
-            TabItem(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == ScanTab.Barcode,
-                icon = Icons.Outlined.QrCodeScanner,
-                label = "바코드",
-                onClick = { onSelect(ScanTab.Barcode) },
+                selected = selectedTab == ScanTab.Receipt,
+                icon = Icons.Filled.Receipt,
+                label = "영수증 촬영",
+                onClick = { onSelect(ScanTab.Receipt) },
             )
         }
     }
@@ -353,7 +328,7 @@ private fun TabItem(
 private enum class FrameStyle { Corners, RoundedRect }
 
 @Composable
-private fun CameraGuideOverlay(
+private fun ScanFrameBox(
     headline: String,
     frameStyle: FrameStyle,
 ) {
@@ -368,21 +343,19 @@ private fun CameraGuideOverlay(
                 .padding(top = 90.dp),
         )
 
+        val frameModifier = Modifier
+            .align(Alignment.Center)
+            .padding(horizontal = 36.dp)
+            .fillMaxWidth()
+            .height(340.dp)
+
         when (frameStyle) {
             FrameStyle.Corners -> CornerFrame(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 36.dp)
-                    .fillMaxWidth()
-                    .height(340.dp),
+                modifier = frameModifier,
             )
 
             FrameStyle.RoundedRect -> RoundedRectFrame(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 42.dp)
-                    .fillMaxWidth()
-                    .height(160.dp),
+                modifier = frameModifier,
             )
         }
     }
@@ -531,8 +504,6 @@ private fun ScanBottomControls(
     modifier: Modifier = Modifier,
     selectedTab: ScanTab,
     onCapture: () -> Unit,
-    onPickFromGallery: () -> Unit,
-    onSwitchCamera: () -> Unit,
     onBarcodeScan: () -> Unit,
 ) {
     Column(
@@ -542,7 +513,7 @@ private fun ScanBottomControls(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         when (selectedTab) {
-            ScanTab.Camera -> {
+            ScanTab.Ingredient -> {
                 CaptureButton(onClick = onCapture)
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
@@ -552,16 +523,7 @@ private fun ScanBottomControls(
                 )
             }
 
-            ScanTab.Gallery -> {
-                Spacer(modifier = Modifier.height(72.dp))
-                Text(
-                    text = "갤러리에서 사진을 선택하세요",
-                    color = Color(0xCCFFFFFF),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-
-            ScanTab.Barcode -> {
+            ScanTab.Receipt -> {
                 ScanButton(onClick = onBarcodeScan)
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
@@ -571,6 +533,28 @@ private fun ScanBottomControls(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FloatingGalleryButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color(0x66000000))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Image,
+            contentDescription = "Gallery",
+            tint = Color.White,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
