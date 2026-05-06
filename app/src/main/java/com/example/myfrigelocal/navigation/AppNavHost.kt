@@ -21,6 +21,7 @@ import com.example.myfrigelocal.ui.screens.StorageTipDetailScreen
 import com.example.myfrigelocal.ui.screens.OnboardingScreen
 import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
 import com.example.myfrigelocal.ui.screens.LoginScreen
+import com.example.myfrigelocal.ui.screens.ProfileScreen
 
 @Composable
 fun AppNavHost(
@@ -82,7 +83,17 @@ fun AppNavHost(
             HomeScreen(
                 onNavigateToInventory = { filter ->
                     navController.navigate("inventory_list/$filter")
+                },
+                onNavigateToProfile = {
+                    navController.navigate("profile")
                 }
+            )
+        }
+
+        // 프로필 화면
+        composable("profile") {
+            ProfileScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(BottomNavRoute.Scan.route) { backStackEntry ->

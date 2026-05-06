@@ -1,7 +1,6 @@
 package com.example.myfrigelocal.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -39,12 +39,13 @@ val LightGray = Color(0xFFF5F5F5)
 @Composable
 fun HomeScreen(
     onNavigateToInventory: (String) -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { HomeTopBar() },
+        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile) },
         containerColor = Color.White
     ) { innerPadding ->
         Column(
@@ -56,7 +57,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 전체 품목 카드
+            // 전체 품목 카드 → 전체 리스트로 이동
             TotalItemCard(
                 totalCount = uiState.totalItemCount,
                 recentAdded = uiState.recentAddedCount,
@@ -113,7 +114,7 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SectionTitle(title = "최근 추가된 품목")
-                TextButton(onClick = { onNavigateToInventory("recent") }) {
+                TextButton(onClick = { onNavigateToInventory("all") }) {
                     Text("전체보기", color = FreshGreenDark, fontSize = 13.sp)
                 }
             }
@@ -130,7 +131,7 @@ fun HomeScreen(
 // ───────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopBar() {
+fun HomeTopBar(onProfileClick: () -> Unit = {}) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,7 +153,7 @@ fun HomeTopBar() {
             }
         },
         actions = {
-            IconButton(onClick = { /* TODO: 프로필 이동 */ }) {
+            IconButton(onClick = onProfileClick) {
                 Icon(Icons.Default.Person, contentDescription = "프로필")
             }
             IconButton(onClick = { /* TODO: 검색 이동 */ }) {
@@ -170,25 +171,22 @@ fun HomeTopBar() {
 // 전체 품목 카드 (그린 그라데이션)
 // ───────────────────────────────────────────
 @Composable
-fun TotalItemCard(totalCount: Int,
-                  recentAdded: Int,
-                  onClick: () -> Unit = {}
-                  ) {
+fun TotalItemCard(totalCount: Int, recentAdded: Int, onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(110.dp)
             .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(FreshGreen, FreshGreenDark)
                 )
             )
             .padding(20.dp)
-            .clickable{onClick()}
     ) {
         Column {
-            Text("전체 품목", color = Color.Black, fontSize = 13.sp)
+            Text("전체 품목", color = Color.White, fontSize = 13.sp)
             Text(
                 text = "$totalCount",
                 color = Color.White,
