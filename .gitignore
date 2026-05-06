@@ -1,4 +1,8 @@
 HELP.md
+
+# Local Android SDK path
+local.properties
+
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
