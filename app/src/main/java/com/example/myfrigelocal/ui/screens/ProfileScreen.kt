@@ -168,6 +168,27 @@ fun ProfileScreen(
                 selectedColor = Color(0xFFF97316)
             )
 
+            Spacer(modifier = Modifier.height(28.dp))
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // ── 사용 가능 식기구 ──
+            ProfileSectionHeader(
+                title = "사용 가능 식기구",
+                subtitle = "보유한 조리 도구를 선택해두세요"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ProfileChipGrid(
+                items = listOf(
+                    "🍳 프라이팬", "🥘 냄비", "♨️ 압력솥", "🫕 찜기",
+                    "🔥 오븐", "⚡ 전자레인지", "💨 에어프라이어", "🍚 밥솥",
+                    "🧊 블렌더", "🔪 그릴"
+                ),
+                selected = uiState.selectedUtensils,
+                onToggle = { viewModel.toggleUtensil(it) },
+                selectedColor = Color(0xFF6366F1)
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // ── 저장 버튼 ──
