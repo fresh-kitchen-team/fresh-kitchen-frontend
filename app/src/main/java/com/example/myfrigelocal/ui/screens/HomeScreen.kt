@@ -40,12 +40,13 @@ val LightGray = Color(0xFFF5F5F5)
 fun HomeScreen(
     onNavigateToInventory: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile) },
+        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile, onSettingsClick = onNavigateToSettings) },
         containerColor = Color.White
     ) { innerPadding ->
         Column(
@@ -131,7 +132,7 @@ fun HomeScreen(
 // ───────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopBar(onProfileClick: () -> Unit = {}) {
+fun HomeTopBar(onProfileClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,7 +160,7 @@ fun HomeTopBar(onProfileClick: () -> Unit = {}) {
             IconButton(onClick = { /* TODO: 검색 이동 */ }) {
                 Icon(Icons.Default.Search, contentDescription = "검색")
             }
-            IconButton(onClick = { /* TODO: 설정 이동 */ }) {
+            IconButton(onClick = onSettingsClick) {
                 Icon(Icons.Default.Settings, contentDescription = "설정")
             }
         },

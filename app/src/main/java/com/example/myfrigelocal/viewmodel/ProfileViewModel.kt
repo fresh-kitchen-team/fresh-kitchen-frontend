@@ -13,6 +13,7 @@ data class ProfileUiState(
     val selectedAllergies: Set<String> = emptySet(),
     val selectedIngredients: Set<String> = emptySet(),
     val selectedFoodStyles: Set<String> = emptySet(),
+    val selectedUtensils: Set<String> = emptySet(),
     val isSaved: Boolean = false
 )
 
@@ -48,6 +49,14 @@ class ProfileViewModel : ViewModel() {
         val current = _uiState.value.selectedFoodStyles
         _uiState.value = _uiState.value.copy(
             selectedFoodStyles = if (style in current) current - style else current + style,
+            isSaved = false
+        )
+    }
+
+    fun toggleUtensil(utensil: String) {
+        val current = _uiState.value.selectedUtensils
+        _uiState.value = _uiState.value.copy(
+            selectedUtensils = if (utensil in current) current - utensil else current + utensil,
             isSaved = false
         )
     }
