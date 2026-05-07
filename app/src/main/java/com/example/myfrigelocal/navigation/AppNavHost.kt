@@ -22,6 +22,7 @@ import com.example.myfrigelocal.ui.screens.OnboardingScreen
 import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
 import com.example.myfrigelocal.ui.screens.LoginScreen
 import com.example.myfrigelocal.ui.screens.ProfileScreen
+import com.example.myfrigelocal.ui.screens.SettingsScreen
 
 @Composable
 fun AppNavHost(
@@ -86,6 +87,9 @@ fun AppNavHost(
                 },
                 onNavigateToProfile = {
                     navController.navigate("profile")
+                },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
                 }
             )
         }
@@ -94,6 +98,18 @@ fun AppNavHost(
         composable("profile") {
             ProfileScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 설정 화면
+        composable("settings") {
+            SettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
         composable(BottomNavRoute.Scan.route) { backStackEntry ->
