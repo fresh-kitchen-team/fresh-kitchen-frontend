@@ -71,6 +71,7 @@ fun ScanScreen(
     var lensFacing by rememberSaveable { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var lastSelectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var lastBarcodeRawValue by rememberSaveable { mutableStateOf<String?>(null) }
+    var receiptItems by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
 
@@ -98,6 +99,7 @@ fun ScanScreen(
             scanState = ScanState.IDLE
             hasNavigatedToResult = false
             lastBarcodeRawValue = null
+            receiptItems = emptyList()
             navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, false)
         }
     }
@@ -136,6 +138,14 @@ fun ScanScreen(
                 ScanNav.keyBarcodeValue,
                 lastBarcodeRawValue,
             )
+            navController.currentBackStackEntry?.savedStateHandle?.set(
+                ScanNav.keyReceiptItems,
+                ArrayList(receiptItems),
+            )
+            navController.currentBackStackEntry?.savedStateHandle?.set(
+                ScanNav.keyReceiptIndex,
+                0,
+            )
             navController.navigate(ScanNav.routeResult)
         }
     }
@@ -153,6 +163,8 @@ fun ScanScreen(
                 if (selectedTab == ScanTab.Receipt && scanState == ScanState.SCANNING) {
                     lastSelectedImageUri = null
                     lastBarcodeRawValue = raw
+                    // Simulate receipt OCR: multiple detected items.
+                    receiptItems = listOf("신선한 우유", "사과", "돼지고기")
                     scanState = ScanState.SUCCESS
                 }
             },
@@ -245,13 +257,18 @@ fun ScanScreen(
                             scanState = ScanState.SCANNING
                             // No real processing per spec; simulate instant success.
                             lastBarcodeRawValue = null
+                            receiptItems = emptyList()
                             scanState = ScanState.SUCCESS
                         }
 
                         ScanTab.Receipt -> {
                             lastSelectedImageUri = null
                             lastBarcodeRawValue = null
+                            // Simulate receipt OCR: multiple detected items.
+                            receiptItems = listOf("신선한 우유", "사과", "돼지고기")
                             scanState = ScanState.SCANNING
+                            // No real OCR yet; move forward immediately so UX doesn't look stuck.
+                            scanState = ScanState.SUCCESS
                         }
                     }
                 },

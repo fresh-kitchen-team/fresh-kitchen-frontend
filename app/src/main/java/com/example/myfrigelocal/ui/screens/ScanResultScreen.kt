@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,11 +55,38 @@ fun ScanResultScreen(
         navController.previousBackStackEntry
             ?.savedStateHandle
             ?.get<String?>(ScanNav.keyImageUri)
+    val receiptItems: ArrayList<String>? =
+        navController.previousBackStackEntry
+            ?.savedStateHandle
+            ?.get<ArrayList<String>>(ScanNav.keyReceiptItems)
+    var currentItemIndex by rememberSaveable {
+        mutableStateOf(
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<Int>(ScanNav.keyReceiptIndex)
+                ?: 0,
+        )
+    }
+    val totalItems = receiptItems?.size ?: 0
 
     var name by rememberSaveable { mutableStateOf("신선한 우유") }
     var storage by rememberSaveable { mutableStateOf("냉장실") }
     var expiration by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf("유제품") }
+
+    val isReceiptSequence = !receiptItems.isNullOrEmpty()
+
+    // When advancing receipt items, prefill fields for the next item.
+    LaunchedEffect(isReceiptSequence, currentItemIndex) {
+        if (isReceiptSequence) {
+            val nextName = receiptItems?.getOrNull(currentItemIndex)
+            if (!nextName.isNullOrBlank()) {
+                name = nextName
+                // Keep defaults; user can modify.
+                expiration = ""
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -81,13 +109,27 @@ fun ScanResultScreen(
                     .background(Color(0xFFE5E7EB)),
             )
 
-            Text(
-                text = "스캔 결과 확인",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF111827),
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "스캔 결과 확인",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF111827),
+                )
+                if (isReceiptSequence) {
+                    Spacer(modifier = Modifier.size(10.dp))
+                    Text(
+                        text = "${currentItemIndex + 1} / $totalItems",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF94A3B8),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "인식된 정보를 확인하고 수정해주세요",
@@ -259,10 +301,26 @@ fun ScanResultScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                     shape = RoundedCornerShape(16.dp),
                     onClick = {
-                        // UI-only: no persistence requested.
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
+                        if (isReceiptSequence) {
+                            val nextIndex = currentItemIndex + 1
+                            if (nextIndex < totalItems) {
+                                currentItemIndex = nextIndex
+                                navController.previousBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set(ScanNav.keyReceiptIndex, nextIndex)
+                            } else {
+                                // Finished last item → go home.
+                                navController.navigate("home") {
+                                    popUpTo("home") { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            }
+                        } else {
+                            // Single-item flow.
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
                     },
                 ) {
