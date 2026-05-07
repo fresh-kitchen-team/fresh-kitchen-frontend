@@ -14,13 +14,17 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,7 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
@@ -64,6 +70,7 @@ fun ScanScreen(
     var scanState by rememberSaveable { mutableStateOf(ScanState.IDLE) }
     var lensFacing by rememberSaveable { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var lastSelectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastBarcodeRawValue by rememberSaveable { mutableStateOf<String?>(null) }
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
 
@@ -90,6 +97,7 @@ fun ScanScreen(
             // Important: clear SUCCESS so we don't auto-navigate again.
             scanState = ScanState.IDLE
             hasNavigatedToResult = false
+            lastBarcodeRawValue = null
             navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, false)
         }
     }
@@ -124,6 +132,10 @@ fun ScanScreen(
                 ScanNav.keyImageUri,
                 lastSelectedImageUri,
             )
+            navController.currentBackStackEntry?.savedStateHandle?.set(
+                ScanNav.keyBarcodeValue,
+                lastBarcodeRawValue,
+            )
             navController.navigate(ScanNav.routeResult)
         }
     }
@@ -133,77 +145,118 @@ fun ScanScreen(
         CameraPreview(
             modifier = Modifier.fillMaxSize(),
             enabled = previewEnabled,
+            analysisEnabled = selectedTab == ScanTab.Receipt && scanState == ScanState.SCANNING,
             lensFacing = lensFacing,
             lifecycleOwner = lifecycleOwner,
+            onBarcodeRawValue = { raw ->
+                // Only accept detections while actively scanning.
+                if (selectedTab == ScanTab.Receipt && scanState == ScanState.SCANNING) {
+                    lastSelectedImageUri = null
+                    lastBarcodeRawValue = raw
+                    scanState = ScanState.SUCCESS
+                }
+            },
         )
 
         Column(modifier = Modifier.fillMaxSize()) {
-            ScanTopBar(
-                onClose = {
-                    // Scan is a bottom-tab destination; closing returns to Home.
-                    navController.navigate("home") {
-                        launchSingleTop = true
-                        popUpTo("home") { inclusive = false }
-                    }
-                },
-            )
-
-            ScanTabs(
-                selectedTab = selectedTab,
-                onSelect = { tab -> selectedTab = tab },
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Box(
+            // Top section (title + tabs)
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 24.dp),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
             ) {
-                when (selectedTab) {
-                    ScanTab.Ingredient -> ScanFrameBox(
-                        headline = "식재료를 프레임 안에 맞춰주세요",
-                        frameStyle = FrameStyle.Corners,
-                    )
-
-                    ScanTab.Receipt -> ScanFrameBox(
-                        headline = "영수증을 프레임 안에 맞춰주세요",
-                        frameStyle = FrameStyle.RoundedRect,
-                    )
-                }
-
-                if (scanState == ScanState.SUCCESS) {
-                    ScanSuccessOverlay()
-                }
-
-                // Bottom controls (positioned like the references).
-                ScanBottomControls(
-                    // Keep controls above the bottom navigation bar so it doesn't block tab clicks.
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding(),
-                    selectedTab = selectedTab,
-                    onCapture = {
-                        scanState = ScanState.SCANNING
-                        // No real processing per spec; simulate instant success.
-                        scanState = ScanState.SUCCESS
-                    },
-                    onBarcodeScan = {
-                        scanState = ScanState.SCANNING
-                        scanState = ScanState.SUCCESS
+                ScanTopBar(
+                    onClose = {
+                        // Scan is a bottom-tab destination; closing returns to Home.
+                        navController.navigate("home") {
+                            launchSingleTop = true
+                            popUpTo("home") { inclusive = false }
+                        }
                     },
                 )
-
-                // Floating Gallery button (shared launcher) - visible on both tabs.
-                FloatingGalleryButton(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .navigationBarsPadding()
-                        .padding(end = 20.dp, bottom = 20.dp),
-                    onClick = { galleryLauncher.launch("image/*") },
+                ScanTabs(
+                    selectedTab = selectedTab,
+                    onSelect = { tab -> selectedTab = tab },
                 )
             }
+
+            val guideText = when (selectedTab) {
+                ScanTab.Ingredient -> "식재료를 프레임 안에 맞춰주세요"
+                ScanTab.Receipt -> "영수증을 프레임 안에 맞춰주세요"
+            }
+
+            // Middle section (frame ONLY, centered)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (scanState == ScanState.SUCCESS) {
+                    // Keep success feedback out of the frame area (per requirement).
+                    ScanSuccessOverlay()
+                } else {
+                    when (selectedTab) {
+                        ScanTab.Ingredient -> ScanFrameBox(
+                            frameStyle = FrameStyle.Corners,
+                            widthFraction = 0.74f,
+                            aspectRatio = 1f,
+                            maxHeightFraction = 0.94f,
+                        )
+
+                        ScanTab.Receipt -> ScanFrameBox(
+                            frameStyle = FrameStyle.RoundedRect,
+                            widthFraction = 0.86f,
+                            aspectRatio = 1f / 1.6f,
+                            maxHeightFraction = 0.94f,
+                        )
+                    }
+                }
+            }
+
+            // Guide section (same position/spacing for both tabs, never clipped)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 6.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = guideText,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 520.dp),
+                )
+            }
+
+            // Bottom section (guide text + primary button + floating gallery button)
+            ScanBottomSection(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                selectedTab = selectedTab,
+                onPrimaryAction = {
+                    when (selectedTab) {
+                        ScanTab.Ingredient -> {
+                            scanState = ScanState.SCANNING
+                            // No real processing per spec; simulate instant success.
+                            lastBarcodeRawValue = null
+                            scanState = ScanState.SUCCESS
+                        }
+
+                        ScanTab.Receipt -> {
+                            lastSelectedImageUri = null
+                            lastBarcodeRawValue = null
+                            scanState = ScanState.SCANNING
+                        }
+                    }
+                },
+                onPickFromGallery = { galleryLauncher.launch("image/*") },
+            )
         }
     }
 }
@@ -329,34 +382,37 @@ private enum class FrameStyle { Corners, RoundedRect }
 
 @Composable
 private fun ScanFrameBox(
-    headline: String,
     frameStyle: FrameStyle,
+    widthFraction: Float,
+    aspectRatio: Float,
+    maxHeightFraction: Float,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = headline,
-            color = Color.White,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 90.dp),
-        )
+    // Make the frame responsive in BOTH dimensions.
+    // We start from a width fraction, but clamp the resulting height to the available maxHeight
+    // so the frame never visually collides with the bottom section on smaller screens.
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        val maxW: Dp = maxWidth
+        val maxH: Dp = maxHeight
 
-        val frameModifier = Modifier
-            .align(Alignment.Center)
-            .padding(horizontal = 36.dp)
-            .fillMaxWidth()
-            .height(340.dp)
+        // Desired size from width fraction.
+        var frameW: Dp = maxW * widthFraction
+        var frameH: Dp = frameW / aspectRatio
+
+        // Clamp by height (leave a little breathing room).
+        val maxFrameH = maxH * maxHeightFraction
+        if (frameH > maxFrameH) {
+            frameH = maxFrameH
+            frameW = frameH * aspectRatio
+        }
+
+        val frameModifier = Modifier.size(frameW, frameH)
 
         when (frameStyle) {
-            FrameStyle.Corners -> CornerFrame(
-                modifier = frameModifier,
-            )
-
-            FrameStyle.RoundedRect -> RoundedRectFrame(
-                modifier = frameModifier,
-            )
+            FrameStyle.Corners -> CornerFrame(modifier = frameModifier)
+            FrameStyle.RoundedRect -> RoundedRectFrame(modifier = frameModifier)
         }
     }
 }
@@ -471,16 +527,17 @@ private fun RoundedRectFrame(modifier: Modifier = Modifier) {
 private fun ScanSuccessOverlay() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
     ) {
-        Spacer(modifier = Modifier.height(110.dp))
         Text(
             text = "스캔 완료!",
             color = Color.White,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        Spacer(modifier = Modifier.height(90.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Box(
             modifier = Modifier
@@ -500,39 +557,41 @@ private fun ScanSuccessOverlay() {
 }
 
 @Composable
-private fun ScanBottomControls(
+private fun ScanBottomSection(
     modifier: Modifier = Modifier,
     selectedTab: ScanTab,
-    onCapture: () -> Unit,
-    onBarcodeScan: () -> Unit,
+    onPrimaryAction: () -> Unit,
+    onPickFromGallery: () -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        when (selectedTab) {
-            ScanTab.Ingredient -> {
-                CaptureButton(onClick = onCapture)
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "촬영 버튼을 눌러 스캔하세요",
-                    color = Color(0xCCFFFFFF),
-                    style = MaterialTheme.typography.labelMedium,
-                )
+    val hintText = when (selectedTab) {
+        ScanTab.Ingredient -> "촬영 버튼을 눌러 스캔하세요"
+        ScanTab.Receipt -> "스캔 버튼을 눌러주세요"
+    }
+
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            when (selectedTab) {
+                ScanTab.Ingredient -> CaptureButton(onClick = onPrimaryAction)
+                ScanTab.Receipt -> ScanButton(onClick = onPrimaryAction)
             }
 
-            ScanTab.Receipt -> {
-                ScanButton(onClick = onBarcodeScan)
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "스캔 버튼을 눌러주세요",
-                    color = Color(0xCCFFFFFF),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = hintText,
+                color = Color(0xCCFFFFFF),
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
+
+        FloatingGalleryButton(
+            modifier = Modifier.align(Alignment.BottomEnd),
+            onClick = onPickFromGallery,
+        )
     }
 }
 

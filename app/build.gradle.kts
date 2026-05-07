@@ -60,5 +60,8 @@ dependencies {
     // Image loading for result preview
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // ML Kit (Barcode scanning)
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
     testImplementation(libs.junit)
 }
