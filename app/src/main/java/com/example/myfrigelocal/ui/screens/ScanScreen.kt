@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ fun ScanScreen(
     var receiptItems by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
+    val currentTab by rememberUpdatedState(selectedTab)
 
     // Kill camera preview immediately when navigating away to avoid "last frame" flashing.
     DisposableEffect(navController) {
@@ -113,11 +115,21 @@ fun ScanScreen(
 
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            if (uri != null) {
-                lastSelectedImageUri = uri.toString()
-                scanState = ScanState.SCANNING
-                // Simulate processing.
-                scanState = ScanState.SUCCESS
+            if (uri == null) return@rememberLauncherForActivityResult
+            lastSelectedImageUri = uri.toString()
+            lastBarcodeRawValue = null
+            // Same UX as receipt scan button: multi-item flow on Receipt tab; single on Ingredient.
+            when (currentTab) {
+                ScanTab.Receipt -> {
+                    receiptItems = SimulatedReceiptItemNames
+                    scanState = ScanState.SCANNING
+                    scanState = ScanState.SUCCESS
+                }
+                ScanTab.Ingredient -> {
+                    receiptItems = emptyList()
+                    scanState = ScanState.SCANNING
+                    scanState = ScanState.SUCCESS
+                }
             }
         }
 
@@ -164,7 +176,7 @@ fun ScanScreen(
                     lastSelectedImageUri = null
                     lastBarcodeRawValue = raw
                     // Simulate receipt OCR: multiple detected items.
-                    receiptItems = listOf("신선한 우유", "사과", "돼지고기")
+                    receiptItems = SimulatedReceiptItemNames
                     scanState = ScanState.SUCCESS
                 }
             },
@@ -265,7 +277,7 @@ fun ScanScreen(
                             lastSelectedImageUri = null
                             lastBarcodeRawValue = null
                             // Simulate receipt OCR: multiple detected items.
-                            receiptItems = listOf("신선한 우유", "사과", "돼지고기")
+                            receiptItems = SimulatedReceiptItemNames
                             scanState = ScanState.SCANNING
                             // No real OCR yet; move forward immediately so UX doesn't look stuck.
                             scanState = ScanState.SUCCESS
@@ -287,6 +299,9 @@ enum class ScanState {
 private enum class ScanTab { Ingredient, Receipt }
 
 private val PrimaryGreen = Color(0xFF00C853)
+
+/** Simulated OCR output for receipt flows (scan button / gallery / barcode). */
+private val SimulatedReceiptItemNames = listOf("신선한 우유", "사과", "돼지고기")
 
 @Composable
 private fun ScanTopBar(
