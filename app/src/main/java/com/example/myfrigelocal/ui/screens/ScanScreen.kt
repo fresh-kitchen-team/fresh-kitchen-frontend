@@ -1,7 +1,9 @@
 package com.example.myfrigelocal.ui.screens
 
 import android.Manifest
+import android.graphics.RectF
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -50,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -60,6 +64,7 @@ import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.runtime.collectAsState
 import com.example.myfrigelocal.navigation.BottomNavRoute
 import com.example.myfrigelocal.navigation.ScanNav
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 
 @Composable
@@ -67,6 +72,7 @@ fun ScanScreen(
     navController: NavController,
     lifecycleOwner: LifecycleOwner,
 ) {
+    val context = LocalContext.current
     var selectedTab by rememberSaveable { mutableStateOf(ScanTab.Ingredient) }
     var scanState by rememberSaveable { mutableStateOf(ScanState.IDLE) }
     var lensFacing by rememberSaveable { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
@@ -76,6 +82,11 @@ fun ScanScreen(
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
     val currentTab by rememberUpdatedState(selectedTab)
+    var captureRequestToken by rememberSaveable { mutableStateOf(0L) }
+
+    // Bounds tracking for crop mapping.
+    var previewBounds by rememberSaveable { mutableStateOf<RectF?>(null) }
+    var frameBounds by rememberSaveable { mutableStateOf<RectF?>(null) }
 
     // Kill camera preview immediately when navigating away to avoid "last frame" flashing.
     DisposableEffect(navController) {
@@ -116,7 +127,45 @@ fun ScanScreen(
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             if (uri == null) return@rememberLauncherForActivityResult
-            lastSelectedImageUri = uri.toString()
+            val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, uri)
+            if (originalBitmap != null && previewBounds != null && frameBounds != null) {
+                val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
+                    frameBoundsInWindowPx = frameBounds!!,
+                    previewBoundsInWindowPx = previewBounds!!,
+                    bitmapW = originalBitmap.width,
+                    bitmapH = originalBitmap.height,
+                )
+                val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
+                val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
+                val (targetW, targetH, prefix) =
+                    when (currentTab) {
+                        ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
+                        ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                    }
+                val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
+                val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
+                ScanImageCropper.logDebug(
+                    ScanImageCropper.CropDebug(
+                        bitmapW = originalBitmap.width,
+                        bitmapH = originalBitmap.height,
+                        frame = frameBounds!!,
+                        preview = previewBounds!!,
+                        crop = cropRect,
+                        croppedW = cropped.width,
+                        croppedH = cropped.height,
+                        resizedW = resized.width,
+                        resizedH = resized.height,
+                        croppedSavedPath = croppedUri.path,
+                        resizedSavedPath = resizedUri.path,
+                    ),
+                )
+                // Continue flow with the resized image.
+                lastSelectedImageUri = resizedUri.toString()
+            } else {
+                // Fallback: no bounds yet; keep original.
+                lastSelectedImageUri = uri.toString()
+                Log.d("ScanCrop", "Bounds missing; skipping crop. preview=$previewBounds frame=$frameBounds bmp=${originalBitmap?.width}x${originalBitmap?.height}")
+            }
             lastBarcodeRawValue = null
             // Same UX as receipt scan button: multi-item flow on Receipt tab; single on Ingredient.
             when (currentTab) {
@@ -168,6 +217,7 @@ fun ScanScreen(
             modifier = Modifier.fillMaxSize(),
             enabled = previewEnabled,
             analysisEnabled = selectedTab == ScanTab.Receipt && scanState == ScanState.SCANNING,
+            captureRequestToken = captureRequestToken,
             lensFacing = lensFacing,
             lifecycleOwner = lifecycleOwner,
             onBarcodeRawValue = { raw ->
@@ -180,6 +230,50 @@ fun ScanScreen(
                     scanState = ScanState.SUCCESS
                 }
             },
+            onPhotoUri = { photoUriString ->
+                val originalUri = Uri.parse(photoUriString)
+                val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, originalUri)
+                if (originalBitmap != null && previewBounds != null && frameBounds != null) {
+                    val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
+                        frameBoundsInWindowPx = frameBounds!!,
+                        previewBoundsInWindowPx = previewBounds!!,
+                        bitmapW = originalBitmap.width,
+                        bitmapH = originalBitmap.height,
+                    )
+                    val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
+                    val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
+                    val (targetW, targetH, prefix) =
+                        when (selectedTab) {
+                            ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
+                            ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                        }
+                    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
+                    val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
+                    ScanImageCropper.logDebug(
+                        ScanImageCropper.CropDebug(
+                            bitmapW = originalBitmap.width,
+                            bitmapH = originalBitmap.height,
+                            frame = frameBounds!!,
+                            preview = previewBounds!!,
+                            crop = cropRect,
+                            croppedW = cropped.width,
+                            croppedH = cropped.height,
+                            resizedW = resized.width,
+                            resizedH = resized.height,
+                            croppedSavedPath = croppedUri.path,
+                            resizedSavedPath = resizedUri.path,
+                        ),
+                    )
+                    // Continue flow with the resized image.
+                    lastSelectedImageUri = resizedUri.toString()
+                } else {
+                    lastSelectedImageUri = photoUriString
+                    Log.d("ScanCrop", "Bounds missing; skipping crop on capture.")
+                }
+                // Continue existing flow after capture (Ingredient: single, Receipt: multi list already set).
+                scanState = ScanState.SUCCESS
+            },
+            onPreviewBoundsInWindow = { rect -> previewBounds = rect },
         )
 
         Column(modifier = Modifier.fillMaxSize()) {
@@ -226,6 +320,7 @@ fun ScanScreen(
                             widthFraction = 0.74f,
                             aspectRatio = 1f,
                             maxHeightFraction = 0.94f,
+                            onFrameBoundsInWindow = { rect -> frameBounds = rect },
                         )
 
                         ScanTab.Receipt -> ScanFrameBox(
@@ -233,6 +328,7 @@ fun ScanScreen(
                             widthFraction = 0.86f,
                             aspectRatio = 1f / 1.6f,
                             maxHeightFraction = 0.94f,
+                            onFrameBoundsInWindow = { rect -> frameBounds = rect },
                         )
                     }
                 }
@@ -267,10 +363,10 @@ fun ScanScreen(
                     when (selectedTab) {
                         ScanTab.Ingredient -> {
                             scanState = ScanState.SCANNING
-                            // No real processing per spec; simulate instant success.
+                            // Capture photo via CameraX, then crop using the frame bounds.
                             lastBarcodeRawValue = null
                             receiptItems = emptyList()
-                            scanState = ScanState.SUCCESS
+                            captureRequestToken = System.currentTimeMillis()
                         }
 
                         ScanTab.Receipt -> {
@@ -279,8 +375,8 @@ fun ScanScreen(
                             // Simulate receipt OCR: multiple detected items.
                             receiptItems = SimulatedReceiptItemNames
                             scanState = ScanState.SCANNING
-                            // No real OCR yet; move forward immediately so UX doesn't look stuck.
-                            scanState = ScanState.SUCCESS
+                            // Capture photo via CameraX, then crop + save (same as Ingredient).
+                            captureRequestToken = System.currentTimeMillis()
                         }
                     }
                 },
@@ -418,6 +514,7 @@ private fun ScanFrameBox(
     widthFraction: Float,
     aspectRatio: Float,
     maxHeightFraction: Float,
+    onFrameBoundsInWindow: (RectF) -> Unit,
 ) {
     // Make the frame responsive in BOTH dimensions.
     // We start from a width fraction, but clamp the resulting height to the available maxHeight
@@ -440,7 +537,12 @@ private fun ScanFrameBox(
             frameW = frameH * aspectRatio
         }
 
-        val frameModifier = Modifier.size(frameW, frameH)
+        val frameModifier = Modifier
+            .size(frameW, frameH)
+            .onGloballyPositioned { coordinates ->
+                val r = coordinates.boundsInWindow()
+                onFrameBoundsInWindow(RectF(r.left, r.top, r.right, r.bottom))
+            }
 
         when (frameStyle) {
             FrameStyle.Corners -> CornerFrame(modifier = frameModifier)

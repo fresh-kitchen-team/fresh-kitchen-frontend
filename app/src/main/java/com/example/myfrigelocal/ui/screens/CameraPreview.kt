@@ -2,9 +2,12 @@ package com.example.myfrigelocal.ui.screens
 
 import android.annotation.SuppressLint
 import android.media.Image
+import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -24,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -31,6 +36,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import java.io.File
 import java.util.concurrent.Executor
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -39,14 +45,23 @@ fun CameraPreview(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     analysisEnabled: Boolean = false,
+    captureRequestToken: Long = 0L,
     lensFacing: Int = CameraSelector.LENS_FACING_BACK,
     lifecycleOwner: LifecycleOwner,
     onBarcodeRawValue: ((String) -> Unit)? = null,
+    onPhotoUri: ((String) -> Unit)? = null,
+    onPreviewBoundsInWindow: ((android.graphics.RectF) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val analysisExecutor: Executor = remember { ContextCompat.getMainExecutor(context) }
+    val captureExecutor: Executor = remember { ContextCompat.getMainExecutor(context) }
+    val imageCapture = remember {
+        ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
+    }
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -105,21 +120,50 @@ fun CameraPreview(
                     selector,
                     previewUseCase,
                     analysisUseCase,
+                    imageCapture,
                 )
             } else {
                 provider.bindToLifecycle(
                     lifecycleOwner,
                     selector,
                     previewUseCase,
+                    imageCapture,
                 )
             }
         }
     }
 
+    LaunchedEffect(captureRequestToken, enabled, onPhotoUri) {
+        if (!enabled) return@LaunchedEffect
+        if (captureRequestToken == 0L) return@LaunchedEffect
+        val callback = onPhotoUri ?: return@LaunchedEffect
+
+        val dir = File(context.cacheDir, "captures").apply { mkdirs() }
+        val file = File(dir, "capture_$captureRequestToken.jpg")
+        val output = ImageCapture.OutputFileOptions.Builder(file).build()
+        imageCapture.takePicture(
+            output,
+            captureExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    callback(file.toURI().toString())
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e("CameraPreview", "Capture failed", exception)
+                }
+            },
+        )
+    }
+
     Box(modifier = modifier) {
         if (enabled) {
             AndroidView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { coordinates ->
+                        onPreviewBoundsInWindow?.invoke(coordinates.boundsInWindow().toAndroidRectF())
+                    },
                 factory = { previewView },
             )
         } else {
@@ -147,6 +191,9 @@ fun CameraPreview(
         }
     }
 }
+
+private fun androidx.compose.ui.geometry.Rect.toAndroidRectF(): android.graphics.RectF =
+    android.graphics.RectF(left, top, right, bottom)
 
 private class MlKitBarcodeAnalyzer(
     private val onBarcodeRawValue: (String) -> Unit,
