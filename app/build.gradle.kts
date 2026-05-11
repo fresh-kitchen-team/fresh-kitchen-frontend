@@ -63,5 +63,8 @@ dependencies {
     // ML Kit (Barcode scanning)
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
+    // EXIF orientation (for correct crop mapping)
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     testImplementation(libs.junit)
 }
