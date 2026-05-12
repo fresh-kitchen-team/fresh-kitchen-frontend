@@ -101,6 +101,9 @@ data class ChatMessage(
     val id: String,
     val sender: Sender,
     val text: String,
+    /** Mirrors backend `type`: [AI_RESPONSE_TYPE_TEXT] or [AI_RESPONSE_TYPE_RECIPE]. */
+    val responseType: String = AI_RESPONSE_TYPE_TEXT,
+    val recipe: RecipeUiModel? = null,
 )
 
 enum class Sender {
@@ -120,23 +123,43 @@ private data class ChatUiState(
     val currentThreadId: String,
 )
 
-private fun sampleConversation(): List<ChatMessage> = listOf(
-    ChatMessage(
-        id = UUID.randomUUID().toString(),
-        sender = Sender.Ai,
-        text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
+private fun dummyRecipe(): RecipeUiModel = RecipeUiModel(
+    title = "토마토 계란 볶음",
+    cookTime = "10분",
+    ingredients = listOf("계란", "토마토", "소금", "식용유"),
+    steps = listOf(
+        "계란을 풀어 준비합니다",
+        "토마토를 먹기 좋게 자릅니다",
+        "팬에 기름을 두르고 토마토를 볶습니다",
+        "계란을 넣고 함께 볶습니다",
     ),
-    ChatMessage(
-        id = UUID.randomUUID().toString(),
-        sender = Sender.User,
-        text = "냉장고에 토마토랑 달걀만 있어요.",
-    ),
-    ChatMessage(
-        id = UUID.randomUUID().toString(),
-        sender = Sender.Ai,
-        text = "토마토 달걀 볶음 어떠세요? 맛있고 빠르게 만들 수 있어요.",
-    ),
+    tip = "토마토는 너무 오래 볶지 않는 것이 좋아요.",
+    missingIngredients = listOf("소금", "식용유"),
+    imageUrl = "",
 )
+
+private fun sampleConversation(): List<ChatMessage> {
+    val recipe = dummyRecipe()
+    return listOf(
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.User,
+            text = "냉장고에 토마토랑 달걀만 있어요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = recipe.title,
+            responseType = AI_RESPONSE_TYPE_RECIPE,
+            recipe = recipe,
+        ),
+    )
+}
 
 private fun createThread(
     title: String,
@@ -238,6 +261,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFF6F8F7))
                 .zIndex(0f),
         ) {
             ChatTopBar(
@@ -293,16 +317,31 @@ fun ChatScreen(
                     input = ""
                     attachedImageUri = null
 
-                    // 간단한 더미 AI 응답(프레젠테이션용)
+                    // 간단한 더미 AI 응답(프레젠테이션용): 키워드면 레시피 카드, 아니면 텍스트
                     scope.launch {
                         delay(350)
-                        currentThread.messages.add(
-                            ChatMessage(
-                                id = UUID.randomUUID().toString(),
-                                sender = Sender.Ai,
-                                text = "좋아요. 바로 추천 이어갈게요!",
+                        val keywords = listOf("레시피", "추천", "요리", "어떻게", "만들")
+                        val wantsRecipe = keywords.any { trimmed.contains(it, ignoreCase = true) }
+                        if (wantsRecipe) {
+                            val r = dummyRecipe()
+                            currentThread.messages.add(
+                                ChatMessage(
+                                    id = UUID.randomUUID().toString(),
+                                    sender = Sender.Ai,
+                                    text = r.title,
+                                    responseType = AI_RESPONSE_TYPE_RECIPE,
+                                    recipe = r,
+                                ),
                             )
-                        )
+                        } else {
+                            currentThread.messages.add(
+                                ChatMessage(
+                                    id = UUID.randomUUID().toString(),
+                                    sender = Sender.Ai,
+                                    text = "좋아요. 바로 추천 이어갈게요!",
+                                ),
+                            )
+                        }
                     }
                 },
             )
@@ -730,17 +769,22 @@ fun ChatMessageItem(
 
                 Spacer(modifier = Modifier.size(6.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color.White,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                ) {
-                    Text(
-                        text = message.text,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        color = Color(0xFF111827),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-                    )
+                val recipePayload = message.recipe
+                if (message.responseType == AI_RESPONSE_TYPE_RECIPE && recipePayload != null) {
+                    RecipeResponseCard(recipe = recipePayload)
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    ) {
+                        Text(
+                            text = message.text,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            color = Color(0xFF111827),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                        )
+                    }
                 }
             }
         }
