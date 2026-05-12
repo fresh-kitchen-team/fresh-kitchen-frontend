@@ -23,6 +23,7 @@ import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
 import com.example.myfrigelocal.ui.screens.LoginScreen
 import com.example.myfrigelocal.ui.screens.ProfileScreen
 import com.example.myfrigelocal.ui.screens.SettingsScreen
+import com.example.myfrigelocal.ui.screens.SearchScreen
 
 @Composable
 fun AppNavHost(
@@ -90,6 +91,9 @@ fun AppNavHost(
                 },
                 onNavigateToSettings = {
                     navController.navigate("settings")
+                },
+                onNavigateToSearch = {
+                    navController.navigate("search")
                 }
             )
         }
@@ -128,6 +132,12 @@ fun AppNavHost(
 
         composable("inventory_list/{filter}") {
             InventoryListScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable("search") {
+            SearchScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

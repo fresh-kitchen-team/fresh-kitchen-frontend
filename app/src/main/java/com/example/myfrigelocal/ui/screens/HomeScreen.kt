@@ -41,12 +41,13 @@ fun HomeScreen(
     onNavigateToInventory: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile, onSettingsClick = onNavigateToSettings) },
+        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile, onSettingsClick = onNavigateToSettings, onSearchClick = onNavigateToSearch) },
         containerColor = Color.White
     ) { innerPadding ->
         Column(
@@ -132,7 +133,7 @@ fun HomeScreen(
 // ───────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopBar(onProfileClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
+fun HomeTopBar(onProfileClick: () -> Unit = {},onSearchClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +158,7 @@ fun HomeTopBar(onProfileClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}
             IconButton(onClick = onProfileClick) {
                 Icon(Icons.Default.Person, contentDescription = "프로필")
             }
-            IconButton(onClick = { /* TODO: 검색 이동 */ }) {
+            IconButton(onClick = onSearchClick) {
                 Icon(Icons.Default.Search, contentDescription = "검색")
             }
             IconButton(onClick = onSettingsClick) {
@@ -330,7 +331,7 @@ fun RecentItemsRow(items: List<String>) {
 }
 
 // ───────────────────────────────────────────
-// 미리보기
+// 미리보기                                                     
 // ───────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
