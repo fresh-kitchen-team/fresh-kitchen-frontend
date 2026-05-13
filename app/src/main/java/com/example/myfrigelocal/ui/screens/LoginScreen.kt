@@ -10,6 +10,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,16 +29,51 @@ import androidx.compose.ui.unit.sp
 import com.example.myfrigelocal.R
 import com.example.myfrigelocal.ui.theme.FreshGreen
 import com.example.myfrigelocal.ui.theme.FreshGreenDark
+import kotlinx.coroutines.launch
 
 // ───────────────────────────────────────────
 // 로그인 화면
 // ───────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onNewUser: () -> Unit = {},      // 처음 시작하기 → onboarding_setup
     onExistingUser: () -> Unit = {}, // 이미 계정 있어요 → home
     onBackClick: () -> Unit = {}     // 뒤로가기 → onboarding
 ) {
+    // 바텀시트 상태
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    var showSheet by remember { mutableStateOf(false) }
+    var isNewUser by remember { mutableStateOf(false) }
+
+    // 바텀시트
+    if (showSheet) {
+        SocialLoginBottomSheet(
+            isNewUser = isNewUser,
+            sheetState = sheetState,
+            onDismiss = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    showSheet = false
+                }
+            },
+            onGoogleClick = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    showSheet = false
+                    // TODO: 구글 OAuth 연동
+                    if (isNewUser) onNewUser() else onExistingUser()
+                }
+            },
+            onKakaoClick = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    showSheet = false
+                    // TODO: 카카오 OAuth 연동
+                    if (isNewUser) onNewUser() else onExistingUser()
+                }
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -110,9 +150,11 @@ fun LoginScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // ── 처음 시작하기 버튼 (신규 회원) ──
-            // TODO: 백엔드 연동 시 카카오/구글 OAuth로 교체
             Button(
-                onClick = onNewUser,
+                onClick = {
+                    isNewUser = true
+                    showSheet = true
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -130,9 +172,11 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // ── 이미 계정 있어요 버튼 (기존 회원) ──
-            // TODO: 백엔드 연동 시 카카오/구글 OAuth로 교체
             OutlinedButton(
-                onClick = onExistingUser,
+                onClick = {
+                    isNewUser = false
+                    showSheet = true
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -165,6 +209,121 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+// ───────────────────────────────────────────
+// 소셜 로그인 바텀시트
+// ───────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SocialLoginBottomSheet(
+    isNewUser: Boolean,
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+    onGoogleClick: () -> Unit,
+    onKakaoClick: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 타이틀
+            Text(
+                text = if (isNewUser) "어떤 계정으로 시작할까요?" else "어떤 계정으로 로그인할까요?",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = if (isNewUser) "계정으로 간편하게 가입할 수 있어요"
+                else "기존에 가입한 계정으로 로그인하세요",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // 구글 버튼
+            OutlinedButton(
+                onClick = onGoogleClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF3C3C3C)
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // 구글 G 로고 (텍스트로 대체 — 실제 연동 시 이미지로 교체)
+                    Text(
+                        text = "G",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isNewUser) "Google로 시작하기" else "Google로 로그인",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 카카오 버튼
+            Button(
+                onClick = onKakaoClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFEE500),
+                    contentColor = Color(0xFF191919)
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // 카카오 로고 (텍스트로 대체 — 실제 연동 시 이미지로 교체)
+                    Text(
+                        text = "K",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF191919)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isNewUser) "카카오로 시작하기" else "카카오로 로그인",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }
