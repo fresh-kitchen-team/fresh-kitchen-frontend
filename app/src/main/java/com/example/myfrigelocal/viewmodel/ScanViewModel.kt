@@ -1,13 +1,107 @@
 package com.example.myfrigelocal.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.data.scan.ScanRepository
+import com.example.myfrigelocal.data.scan.ScanResultUiModel
+import com.example.myfrigelocal.data.scan.simulatedIngredientUiModel
+import com.example.myfrigelocal.data.scan.simulatedReceiptUiModel
+import com.example.myfrigelocal.logging.ApiLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-data class ScanUiState(val headline: String = "스캔")
+sealed interface ScanOperationState {
+    data object Idle : ScanOperationState
 
-class ScanViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(ScanUiState())
-    val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
+    data object Loading : ScanOperationState
+
+    data class Success(val result: ScanResultUiModel) : ScanOperationState
+
+    data class Error(val message: String) : ScanOperationState
+}
+
+class ScanViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
+
+    private val repository = ScanRepository(application)
+
+    private val _operationState = MutableStateFlow<ScanOperationState>(ScanOperationState.Idle)
+    val operationState: StateFlow<ScanOperationState> = _operationState.asStateFlow()
+
+    fun resetOperation() {
+        _operationState.value = ScanOperationState.Idle
+    }
+
+    /**
+     * 식재료 탭 — [POST /api/v1/scan/ingredient-image](...ingredient-image).
+     * API 미설정 시 로컬 시뮬레이션.
+     */
+    fun requestIngredientScan(imageUri: Uri, localPreviewUriString: String?) {
+        viewModelScope.launch {
+            _operationState.value = ScanOperationState.Loading
+            if (!ScanRepository.isApiConfigured()) {
+                ApiLog.w("Scan", "ingredient: API 미설정(placeholder URL) → 로컬 시뮬만 수행")
+                _operationState.value =
+                    ScanOperationState.Success(simulatedIngredientUiModel(localPreviewUriString))
+                return@launch
+            }
+            ApiLog.i("Scan", "ingredient: 실제 scanIngredientImage 호출")
+            repository.scanIngredientImage(imageUri, localPreviewUriString).fold(
+                onSuccess = { model ->
+                    ApiLog.i("Scan", "ingredient: ViewModel Success items=${model.items.size}")
+                    _operationState.value = ScanOperationState.Success(model)
+                },
+                onFailure = { e ->
+                    ApiLog.e("Scan", "ingredient: ViewModel Failure ${e.message}", e)
+                    _operationState.value =
+                        ScanOperationState.Error(e.message ?: "식재료 스캔에 실패했습니다.")
+                },
+            )
+        }
+    }
+
+    /**
+     * 영수증 탭 — [POST /api/v1/scan/receipt-image](...receipt-image).
+     */
+    fun requestReceiptScan(imageUri: Uri, localPreviewUriString: String?) {
+        viewModelScope.launch {
+            _operationState.value = ScanOperationState.Loading
+            if (!ScanRepository.isApiConfigured()) {
+                ApiLog.w("Scan", "receipt: API 미설정(placeholder URL) → 로컬 시뮬만 수행")
+                _operationState.value =
+                    ScanOperationState.Success(simulatedReceiptUiModel(localPreviewUriString))
+                return@launch
+            }
+            ApiLog.i("Scan", "receipt: 실제 scanReceiptImage 호출")
+            repository.scanReceiptImage(imageUri, localPreviewUriString).fold(
+                onSuccess = { model ->
+                    ApiLog.i("Scan", "receipt: ViewModel Success items=${model.items.size}")
+                    _operationState.value = ScanOperationState.Success(model)
+                },
+                onFailure = { e ->
+                    ApiLog.e("Scan", "receipt: ViewModel Failure ${e.message}", e)
+                    _operationState.value =
+                        ScanOperationState.Error(e.message ?: "영수증 스캔에 실패했습니다.")
+                },
+            )
+        }
+    }
+
+    /** [ScanOperationState.Success] 소비 후 [Idle]로 되돌립니다 (네비게이션 직후 호출). */
+    fun acknowledgeSuccess() {
+        if (_operationState.value is ScanOperationState.Success) {
+            _operationState.value = ScanOperationState.Idle
+        }
+    }
+
+    fun acknowledgeError() {
+        if (_operationState.value is ScanOperationState.Error) {
+            _operationState.value = ScanOperationState.Idle
+        }
+    }
 }

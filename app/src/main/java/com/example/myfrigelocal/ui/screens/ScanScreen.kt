@@ -1,9 +1,11 @@
 package com.example.myfrigelocal.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,10 +45,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,14 +63,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.StateFlow
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.navigation.BottomNavRoute
 import com.example.myfrigelocal.navigation.ScanNav
 import androidx.compose.ui.platform.LocalContext
+import android.app.Application
+import com.example.myfrigelocal.data.scan.simulatedReceiptUiModel
+import com.example.myfrigelocal.data.scan.toJson
+import com.example.myfrigelocal.viewmodel.ScanOperationState
+import com.example.myfrigelocal.viewmodel.ScanViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ScanScreen(
@@ -73,6 +86,11 @@ fun ScanScreen(
     lifecycleOwner: LifecycleOwner,
 ) {
     val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val scope = rememberCoroutineScope()
+    val scanViewModel: ScanViewModel =
+        viewModel(factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application))
+    val operationState by scanViewModel.operationState.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(ScanTab.Ingredient) }
     var scanState by rememberSaveable { mutableStateOf(ScanState.IDLE) }
     var lensFacing by rememberSaveable { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
@@ -113,7 +131,30 @@ fun ScanScreen(
             hasNavigatedToResult = false
             lastBarcodeRawValue = null
             receiptItems = emptyList()
+            scanViewModel.resetOperation()
             navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, false)
+        }
+    }
+
+    LaunchedEffect(operationState) {
+        when (val s = operationState) {
+            is ScanOperationState.Success -> {
+                lastSelectedImageUri = s.result.localPreviewImageUri
+                receiptItems = emptyList()
+                navController.currentBackStackEntry?.savedStateHandle?.set(
+                    ScanNav.keyScanResultJson,
+                    s.result.toJson(),
+                )
+                navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReceiptIndex, 0)
+                scanState = ScanState.SUCCESS
+                scanViewModel.acknowledgeSuccess()
+            }
+            is ScanOperationState.Error -> {
+                scanState = ScanState.IDLE
+                context.showShortToast(s.message)
+                scanViewModel.acknowledgeError()
+            }
+            else -> Unit
         }
     }
 
@@ -128,56 +169,54 @@ fun ScanScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             if (uri == null) return@rememberLauncherForActivityResult
             val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, uri)
-            if (originalBitmap != null && previewBounds != null && frameBounds != null) {
-                val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
-                    frameBoundsInWindowPx = frameBounds!!,
-                    previewBoundsInWindowPx = previewBounds!!,
-                    bitmapW = originalBitmap.width,
-                    bitmapH = originalBitmap.height,
-                )
-                val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
-                val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
-                val (targetW, targetH, prefix) =
-                    when (currentTab) {
-                        ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
-                        ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
-                    }
-                val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
-                val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
-                ScanImageCropper.logDebug(
-                    ScanImageCropper.CropDebug(
+            val imageUriStr =
+                if (originalBitmap != null && previewBounds != null && frameBounds != null) {
+                    val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
+                        frameBoundsInWindowPx = frameBounds!!,
+                        previewBoundsInWindowPx = previewBounds!!,
                         bitmapW = originalBitmap.width,
                         bitmapH = originalBitmap.height,
-                        frame = frameBounds!!,
-                        preview = previewBounds!!,
-                        crop = cropRect,
-                        croppedW = cropped.width,
-                        croppedH = cropped.height,
-                        resizedW = resized.width,
-                        resizedH = resized.height,
-                        croppedSavedPath = croppedUri.path,
-                        resizedSavedPath = resizedUri.path,
-                    ),
-                )
-                // Continue flow with the resized image.
-                lastSelectedImageUri = resizedUri.toString()
-            } else {
-                // Fallback: no bounds yet; keep original.
-                lastSelectedImageUri = uri.toString()
-                Log.d("ScanCrop", "Bounds missing; skipping crop. preview=$previewBounds frame=$frameBounds bmp=${originalBitmap?.width}x${originalBitmap?.height}")
-            }
-            lastBarcodeRawValue = null
-            // Same UX as receipt scan button: multi-item flow on Receipt tab; single on Ingredient.
-            when (currentTab) {
-                ScanTab.Receipt -> {
-                    receiptItems = SimulatedReceiptItemNames
-                    scanState = ScanState.SCANNING
-                    scanState = ScanState.SUCCESS
+                    )
+                    val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
+                    val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
+                    val (targetW, targetH, prefix) =
+                        when (currentTab) {
+                            ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
+                            ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                        }
+                    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
+                    val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
+                    ScanImageCropper.logDebug(
+                        ScanImageCropper.CropDebug(
+                            bitmapW = originalBitmap.width,
+                            bitmapH = originalBitmap.height,
+                            frame = frameBounds!!,
+                            preview = previewBounds!!,
+                            crop = cropRect,
+                            croppedW = cropped.width,
+                            croppedH = cropped.height,
+                            resizedW = resized.width,
+                            resizedH = resized.height,
+                            croppedSavedPath = croppedUri.path,
+                            resizedSavedPath = resizedUri.path,
+                        ),
+                    )
+                    resizedUri.toString()
+                } else {
+                    Log.d(
+                        "ScanCrop",
+                        "Bounds missing; skipping crop. preview=$previewBounds frame=$frameBounds bmp=${originalBitmap?.width}x${originalBitmap?.height}",
+                    )
+                    uri.toString()
                 }
-                ScanTab.Ingredient -> {
-                    receiptItems = emptyList()
-                    scanState = ScanState.SCANNING
-                    scanState = ScanState.SUCCESS
+            lastBarcodeRawValue = null
+            scope.launch {
+                scanState = ScanState.LOADING
+                when (currentTab) {
+                    ScanTab.Ingredient ->
+                        scanViewModel.requestIngredientScan(Uri.parse(imageUriStr), imageUriStr)
+                    ScanTab.Receipt ->
+                        scanViewModel.requestReceiptScan(Uri.parse(imageUriStr), imageUriStr)
                 }
             }
         }
@@ -225,53 +264,69 @@ fun ScanScreen(
                 if (selectedTab == ScanTab.Receipt && scanState == ScanState.SCANNING) {
                     lastSelectedImageUri = null
                     lastBarcodeRawValue = raw
-                    // Simulate receipt OCR: multiple detected items.
-                    receiptItems = SimulatedReceiptItemNames
-                    scanState = ScanState.SUCCESS
+                    scope.launch {
+                        scanState = ScanState.LOADING
+                        receiptItems = emptyList()
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            ScanNav.keyScanResultJson,
+                            simulatedReceiptUiModel(null).toJson(),
+                        )
+                        navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReceiptIndex, 0)
+                        lastSelectedImageUri = null
+                        scanState = ScanState.SUCCESS
+                    }
                 }
             },
             onPhotoUri = { photoUriString ->
                 val originalUri = Uri.parse(photoUriString)
                 val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, originalUri)
-                if (originalBitmap != null && previewBounds != null && frameBounds != null) {
-                    val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
-                        frameBoundsInWindowPx = frameBounds!!,
-                        previewBoundsInWindowPx = previewBounds!!,
-                        bitmapW = originalBitmap.width,
-                        bitmapH = originalBitmap.height,
-                    )
-                    val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
-                    val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
-                    val (targetW, targetH, prefix) =
-                        when (selectedTab) {
-                            ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
-                            ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
-                        }
-                    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
-                    val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
-                    ScanImageCropper.logDebug(
-                        ScanImageCropper.CropDebug(
+                val imageUriStr =
+                    if (originalBitmap != null && previewBounds != null && frameBounds != null) {
+                        val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
+                            frameBoundsInWindowPx = frameBounds!!,
+                            previewBoundsInWindowPx = previewBounds!!,
                             bitmapW = originalBitmap.width,
                             bitmapH = originalBitmap.height,
-                            frame = frameBounds!!,
-                            preview = previewBounds!!,
-                            crop = cropRect,
-                            croppedW = cropped.width,
-                            croppedH = cropped.height,
-                            resizedW = resized.width,
-                            resizedH = resized.height,
-                            croppedSavedPath = croppedUri.path,
-                            resizedSavedPath = resizedUri.path,
-                        ),
-                    )
-                    // Continue flow with the resized image.
-                    lastSelectedImageUri = resizedUri.toString()
-                } else {
-                    lastSelectedImageUri = photoUriString
-                    Log.d("ScanCrop", "Bounds missing; skipping crop on capture.")
+                        )
+                        val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
+                        val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
+                        val (targetW, targetH, prefix) =
+                            when (selectedTab) {
+                                ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
+                                ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                            }
+                        val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
+                        val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
+                        ScanImageCropper.logDebug(
+                            ScanImageCropper.CropDebug(
+                                bitmapW = originalBitmap.width,
+                                bitmapH = originalBitmap.height,
+                                frame = frameBounds!!,
+                                preview = previewBounds!!,
+                                crop = cropRect,
+                                croppedW = cropped.width,
+                                croppedH = cropped.height,
+                                resizedW = resized.width,
+                                resizedH = resized.height,
+                                croppedSavedPath = croppedUri.path,
+                                resizedSavedPath = resizedUri.path,
+                            ),
+                        )
+                        resizedUri.toString()
+                    } else {
+                        Log.d("ScanCrop", "Bounds missing; skipping crop on capture.")
+                        photoUriString
+                    }
+                lastBarcodeRawValue = null
+                scope.launch {
+                    scanState = ScanState.LOADING
+                    when (selectedTab) {
+                        ScanTab.Ingredient ->
+                            scanViewModel.requestIngredientScan(Uri.parse(imageUriStr), imageUriStr)
+                        ScanTab.Receipt ->
+                            scanViewModel.requestReceiptScan(Uri.parse(imageUriStr), imageUriStr)
+                    }
                 }
-                // Continue existing flow after capture (Ingredient: single, Receipt: multi list already set).
-                scanState = ScanState.SUCCESS
             },
             onPreviewBoundsInWindow = { rect -> previewBounds = rect },
         )
@@ -359,6 +414,7 @@ fun ScanScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 10.dp),
                 selectedTab = selectedTab,
+                controlsEnabled = scanState != ScanState.LOADING,
                 onPrimaryAction = {
                     when (selectedTab) {
                         ScanTab.Ingredient -> {
@@ -372,10 +428,8 @@ fun ScanScreen(
                         ScanTab.Receipt -> {
                             lastSelectedImageUri = null
                             lastBarcodeRawValue = null
-                            // Simulate receipt OCR: multiple detected items.
-                            receiptItems = SimulatedReceiptItemNames
+                            receiptItems = emptyList()
                             scanState = ScanState.SCANNING
-                            // Capture photo via CameraX, then crop + save (same as Ingredient).
                             captureRequestToken = System.currentTimeMillis()
                         }
                     }
@@ -383,21 +437,33 @@ fun ScanScreen(
                 onPickFromGallery = { galleryLauncher.launch("image/*") },
             )
         }
+
+        if (scanState == ScanState.LOADING || operationState is ScanOperationState.Loading) {
+            ScanAiRecognitionLoadingOverlay(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(3f),
+            )
+        }
     }
 }
 
 enum class ScanState {
     IDLE,
+    /** Camera/barcode active; receipt barcode analysis uses this. */
     SCANNING,
+    /** AI recognition in progress (Scan API or local simulation). */
+    LOADING,
     SUCCESS,
 }
 
-private enum class ScanTab { Ingredient, Receipt }
-
 private val PrimaryGreen = Color(0xFF00C853)
 
-/** Simulated OCR output for receipt flows (scan button / gallery / barcode). */
-private val SimulatedReceiptItemNames = listOf("신선한 우유", "사과", "돼지고기")
+private enum class ScanTab { Ingredient, Receipt }
+
+private fun Context.showShortToast(message: String) {
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+}
 
 @Composable
 private fun ScanTopBar(
@@ -658,6 +724,44 @@ private fun RoundedRectFrame(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun ScanAiRecognitionLoadingOverlay(
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.background(Color(0xCC0B1220)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 32.dp),
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(72.dp),
+                color = PrimaryGreen,
+                trackColor = PrimaryGreen.copy(alpha = 0.22f),
+                strokeWidth = 5.dp,
+            )
+            Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = "AI 인식중",
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "잠시 기다려 주세요.",
+                color = Color(0xFFE5E7EB),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ScanSuccessOverlay() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -694,6 +798,7 @@ private fun ScanSuccessOverlay() {
 private fun ScanBottomSection(
     modifier: Modifier = Modifier,
     selectedTab: ScanTab,
+    controlsEnabled: Boolean = true,
     onPrimaryAction: () -> Unit,
     onPickFromGallery: () -> Unit,
 ) {
@@ -710,8 +815,14 @@ private fun ScanBottomSection(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when (selectedTab) {
-                ScanTab.Ingredient -> CaptureButton(onClick = onPrimaryAction)
-                ScanTab.Receipt -> ScanButton(onClick = onPrimaryAction)
+                ScanTab.Ingredient -> CaptureButton(
+                    enabled = controlsEnabled,
+                    onClick = onPrimaryAction,
+                )
+                ScanTab.Receipt -> ScanButton(
+                    enabled = controlsEnabled,
+                    onClick = onPrimaryAction,
+                )
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -724,6 +835,7 @@ private fun ScanBottomSection(
 
         FloatingGalleryButton(
             modifier = Modifier.align(Alignment.BottomEnd),
+            enabled = controlsEnabled,
             onClick = onPickFromGallery,
         )
     }
@@ -732,6 +844,7 @@ private fun ScanBottomSection(
 @Composable
 private fun FloatingGalleryButton(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Box(
@@ -739,7 +852,7 @@ private fun FloatingGalleryButton(
             .size(44.dp)
             .clip(CircleShape)
             .background(Color(0x66000000))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -752,13 +865,17 @@ private fun FloatingGalleryButton(
 }
 
 @Composable
-private fun CaptureButton(onClick: () -> Unit) {
+private fun CaptureButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val bg = if (enabled) PrimaryGreen else PrimaryGreen.copy(alpha = 0.45f)
     Box(
         modifier = Modifier
             .size(74.dp)
             .clip(CircleShape)
-            .background(PrimaryGreen)
-            .clickable(onClick = onClick),
+            .background(bg)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -771,13 +888,17 @@ private fun CaptureButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ScanButton(onClick: () -> Unit) {
+private fun ScanButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val bg = if (enabled) PrimaryGreen else PrimaryGreen.copy(alpha = 0.45f)
     Box(
         modifier = Modifier
             .size(74.dp)
             .clip(CircleShape)
-            .background(PrimaryGreen)
-            .clickable(onClick = onClick),
+            .background(bg)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

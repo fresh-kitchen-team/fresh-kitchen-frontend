@@ -1,7 +1,34 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+/**
+ * Scan API Base URL (must end with `/`). Matches Swagger "Servers": http://api.app-fresh.com
+ * Retrofit paths: `api/v1/scan/...` from [ScanApiService].
+ * Override in `local.properties`: SCAN_API_BASE_URL=...
+ */
+val scanApiBaseUrl =
+    localProperties
+        .getProperty("SCAN_API_BASE_URL", "http://api.app-fresh.com/")
+        .trim()
+        .let { if (it.endsWith("/")) it else "$it/" }
+
+/** Sent as multipart field `userId` until auth is wired. Override with SCAN_API_USER_ID= */
+val scanApiUserId = localProperties.getProperty("SCAN_API_USER_ID", "0").trim()
+
+fun escapeForBuildConfig(value: String): String =
+    value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
 
 android {
     namespace = "com.example.myfrigelocal"
@@ -15,6 +42,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SCAN_API_BASE_URL", "\"${escapeForBuildConfig(scanApiBaseUrl)}\"")
+        buildConfigField("String", "SCAN_API_USER_ID", "\"${escapeForBuildConfig(scanApiUserId)}\"")
     }
 
     buildTypes {
@@ -33,6 +63,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -65,6 +96,12 @@ dependencies {
 
     // EXIF orientation (for correct crop mapping)
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // Scan backend (multipart image upload)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     testImplementation(libs.junit)
 }
