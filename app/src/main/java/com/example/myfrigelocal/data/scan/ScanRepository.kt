@@ -17,6 +17,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.google.gson.GsonBuilder
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -24,11 +25,19 @@ class ScanRepository(context: Context) {
 
     private val appContext = context.applicationContext
 
+    private val gson =
+        GsonBuilder()
+            .registerTypeAdapter(
+                ReceiptImageScanApiResponse::class.java,
+                ReceiptImageScanApiResponseDeserializer(),
+            )
+            .create()
+
     private val api: ScanApiService =
         Retrofit.Builder()
             .baseUrl(BuildConfig.SCAN_API_BASE_URL)
             .client(buildClient())
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(ScanApiService::class.java)
 
@@ -123,7 +132,10 @@ class ScanRepository(context: Context) {
                 )
                 val data = envelope.unwrapReceiptPayload()
                 if (data.recognizedItems.isNullOrEmpty()) {
-                    throw ScanApiException(RECOGNITION_EMPTY_MESSAGE)
+                    ApiLog.w(
+                        "Scan",
+                        "receipt-image: recognizedItems 비어 있음 (OCR 결과 없음 또는 응답 스키마 확인). storeName=${data.storeName} ocrLen=${data.ocrText?.length ?: 0}",
+                    )
                 }
                 val model = mapReceiptScanToUiModel(data, localPreviewUriString)
                 ApiLog.i(

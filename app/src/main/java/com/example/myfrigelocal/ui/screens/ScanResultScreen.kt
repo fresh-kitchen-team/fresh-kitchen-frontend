@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -104,7 +107,6 @@ fun ScanResultScreen(
     var name by rememberSaveable { mutableStateOf("") }
     var storage by rememberSaveable { mutableStateOf("냉장실") }
     var expiration by rememberSaveable { mutableStateOf("") }
-    var category by rememberSaveable { mutableStateOf("ETC") }
     var registeredAt by rememberSaveable { mutableStateOf("") }
 
     var photoCandidateIndex by rememberSaveable { mutableStateOf(0) }
@@ -124,7 +126,6 @@ fun ScanResultScreen(
                                 ?: return@LaunchedEffect
                     }
                 name = item.name
-                category = item.category
                 storage = storageTypeToDisplay(item.storageType)
                 registeredAt = item.registeredAt.orEmpty()
                 expiration = item.expiresAt.orEmpty()
@@ -139,7 +140,6 @@ fun ScanResultScreen(
             else -> {
                 name =
                     suggestedIngredientName.takeIf { it.isNotBlank() } ?: "신선한 우유"
-                category = "유제품"
                 storage = "냉장실"
                 registeredAt = ""
                 expiration = ""
@@ -163,9 +163,12 @@ fun ScanResultScreen(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF7F9FC),
     ) {
+        val scroll = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
+                .verticalScroll(scroll)
                 .padding(horizontal = 20.dp),
         ) {
             Spacer(modifier = Modifier.height(10.dp))
@@ -281,8 +284,6 @@ fun ScanResultScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Chip(text = category, tint = Color(0xFF2563EB))
-                            Spacer(modifier = Modifier.size(8.dp))
                             Chip(text = storage, tint = PrimaryGreen)
                         }
                     }
@@ -402,23 +403,12 @@ fun ScanResultScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            FieldLabel(text = "카테고리", required = true)
-            OutlinedTextField(
-                value = category,
-                onValueChange = { category = it },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true,
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 18.dp),
+                    .padding(bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TextButton(

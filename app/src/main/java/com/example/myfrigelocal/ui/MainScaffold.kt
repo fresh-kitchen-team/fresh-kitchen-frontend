@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.myfrigelocal.navigation.AppNavHost
+import com.example.myfrigelocal.navigation.ScanNav
 import com.example.myfrigelocal.ui.components.MyFridgeBottomNavigationBar
 import com.example.myfrigelocal.viewmodel.MainScaffoldViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -26,7 +27,16 @@ fun MainScaffold(
     Scaffold(
         bottomBar = {
             // 온보딩일 때는 하단바 숨김
-            val noNavBarRoutes = setOf("onboarding", "login", "onboarding_setup", "profile", "settings","search")
+            val noNavBarRoutes =
+                setOf(
+                    "onboarding",
+                    "login",
+                    "onboarding_setup",
+                    "profile",
+                    "settings",
+                    "search",
+                    ScanNav.routeResult,
+                )
             if (currentRoute !in noNavBarRoutes) {
                 MyFridgeBottomNavigationBar(
                     navController = navController,

@@ -51,14 +51,21 @@ data class IngredientRecognizedItem(
 
 data class ReceiptImageScanData(
     val scanType: String? = null,
+    val storeName: String? = null,
     val purchasedAt: String? = null,
     @SerializedName(value = "purchasedAtSourceType", alternate = ["PurchasedAtSourceType"])
     val purchasedAtSourceType: String? = null,
+    @SerializedName(value = "sourceType", alternate = ["SourceType"])
+    val sourceType: String? = null,
     val recognizedItems: List<ReceiptRecognizedItem>? = null,
+    val ocrText: String? = null,
     val createdAt: String? = null,
 )
 
 data class ReceiptRecognizedItem(
     val name: String? = null,
     val registeredAt: String? = null,
+    val confidence: Double? = null,
+    val estimatedExpiresAt: String? = null,
+    val expirySourceType: String? = null,
 )
