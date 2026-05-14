@@ -1,11 +1,16 @@
 package com.example.myfrigelocal.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.network.HomeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
+// ───────────────────────────────────────────
 // 저장 공간 데이터 모델
+// ───────────────────────────────────────────
 data class StorageInfo(
     val emoji: String,
     val name: String,
@@ -13,18 +18,26 @@ data class StorageInfo(
     val filterKey: String
 )
 
+// ───────────────────────────────────────────
 // 홈 화면 UI 상태
+// ───────────────────────────────────────────
 data class HomeUiState(
     val totalItemCount: Int = 0,
-    val recentAddedCount: Int = 0,
+    val recentAddedCount: Int = 0,   // recentItems.size 로 매핑
     val nearExpiryCount: Int = 0,
     val expiredCount: Int = 0,
     val storageList: List<StorageInfo> = emptyList(),
-    val recentItems: List<String> = emptyList(),
-    val isLoading: Boolean = false
+    val recentItems: List<String> = emptyList(), // 이모지 리스트
+    val isLoading: Boolean = false,
+    val error: String? = null
 )
 
-class HomeViewModel : ViewModel() {
+// ───────────────────────────────────────────
+// HomeViewModel
+// ───────────────────────────────────────────
+class HomeViewModel(
+    private val repository: HomeRepository = HomeRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -33,20 +46,36 @@ class HomeViewModel : ViewModel() {
         loadHomeData()
     }
 
-    private fun loadHomeData() {
-        // TODO: 실제 API 연동 시 여기서 데이터 fetch
-        // 지금은 더미 데이터로 UI 확인
-        _uiState.value = HomeUiState(
-            totalItemCount = 42,
-            recentAddedCount = 3,
-            nearExpiryCount = 5,
-            expiredCount = 2,
-            storageList = listOf(
-                StorageInfo(emoji = "❄️", name = "냉동실", itemCount = 12, filterKey = "freezer"),
-                StorageInfo(emoji = "🥛", name = "냉장실", itemCount = 24, filterKey = "fridge"),
-                StorageInfo(emoji = "🥫", name = "팬트리", itemCount = 6, filterKey = "pantry"),
-            ),
-            recentItems = listOf("🥛", "🥩", "🥦", "🥚")
-        )
+    fun loadHomeData() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            val data = repository.getHomeSummary()
+
+            if (data != null) {
+                _uiState.value = HomeUiState(
+                    totalItemCount = data.totalCount,
+                    recentAddedCount = data.recentItems.size,
+                    nearExpiryCount = data.nearExpiryCount,
+                    expiredCount = data.expiredCount,
+                    storageList = data.storages.map { storage ->
+                        StorageInfo(
+                            emoji = storage.emoji,
+                            name = storage.name,
+                            itemCount = storage.itemCount,
+                            filterKey = storage.filterKey
+                        )
+                    },
+                    recentItems = data.recentItems.map { it.emoji },
+                    isLoading = false
+                )
+            } else {
+                // API 실패 시 빈 화면 + 에러 메시지
+                _uiState.value = HomeUiState(
+                    isLoading = false,
+                    error = "데이터를 불러오지 못했어요. 다시 시도해주세요."
+                )
+            }
+        }
     }
 }
