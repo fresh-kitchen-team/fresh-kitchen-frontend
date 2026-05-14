@@ -141,6 +141,7 @@ fun ChatScreen(
     onSelectThread: (String) -> Unit = {},
     onNewChat: () -> Unit = {},
     onSendMessage: (String) -> Unit = {},
+    onRenameRoomLocal: (threadId: String, newTitle: String) -> Unit = { _, _ -> },
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var attachedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -149,6 +150,9 @@ fun ChatScreen(
     var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
     var isContactSupportOpen by rememberSaveable { mutableStateOf(false) }
     var isReportIssueOpen by rememberSaveable { mutableStateOf(false) }
+    var openedMenuThreadId by remember { mutableStateOf<String?>(null) }
+    var editingThreadId by remember { mutableStateOf<String?>(null) }
+    var editingTitleSeed by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
@@ -185,6 +189,8 @@ fun ChatScreen(
         isHelpFeedbackOpen = false
         isContactSupportOpen = false
         isReportIssueOpen = false
+        openedMenuThreadId = null
+        editingThreadId = null
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
@@ -293,15 +299,20 @@ fun ChatScreen(
 
         SideMenuDrawer(
             isOpen = isSideMenuOpen,
-            onClose = { isSideMenuOpen = false },
+            onClose = {
+                openedMenuThreadId = null
+                isSideMenuOpen = false
+            },
             items = sideMenuItems,
             onSelectThread = { threadId ->
                 onSelectThread(threadId)
                 isSideMenuOpen = false
+                openedMenuThreadId = null
             },
             onNewChat = {
                 onNewChat()
                 isSideMenuOpen = false
+                openedMenuThreadId = null
             },
             onSettingsClick = {
                 isAiSettingsOpen = true
@@ -309,8 +320,31 @@ fun ChatScreen(
             onHelpClick = {
                 isHelpFeedbackOpen = true
             },
+            openedMenuThreadId = openedMenuThreadId,
+            onToggleChatMenu = { threadId ->
+                openedMenuThreadId = if (openedMenuThreadId == threadId) null else threadId
+            },
+            onDismissChatMenu = { openedMenuThreadId = null },
+            onEditChatTitleFromMenu = { threadId, currentTitle ->
+                openedMenuThreadId = null
+                editingThreadId = threadId
+                editingTitleSeed = currentTitle
+            },
             modifier = Modifier.zIndex(1f),
         )
+
+        editingThreadId?.let { tid ->
+            Box(Modifier.fillMaxSize().zIndex(5f)) {
+                EditChatTitleDialog(
+                    initialTitle = editingTitleSeed,
+                    onDismiss = { editingThreadId = null },
+                    onSave = { trimmed ->
+                        onRenameRoomLocal(tid, trimmed)
+                        editingThreadId = null
+                    },
+                )
+            }
+        }
 
         if (isAiSettingsOpen) {
             BackHandler { isAiSettingsOpen = false }

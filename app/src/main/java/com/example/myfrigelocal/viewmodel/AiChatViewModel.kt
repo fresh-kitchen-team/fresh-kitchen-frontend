@@ -219,6 +219,24 @@ class AiChatViewModel(
     }
 
     /**
+     * Local-only title change (no PATCH). Call [updateRoomTitle] when backend sync is required.
+     */
+    fun renameRoomLocal(threadId: String, newTitle: String) {
+        val roomId = threadId.toLongOrNull() ?: return
+        val trimmed = newTitle.trim()
+        if (trimmed.isEmpty()) return
+        cachedRooms = cachedRooms.map { r ->
+            if (r.id == roomId) r.copy(title = trimmed) else r
+        }
+        _uiState.update { s ->
+            s.copy(
+                sideMenuItems = markSelected(buildSideMenuItems(s.currentRoomId), s.currentRoomId),
+                topBarTitle = if (s.currentRoomId == roomId) trimmed else s.topBarTitle,
+            )
+        }
+    }
+
+    /**
      * Swagger PATCH returns `data: {}` — no room payload; we update local title after success.
      *
      * TODO: Wire from UI when room rename UX exists (sidebar long-press, etc.).
