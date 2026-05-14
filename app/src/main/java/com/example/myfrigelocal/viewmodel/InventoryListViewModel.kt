@@ -1,28 +1,42 @@
 package com.example.myfrigelocal.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.network.IngredientDto
+import com.example.myfrigelocal.network.IngredientRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
-// 식재료 상태
+// ───────────────────────────────────────────
+// 식재료 상태 (유통기한 기반)
+// ───────────────────────────────────────────
 enum class FoodStatus {
-    FRESH,      // 신선
-    NEAR_EXPIRY, // 소비임박
-    EXPIRED     // 유통기한경과
+    FRESH,       // 신선 (4일 이상)
+    NEAR_EXPIRY, // 소비임박 (0~3일)
+    EXPIRED      // 유통기한경과
 }
 
+// ───────────────────────────────────────────
 // 저장 공간
+// ───────────────────────────────────────────
 enum class StorageType {
     ALL, FRIDGE, FREEZER, PANTRY
 }
 
+// ───────────────────────────────────────────
 // 필터 탭
+// ───────────────────────────────────────────
 enum class InventoryFilter {
     ALL, FRIDGE, FREEZER, PANTRY, RECENT, NEAR_EXPIRY, EXPIRED
 }
 
-// 식재료 데이터 모델
+// ───────────────────────────────────────────
+// 식재료 데이터 모델 (UI용)
+// ───────────────────────────────────────────
 data class FoodItem(
     val id: Int,
     val name: String,
@@ -36,7 +50,9 @@ data class FoodItem(
     val memo: String = ""
 )
 
+// ───────────────────────────────────────────
 // 화면 UI 상태
+// ───────────────────────────────────────────
 data class InventoryListUiState(
     val selectedFilter: InventoryFilter = InventoryFilter.ALL,
     val allItems: List<FoodItem> = emptyList(),
@@ -45,43 +61,27 @@ data class InventoryListUiState(
     val freshCount: Int = 0,
     val nearExpiryCount: Int = 0,
     val expiredCount: Int = 0,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val error: String? = null
 )
 
+// ───────────────────────────────────────────
+// InventoryListViewModel
+// ───────────────────────────────────────────
 class InventoryListViewModel(
-    savedStateHandle: androidx.lifecycle.SavedStateHandle
+    savedStateHandle: androidx.lifecycle.SavedStateHandle,
+    private val repository: IngredientRepository = IngredientRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InventoryListUiState())
     val uiState: StateFlow<InventoryListUiState> = _uiState.asStateFlow()
 
-    // 더미 데이터 (실제 API 연동 시 교체)
-    private var dummyItems = mutableListOf(
-        FoodItem(1, "신선한 우유", "유제품", StorageType.FRIDGE, "1L", "2026-03-25", FoodStatus.FRESH, "🥛"),
-        FoodItem(2, "소고기 안심", "육류", StorageType.FREEZER, "500g", "2026-04-15", FoodStatus.FRESH, "🥩"),
-        FoodItem(3, "유기농 브로콜리", "채소", StorageType.FRIDGE, "1개", "2026-03-28", FoodStatus.FRESH, "🥦"),
-        FoodItem(4, "계란", "유제품", StorageType.FRIDGE, "10개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🥚"),
-        FoodItem(5, "김치", "발효식품", StorageType.FRIDGE, "500g", "2026-04-20", FoodStatus.FRESH, "🥬"),
-        FoodItem(6, "토마토", "채소", StorageType.FRIDGE, "5개", "2026-03-23", FoodStatus.NEAR_EXPIRY, "🍅"),
-        FoodItem(7, "햄", "육류", StorageType.FRIDGE, "300g", "2026-03-20", FoodStatus.EXPIRED, "🍖"),
-        FoodItem(8, "요거트", "유제품", StorageType.FRIDGE, "4개", "2026-03-21", FoodStatus.EXPIRED, "🫙"),
-        FoodItem(9, "바나나", "과일", StorageType.PANTRY, "5개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🍌"),
-        FoodItem(10, "참치캔", "가공식품", StorageType.PANTRY, "3개", "2027-01-01", FoodStatus.FRESH, "🐟"),
-    )
+    private var allItems = mutableListOf<FoodItem>()
 
     init {
-        // 네비게이션으로 전달된 초기 필터 적용
         val filterKey = savedStateHandle.get<String>("filter") ?: "all"
-        val initialFilter = when (filterKey) {
-            "fridge" -> InventoryFilter.FRIDGE
-            "freezer" -> InventoryFilter.FREEZER
-            "pantry" -> InventoryFilter.PANTRY
-            "recent" -> InventoryFilter.RECENT
-            "near_expiry" -> InventoryFilter.NEAR_EXPIRY
-            "expired" -> InventoryFilter.EXPIRED
-            else -> InventoryFilter.ALL
-        }
-        updateState(initialFilter)
+        val initialFilter = filterKey.toInventoryFilter()
+        loadIngredients(initialFilter)
     }
 
     fun onFilterSelected(filter: InventoryFilter) {
@@ -89,32 +89,105 @@ class InventoryListViewModel(
     }
 
     fun updateItem(updatedItem: FoodItem) {
-        val index = dummyItems.indexOfFirst { it.id == updatedItem.id }
+        val index = allItems.indexOfFirst { it.id == updatedItem.id }
         if (index != -1) {
-            dummyItems[index] = updatedItem
+            allItems[index] = updatedItem
             updateState(_uiState.value.selectedFilter)
+        }
+    }
+
+    private fun loadIngredients(initialFilter: InventoryFilter) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            val dtos = repository.getIngredients()
+
+            if (dtos.isNotEmpty()) {
+                // ACTIVE 상태(삭제/소비 안 된)만 표시
+                allItems = dtos
+                    .filter { it.status == "ACTIVE" }
+                    .map { it.toFoodItem() }
+                    .toMutableList()
+                updateState(initialFilter)
+            } else {
+                _uiState.value = InventoryListUiState(
+                    isLoading = false,
+                    error = "데이터를 불러오지 못했어요."
+                )
+            }
         }
     }
 
     private fun updateState(filter: InventoryFilter) {
         val filtered = when (filter) {
-            InventoryFilter.ALL -> dummyItems
-            InventoryFilter.FRIDGE -> dummyItems.filter { it.storage == StorageType.FRIDGE }
-            InventoryFilter.FREEZER -> dummyItems.filter { it.storage == StorageType.FREEZER }
-            InventoryFilter.PANTRY -> dummyItems.filter { it.storage == StorageType.PANTRY }
-            InventoryFilter.RECENT -> dummyItems.takeLast(5)
-            InventoryFilter.NEAR_EXPIRY -> dummyItems.filter { it.status == FoodStatus.NEAR_EXPIRY }
-            InventoryFilter.EXPIRED -> dummyItems.filter { it.status == FoodStatus.EXPIRED }
+            InventoryFilter.ALL      -> allItems
+            InventoryFilter.FRIDGE   -> allItems.filter { it.storage == StorageType.FRIDGE }
+            InventoryFilter.FREEZER  -> allItems.filter { it.storage == StorageType.FREEZER }
+            InventoryFilter.PANTRY   -> allItems.filter { it.storage == StorageType.PANTRY }
+            InventoryFilter.RECENT   -> allItems.takeLast(5)
+            InventoryFilter.NEAR_EXPIRY -> allItems.filter { it.status == FoodStatus.NEAR_EXPIRY }
+            InventoryFilter.EXPIRED  -> allItems.filter { it.status == FoodStatus.EXPIRED }
         }
 
         _uiState.value = InventoryListUiState(
             selectedFilter = filter,
-            allItems = dummyItems,
+            allItems = allItems,
             filteredItems = filtered,
             totalCount = filtered.size,
             freshCount = filtered.count { it.status == FoodStatus.FRESH },
             nearExpiryCount = filtered.count { it.status == FoodStatus.NEAR_EXPIRY },
-            expiredCount = filtered.count { it.status == FoodStatus.EXPIRED }
+            expiredCount = filtered.count { it.status == FoodStatus.EXPIRED },
+            isLoading = false
         )
     }
+}
+
+// ───────────────────────────────────────────
+// 확장 함수: IngredientDto → FoodItem 변환
+// ───────────────────────────────────────────
+private fun IngredientDto.toFoodItem(): FoodItem {
+    val storage = when (storageType) {
+        "FREEZER" -> StorageType.FREEZER
+        "PANTRY"  -> StorageType.PANTRY
+        else      -> StorageType.FRIDGE
+    }
+
+    // 유통기한 기반 신선도 계산
+    val foodStatus = try {
+        val expiry = LocalDate.parse(expiresAt)
+        val daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
+        when {
+            daysLeft < 0 -> FoodStatus.EXPIRED
+            daysLeft <= 3 -> FoodStatus.NEAR_EXPIRY
+            else -> FoodStatus.FRESH
+        }
+    } catch (e: Exception) {
+        FoodStatus.FRESH
+    }
+
+    return FoodItem(
+        id = ingredientId.toInt(),
+        name = name,
+        category = catalogCategory ?: catalogName ?: "기타",
+        storage = storage,
+        amount = "",                          // 백엔드 미지원 필드
+        expiryDate = expiresAt,
+        status = foodStatus,
+        emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
+        purchaseDate = registeredAt ?: "",
+        memo = note ?: ""
+    )
+}
+
+// ───────────────────────────────────────────
+// 확장 함수: filterKey → InventoryFilter 변환
+// ───────────────────────────────────────────
+private fun String.toInventoryFilter() = when (this) {
+    "fridge"     -> InventoryFilter.FRIDGE
+    "freezer"    -> InventoryFilter.FREEZER
+    "pantry"     -> InventoryFilter.PANTRY
+    "recent"     -> InventoryFilter.RECENT
+    "near_expiry" -> InventoryFilter.NEAR_EXPIRY
+    "expired"    -> InventoryFilter.EXPIRED
+    else         -> InventoryFilter.ALL
 }

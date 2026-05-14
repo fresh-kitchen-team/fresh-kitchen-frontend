@@ -12,6 +12,30 @@ data class ApiResponse<T>(
 )
 
 // ───────────────────────────────────────────
+// GET /api/v1/ingredients 응답 데이터
+// ───────────────────────────────────────────
+data class IngredientDto(
+    val ingredientId: Long,
+    val userId: Long,
+    val storageId: Long,
+    val storageName: String?,
+    val storageType: String,        // "FRIDGE" | "FREEZER" | "PANTRY"
+    val catalogId: Long?,
+    val catalogName: String?,
+    val catalogCategory: String?,   // 카테고리 (null 가능)
+    val name: String,
+    val registeredAt: String?,      // 구매일 "2026-05-13"
+    val expiresAt: String,          // 유통기한 "2026-05-28"
+    val expirySourceType: String?,
+    val status: String,             // "ACTIVE" | "CONSUMED" | "DISCARDED" (lifecycle)
+    val consumedAt: String?,
+    val discardedAt: String?,
+    val note: String?,              // 메모
+    val sourceType: String?,
+    val emoji: String?              // 카탈로그 이모지 (null 가능)
+)
+
+// ───────────────────────────────────────────
 // GET /api/v1/home/summary 응답 데이터
 // ───────────────────────────────────────────
 data class HomeSummaryData(
