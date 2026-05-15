@@ -491,7 +491,7 @@ fun SearchResultCard(item: FoodItem, onClick: () -> Unit = {}) {
                 Text(item.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "${item.category} · $storageLabel · ${item.amount}",
+                    "${item.category} · $storageLabel",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )

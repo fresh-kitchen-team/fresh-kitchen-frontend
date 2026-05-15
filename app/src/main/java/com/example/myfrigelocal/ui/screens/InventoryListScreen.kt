@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -434,8 +435,7 @@ fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text =
-                        "수량: ${item.amount}  |  유통기한: ${item.expiryDate.ifBlank { "미입력" }}",
+                    text = "유통기한: ${item.expiryDate}",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )

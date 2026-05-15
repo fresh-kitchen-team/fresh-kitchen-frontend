@@ -39,7 +39,6 @@ fun FoodItemEditDialog(
     // 편집 상태 (item 값으로 초기화)
     var name by remember { mutableStateOf(item.name) }
     var category by remember { mutableStateOf(item.category) }
-    var amount by remember { mutableStateOf(item.amount) }
     var expiryDate by remember { mutableStateOf(item.expiryDate) }
     var purchaseDate by remember { mutableStateOf(item.purchaseDate) }
     var memo by remember { mutableStateOf(item.memo) }
@@ -88,25 +87,13 @@ fun FoodItemEditDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 카테고리 + 수량
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    EditField(label = "카테고리", modifier = Modifier.weight(1f)) {
-                        EditTextField(
-                            value = category,
-                            onValueChange = { category = it },
-                            placeholder = "예) 유제품"
-                        )
-                    }
-                    EditField(label = "수량", modifier = Modifier.weight(1f)) {
-                        EditTextField(
-                            value = amount,
-                            onValueChange = { amount = it },
-                            placeholder = "예) 1L"
-                        )
-                    }
+                // 카테고리
+                EditField(label = "카테고리") {
+                    EditTextField(
+                        value = category,
+                        onValueChange = { category = it },
+                        placeholder = "예) 유제품"
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -186,7 +173,7 @@ fun FoodItemEditDialog(
                                 item.copy(
                                     name = name.trim(),
                                     category = category.trim(),
-                                    amount = amount.trim(),
+                                    amount = "",
                                     expiryDate = expiryDate.trim(),
                                     purchaseDate = purchaseDate.trim(),
                                     memo = memo.trim(),
