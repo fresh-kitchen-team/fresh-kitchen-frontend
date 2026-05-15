@@ -3,7 +3,7 @@ package com.example.myfrigelocal.data.scan
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.example.myfrigelocal.AuthTokenStore
+import com.example.myfrigelocal.data.auth.AuthTokenStore
 import com.example.myfrigelocal.BuildConfig
 import com.example.myfrigelocal.logging.ApiLog
 import kotlinx.coroutines.Dispatchers
