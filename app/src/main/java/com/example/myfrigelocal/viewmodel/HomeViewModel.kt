@@ -19,15 +19,23 @@ data class StorageInfo(
 )
 
 // ───────────────────────────────────────────
+// 최근 추가 식재료 UI 모델
+// ───────────────────────────────────────────
+data class RecentItemUi(
+    val emoji: String,
+    val name: String
+)
+
+// ───────────────────────────────────────────
 // 홈 화면 UI 상태
 // ───────────────────────────────────────────
 data class HomeUiState(
     val totalItemCount: Int = 0,
-    val recentAddedCount: Int = 0,   // recentItems.size 로 매핑
+    val recentAddedCount: Int = 0,
     val nearExpiryCount: Int = 0,
     val expiredCount: Int = 0,
     val storageList: List<StorageInfo> = emptyList(),
-    val recentItems: List<String> = emptyList(), // 이모지 리스트
+    val recentItems: List<RecentItemUi> = emptyList(), // 이모지 + 이름
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -66,7 +74,7 @@ class HomeViewModel(
                             filterKey = storage.filterKey
                         )
                     },
-                    recentItems = data.recentItems.map { it.emoji },
+                    recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji, name = it.name) },
                     isLoading = false
                 )
             } else {

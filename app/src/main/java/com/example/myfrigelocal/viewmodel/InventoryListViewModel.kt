@@ -2,14 +2,12 @@ package com.example.myfrigelocal.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myfrigelocal.network.IngredientDto
+import com.example.myfrigelocal.network.ItemDto
 import com.example.myfrigelocal.network.IngredientRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 // ───────────────────────────────────────────
 // 식재료 상태 (유통기한 기반)
@@ -69,7 +67,6 @@ data class InventoryListUiState(
 // InventoryListViewModel
 // ───────────────────────────────────────────
 class InventoryListViewModel(
-    savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val repository: IngredientRepository = IngredientRepository()
 ) : ViewModel() {
 
@@ -79,9 +76,7 @@ class InventoryListViewModel(
     private var allItems = mutableListOf<FoodItem>()
 
     init {
-        val filterKey = savedStateHandle.get<String>("filter") ?: "all"
-        val initialFilter = filterKey.toInventoryFilter()
-        loadIngredients(initialFilter)
+        loadIngredients()
     }
 
     fun onFilterSelected(filter: InventoryFilter) {
@@ -96,21 +91,20 @@ class InventoryListViewModel(
         }
     }
 
-    private fun loadIngredients(initialFilter: InventoryFilter) {
+    private fun loadIngredients() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             val dtos = repository.getIngredients()
 
             if (dtos.isNotEmpty()) {
-                // ACTIVE 상태(삭제/소비 안 된)만 표시
+                // 서버가 이미 유효한 아이템만 내려줌 (DISCARDED/CONSUMED 제외)
                 allItems = dtos
-                    .filter { it.status == "ACTIVE" }
                     .map { it.toFoodItem() }
                     .toMutableList()
-                updateState(initialFilter)
+                updateState(_uiState.value.selectedFilter)
             } else {
-                _uiState.value = InventoryListUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "데이터를 불러오지 못했어요."
                 )
@@ -143,39 +137,33 @@ class InventoryListViewModel(
 }
 
 // ───────────────────────────────────────────
-// 확장 함수: IngredientDto → FoodItem 변환
+// 확장 함수: ItemDto → FoodItem 변환
 // ───────────────────────────────────────────
-private fun IngredientDto.toFoodItem(): FoodItem {
-    val storage = when (storageType) {
+private fun ItemDto.toFoodItem(): FoodItem {
+    val storageType = when (storage) {
         "FREEZER" -> StorageType.FREEZER
         "PANTRY"  -> StorageType.PANTRY
         else      -> StorageType.FRIDGE
     }
 
-    // 유통기한 기반 신선도 계산
-    val foodStatus = try {
-        val expiry = LocalDate.parse(expiresAt)
-        val daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
-        when {
-            daysLeft < 0 -> FoodStatus.EXPIRED
-            daysLeft <= 3 -> FoodStatus.NEAR_EXPIRY
-            else -> FoodStatus.FRESH
-        }
-    } catch (e: Exception) {
-        FoodStatus.FRESH
+    // 서버가 신선도 상태를 직접 내려줌 (FRESH / NEAR_EXPIRY / EXPIRED)
+    val foodStatus = when (status) {
+        "NEAR_EXPIRY" -> FoodStatus.NEAR_EXPIRY
+        "EXPIRED"     -> FoodStatus.EXPIRED
+        else          -> FoodStatus.FRESH
     }
 
     return FoodItem(
-        id = ingredientId.toInt(),
+        id = id.toInt(),
         name = name,
-        category = catalogCategory ?: catalogName ?: "기타",
-        storage = storage,
+        category = category ?: "기타",
+        storage = storageType,
         amount = "",                          // 백엔드 미지원 필드
-        expiryDate = expiresAt,
+        expiryDate = expiryDate,
         status = foodStatus,
         emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
-        purchaseDate = registeredAt ?: "",
-        memo = note ?: ""
+        purchaseDate = purchaseDate ?: "",
+        memo = memo ?: ""
     )
 }
 

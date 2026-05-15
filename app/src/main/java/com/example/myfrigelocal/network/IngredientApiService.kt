@@ -7,7 +7,7 @@ import retrofit2.http.GET
 // ───────────────────────────────────────────
 interface IngredientApiService {
 
-    // GET /api/v1/ingredients — 전체 식재료 목록
-    @GET("api/v1/ingredients")
-    suspend fun getIngredients(): ApiResponse<List<IngredientDto>>
+    // GET /api/v1/items — 전체 식재료 목록
+    @GET("api/v1/items")
+    suspend fun getIngredients(): ApiResponse<List<ItemDto>>
 }
