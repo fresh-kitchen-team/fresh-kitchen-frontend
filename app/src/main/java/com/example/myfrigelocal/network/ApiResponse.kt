@@ -21,10 +21,20 @@ data class ItemDto(
     val storageId: Long,
     val storage: String,            // "FRIDGE" | "FREEZER" | "PANTRY"
     val category: String?,          // 카테고리 (null 가능)
-    val expiryDate: String? = null, // 유통기한 (미입력 시 null)
+    val expiryDate: String?,        // 유통기한 "2026-05-28" (null 가능)
     val emoji: String?,             // 카탈로그 이모지 (null 가능)
     val purchaseDate: String?,      // 구매일 "2026-05-13"
     val memo: String?               // 메모
+)
+
+// ───────────────────────────────────────────
+// PATCH /api/v1/items/{id} 요청 데이터
+// ───────────────────────────────────────────
+data class ItemUpdateRequest(
+    val name: String? = null,
+    val expiryDate: String? = null,
+    val purchaseDate: String? = null,
+    val memo: String? = null
 )
 
 // ───────────────────────────────────────────

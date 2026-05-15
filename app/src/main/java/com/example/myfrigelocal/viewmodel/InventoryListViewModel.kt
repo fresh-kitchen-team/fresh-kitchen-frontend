@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.network.ItemDto
 import com.example.myfrigelocal.network.IngredientRepository
+import com.example.myfrigelocal.network.ItemUpdateRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,8 +87,20 @@ class InventoryListViewModel(
     fun updateItem(updatedItem: FoodItem) {
         val index = allItems.indexOfFirst { it.id == updatedItem.id }
         if (index != -1) {
-            allItems[index] = updatedItem
+            allItems = allItems.toMutableList().also { it[index] = updatedItem }
             updateState(_uiState.value.selectedFilter)
+        }
+        // 서버에 PATCH 요청
+        viewModelScope.launch {
+            repository.updateItem(
+                id = updatedItem.id.toLong(),
+                request = ItemUpdateRequest(
+                    name = updatedItem.name,
+                    expiryDate = updatedItem.expiryDate.ifEmpty { null },
+                    purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
+                    memo = updatedItem.memo.ifEmpty { null }
+                )
+            )
         }
     }
 
@@ -159,7 +172,7 @@ private fun ItemDto.toFoodItem(): FoodItem {
         category = category ?: "기타",
         storage = storageType,
         amount = "",                          // 백엔드 미지원 필드
-        expiryDate = expiryDate?.trim().orEmpty(),
+        expiryDate = expiryDate ?: "",
         status = foodStatus,
         emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
         purchaseDate = purchaseDate ?: "",
