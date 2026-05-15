@@ -67,4 +67,12 @@ dependencies {
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     testImplementation(libs.junit)
+    // Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+// Coroutines (이미 있으면 스킵)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 }

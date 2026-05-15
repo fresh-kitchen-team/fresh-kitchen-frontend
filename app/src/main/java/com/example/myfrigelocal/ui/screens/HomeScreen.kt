@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.viewmodel.HomeViewModel
+import com.example.myfrigelocal.viewmodel.RecentItemUi
 
 val FreshGreen = Color(0xFF4ADE80)
 val FreshGreenDark = Color(0xFF22C55E)
@@ -133,7 +134,7 @@ fun HomeScreen(
 // ───────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopBar(onProfileClick: () -> Unit = {},onSearchClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
+fun HomeTopBar(onProfileClick: () -> Unit = {}, onSearchClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -314,24 +315,33 @@ fun StorageItem(
 // 최근 추가된 품목 가로 스크롤
 // ───────────────────────────────────────────
 @Composable
-fun RecentItemsRow(items: List<String>) {
+fun RecentItemsRow(items: List<RecentItemUi>) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         items(items.size) { index ->
-            Box(
+            Column(
                 modifier = Modifier
-                    .size(90.dp)
+                    .width(80.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(LightGray),
-                contentAlignment = Alignment.Center
+                    .background(LightGray)
+                    .padding(vertical = 10.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(items[index], fontSize = 32.sp)
+                Text(items[index].emoji, fontSize = 30.sp)
+                Text(
+                    text = items[index].name,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
         }
     }
 }
 
 // ───────────────────────────────────────────
-// 미리보기                                                     
+// 미리보기
 // ───────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
