@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,9 +44,16 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
+    refreshHomeTrigger: Long = 0L,
     viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(refreshHomeTrigger) {
+        if (refreshHomeTrigger != 0L) {
+            viewModel.loadHomeData()
+        }
+    }
 
     Scaffold(
         topBar = { HomeTopBar(onProfileClick = onNavigateToProfile, onSettingsClick = onNavigateToSettings, onSearchClick = onNavigateToSearch) },

@@ -14,6 +14,8 @@ import com.example.myfrigelocal.ui.screens.HomeScreen
 import com.example.myfrigelocal.ui.screens.ScanScreen
 import com.example.myfrigelocal.ui.screens.ScanResultScreen
 import com.example.myfrigelocal.navigation.ScanNav
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
 import com.example.myfrigelocal.ui.screens.InventoryListScreen
 import com.example.myfrigelocal.ui.screens.DisposalGuideScreen
 import com.example.myfrigelocal.ui.screens.StorageTipCategoryScreen
@@ -82,8 +84,12 @@ fun AppNavHost(
             )
         }
 
-        composable(BottomNavRoute.Home.route) {
+        composable(BottomNavRoute.Home.route) { entry ->
+            val refreshHomeTrigger by entry.savedStateHandle
+                .getStateFlow(ScanNav.keyRefreshHome, 0L)
+                .collectAsStateWithLifecycle()
             HomeScreen(
+                refreshHomeTrigger = refreshHomeTrigger,
                 onNavigateToInventory = { filter ->
                     navController.navigate("inventory_list/$filter")
                 },

@@ -159,7 +159,7 @@ private fun ItemDto.toFoodItem(): FoodItem {
         category = category ?: "기타",
         storage = storageType,
         amount = "",                          // 백엔드 미지원 필드
-        expiryDate = expiryDate,
+        expiryDate = expiryDate?.trim().orEmpty(),
         status = foodStatus,
         emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
         purchaseDate = purchaseDate ?: "",

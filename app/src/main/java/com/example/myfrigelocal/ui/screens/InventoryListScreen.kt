@@ -434,7 +434,8 @@ fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "수량: ${item.amount}  |  유통기한: ${item.expiryDate}",
+                    text =
+                        "수량: ${item.amount}  |  유통기한: ${item.expiryDate.ifBlank { "미입력" }}",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )

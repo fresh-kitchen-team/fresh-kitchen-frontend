@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.ui.screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,8 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -50,9 +53,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.example.myfrigelocal.navigation.BottomNavRoute
+import com.example.myfrigelocal.network.HomeRepository
 import coil.compose.rememberAsyncImagePainter
+import com.example.myfrigelocal.data.scan.CreateItemRequest
+import com.example.myfrigelocal.data.scan.ScanRepository
+import com.example.myfrigelocal.data.scan.ScanResultItemUiModel
 import com.example.myfrigelocal.data.scan.ScanResultUiModel
 import com.example.myfrigelocal.data.scan.parseScanResultUiModel
+import com.example.myfrigelocal.data.scan.resolveStorageIdForSave
 import com.example.myfrigelocal.navigation.ScanNav
 
 private val PrimaryGreen = Color(0xFF00C853)
@@ -61,6 +73,7 @@ private fun storageTypeToDisplay(code: String): String =
     when (code.uppercase()) {
         "FRIDGE" -> "냉장실"
         "FREEZER" -> "냉동실"
+        "PANTRY" -> "실온"
         "ROOM" -> "실온"
         else -> code
     }
@@ -110,6 +123,56 @@ fun ScanResultScreen(
     var registeredAt by rememberSaveable { mutableStateOf("") }
 
     var photoCandidateIndex by rememberSaveable { mutableStateOf(0) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    val scanRepo = remember { ScanRepository(context.applicationContext) }
+
+    suspend fun navigateToHomeWithSummaryRefresh() {
+        if (ScanRepository.isApiConfigured()) {
+            withContext(Dispatchers.IO) {
+                HomeRepository().getHomeSummary()
+            }
+        }
+        navController.getBackStackEntry(BottomNavRoute.Home.route)
+            ?.savedStateHandle
+            ?.set(ScanNav.keyRefreshHome, System.currentTimeMillis())
+        navController.navigate(BottomNavRoute.Home.route) {
+            popUpTo(BottomNavRoute.Home.route) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
+
+    suspend fun proceedAfterSuccessfulSave() {
+        when {
+            parsedScan != null && parsedScan.sourceType == "RECEIPT" -> {
+                val nextIndex = currentItemIndex + 1
+                if (nextIndex < parsedScan.items.size) {
+                    currentItemIndex = nextIndex
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(ScanNav.keyReceiptIndex, nextIndex)
+                } else {
+                    navigateToHomeWithSummaryRefresh()
+                }
+            }
+            isReceiptSequence && receiptItems != null -> {
+                val nextIndex = currentItemIndex + 1
+                if (nextIndex < totalItems) {
+                    currentItemIndex = nextIndex
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(ScanNav.keyReceiptIndex, nextIndex)
+                } else {
+                    navigateToHomeWithSummaryRefresh()
+                }
+            }
+            else -> {
+                navigateToHomeWithSummaryRefresh()
+            }
+        }
+    }
 
     LaunchedEffect(parsedScan, currentItemIndex, photoCandidateIndex, receiptItems, suggestedIngredientName) {
         when {
@@ -434,44 +497,88 @@ fun ScanResultScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
+                    enabled = !saving,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                     shape = RoundedCornerShape(16.dp),
                     onClick = {
-                        // TODO: 메인/공통 식재료 등록 API(POST /api/v1/items)와 연동 예정 — 현재는 화면 전환만 수행합니다.
-                        when {
-                            parsedScan != null && parsedScan.sourceType == "RECEIPT" -> {
-                                val nextIndex = currentItemIndex + 1
-                                if (nextIndex < parsedScan.items.size) {
-                                    currentItemIndex = nextIndex
-                                    navController.previousBackStackEntry
-                                        ?.savedStateHandle
-                                        ?.set(ScanNav.keyReceiptIndex, nextIndex)
-                                } else {
-                                    navController.navigate("home") {
-                                        popUpTo("home") { inclusive = false }
-                                        launchSingleTop = true
+                        if (saving) return@Button
+                        val trimmedName = name.trim()
+                        if (trimmedName.isEmpty()) {
+                            Toast.makeText(context, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        scope.launch {
+                            saving = true
+                            try {
+                                if (!ScanRepository.isApiConfigured()) {
+                                    proceedAfterSuccessfulSave()
+                                    return@launch
+                                }
+                                val storages =
+                                    scanRepo.fetchItemStorages().getOrElse { err ->
+                                        Toast.makeText(
+                                            context,
+                                            err.message ?: "보관함 목록을 불러오지 못했습니다.",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        return@launch
                                     }
+                                if (storages.isEmpty()) {
+                                    Toast.makeText(context, "등록된 보관함이 없습니다.", Toast.LENGTH_SHORT).show()
+                                    return@launch
                                 }
-                            }
-                            isReceiptSequence && receiptItems != null -> {
-                                val nextIndex = currentItemIndex + 1
-                                if (nextIndex < totalItems) {
-                                    currentItemIndex = nextIndex
-                                    navController.previousBackStackEntry
-                                        ?.savedStateHandle
-                                        ?.set(ScanNav.keyReceiptIndex, nextIndex)
-                                } else {
-                                    navController.navigate("home") {
-                                        popUpTo("home") { inclusive = false }
-                                        launchSingleTop = true
+                                val row =
+                                    when {
+                                        parsedScan != null ->
+                                            when (parsedScan.sourceType) {
+                                                "RECEIPT" ->
+                                                    parsedScan.items.getOrNull(currentItemIndex)
+                                                        ?: parsedScan.items.firstOrNull()
+                                                else ->
+                                                    parsedScan.items.getOrNull(photoCandidateIndex)
+                                                        ?: parsedScan.items.firstOrNull()
+                                            }
+                                        else -> null
                                     }
+                                val fallbackType =
+                                    row?.storageType ?: ScanResultItemUiModel.DEFAULT_STORAGE
+                                val storageId =
+                                    resolveStorageIdForSave(storages, storage, fallbackType)
+                                if (storageId == null) {
+                                    Toast.makeText(
+                                        context,
+                                        "보관 장소와 일치하는 storageId를 찾을 수 없습니다.",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    return@launch
                                 }
-                            }
-                            else -> {
-                                navController.navigate("home") {
-                                    popUpTo("home") { inclusive = false }
-                                    launchSingleTop = true
-                                }
+                                val imageAssetId =
+                                    if (parsedScan != null && parsedScan.sourceType == "PHOTO") {
+                                        parsedScan.imageAssetId
+                                    } else {
+                                        null
+                                    }
+                                val body =
+                                    CreateItemRequest(
+                                        name = trimmedName,
+                                        storageId = storageId,
+                                        expiryDate = expiration.trim().takeIf { it.isNotEmpty() },
+                                        purchaseDate = registeredAt.trim().takeIf { it.isNotEmpty() },
+                                        memo = null,
+                                        imageAssetId = imageAssetId,
+                                    )
+                                scanRepo.createItem(body).fold(
+                                    onSuccess = { proceedAfterSuccessfulSave() },
+                                    onFailure = { err ->
+                                        Toast.makeText(
+                                            context,
+                                            err.message ?: "저장에 실패했습니다.",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    },
+                                )
+                            } finally {
+                                saving = false
                             }
                         }
                     },

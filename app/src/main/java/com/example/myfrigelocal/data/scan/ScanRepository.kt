@@ -33,13 +33,15 @@ class ScanRepository(context: Context) {
             )
             .create()
 
-    private val api: ScanApiService =
+    private val retrofit: Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.SCAN_API_BASE_URL)
             .client(buildClient())
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
-            .create(ScanApiService::class.java)
+
+    private val api: ScanApiService = retrofit.create(ScanApiService::class.java)
+    private val itemsApi: ItemsApiService = retrofit.create(ItemsApiService::class.java)
 
     init {
         if (BuildConfig.DEBUG) {
@@ -145,6 +147,38 @@ class ScanRepository(context: Context) {
                 model
             }
                 .onFailure { e -> ApiLog.e("Scan", "receipt-image exception: ${e.message}", e) }
+                .mapScanFailures()
+        }
+
+    suspend fun fetchItemStorages(): Result<List<StorageListItemDto>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val env = itemsApi.getStorages()
+                if (!isScanEnvelopeSuccess(env.status, env.code)) {
+                    throw ScanApiException(
+                        env.message?.takeIf { it.isNotBlank() }
+                            ?: env.code
+                            ?: "보관함 목록을 불러오지 못했습니다.",
+                    )
+                }
+                env.data ?: emptyList()
+            }
+                .onFailure { e -> ApiLog.e("Items", "getStorages exception: ${e.message}", e) }
+                .mapScanFailures()
+        }
+
+    suspend fun createItem(request: CreateItemRequest): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val env = itemsApi.createItem(request)
+                if (!isScanEnvelopeSuccess(env.status, env.code)) {
+                    throw ScanApiException(
+                        env.message?.takeIf { it.isNotBlank() } ?: env.code ?: "저장에 실패했습니다.",
+                    )
+                }
+                Unit
+            }
+                .onFailure { e -> ApiLog.e("Items", "createItem exception: ${e.message}", e) }
                 .mapScanFailures()
         }
 
