@@ -94,18 +94,10 @@ fun FoodItemDetailDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 수량 + 유통기한
+                // 유통기한
                 DetailInfoCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        DetailField(label = "수량", modifier = Modifier.weight(1f)) {
-                            Text(item.amount, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        }
-                        DetailField(label = "유통기한", modifier = Modifier.weight(1f)) {
-                            Text(item.expiryDate, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        }
+                    DetailField(label = "유통기한") {
+                        Text(item.expiryDate, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                     }
                 }
 
