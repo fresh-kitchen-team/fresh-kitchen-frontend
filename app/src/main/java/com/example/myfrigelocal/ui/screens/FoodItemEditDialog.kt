@@ -187,7 +187,7 @@ fun FoodItemEditDialog(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF97316)
                         ),
-                        enabled = name.isNotBlank() && expiryDate.isNotBlank()
+                        enabled = name.isNotBlank()
                     ) {
                         Text("저장하기", fontSize = 15.sp, color = Color.White)
                     }

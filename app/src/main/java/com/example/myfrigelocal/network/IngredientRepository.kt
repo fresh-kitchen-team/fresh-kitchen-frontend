@@ -16,4 +16,14 @@ class IngredientRepository(
             emptyList()
         }
     }
+
+    suspend fun updateItem(id: Long, request: ItemUpdateRequest): Boolean {
+        return try {
+            val response = api.updateItem(id, request)
+            response.code == "COMMON-200"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
