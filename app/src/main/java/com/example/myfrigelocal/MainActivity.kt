@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import com.example.myfrigelocal.ui.MainScaffold
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

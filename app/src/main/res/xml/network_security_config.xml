@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HTTP baseUrl (Swagger) — restrict cleartext to known API hosts only. -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">api.app-fresh.com</domain>
