@@ -12,7 +12,7 @@ object RetrofitClient {
     private const val BASE_URL = "http://api.app-fresh.com/"
 
     // TODO: 로그인 연동 후 DataStore에서 읽어온 토큰으로 교체
-    var accessToken: String = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjMsInJvbGUiOiJVU0VSIiwidG9rZW5UeXBlIjoiYWNjZXNzIiwiaWF0IjoxNzc4ODIzNjYwLCJleHAiOjE3Nzk0Mjg0NjB9.0QBh8OOfbM_72scHyFPw2qNXPKEQKYAOphhrMZZLCGY"
+    var accessToken: String = ""
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
