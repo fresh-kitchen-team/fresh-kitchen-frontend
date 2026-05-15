@@ -1,0 +1,136 @@
+package com.example.myfrigelocal.ui.screens.chat
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.myfrigelocal.ui.theme.BottomNavSelected
+
+@Composable
+fun ChatRoomMoreMenu(
+    expanded: Boolean,
+    onExpandRequest: () -> Unit,
+    onDismissRequest: () -> Unit,
+    onEditChatTitle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = onExpandRequest,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = "더보기",
+                tint = Color(0xFF9CA3AF),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            modifier = Modifier
+                .widthIn(min = 188.dp)
+                .shadow(8.dp, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White),
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "제목 수정",
+                        color = Color(0xFF111827),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                onClick = {
+                    onDismissRequest()
+                    onEditChatTitle()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+fun EditChatTitleDialog(
+    initialTitle: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var text by remember(initialTitle) { mutableStateOf(initialTitle) }
+
+    LaunchedEffect(initialTitle) {
+        text = initialTitle
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(18.dp),
+        title = {
+            Text(
+                text = "제목 수정",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = Color(0xFF111827),
+            )
+        },
+        text = {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF9FAFB),
+                    unfocusedContainerColor = Color(0xFFF9FAFB),
+                    focusedIndicatorColor = BottomNavSelected,
+                    unfocusedIndicatorColor = Color(0xFFE5E7EB),
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val trimmed = text.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onSave(trimmed)
+                    }
+                },
+            ) {
+                Text("저장", color = BottomNavSelected, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소", color = Color(0xFF6B7280))
+            }
+        },
+    )
+}

@@ -22,8 +22,9 @@ import com.example.myfrigelocal.ui.screens.OnboardingScreen
 import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
 import com.example.myfrigelocal.ui.screens.LoginScreen
 import com.example.myfrigelocal.ui.screens.ProfileScreen
-import com.example.myfrigelocal.ui.screens.SettingsScreen
 import com.example.myfrigelocal.ui.screens.SearchScreen
+import com.example.myfrigelocal.ui.screens.SettingsScreen
+import com.example.myfrigelocal.data.auth.AuthTokenStore
 
 @Composable
 fun AppNavHost(
@@ -98,6 +99,13 @@ fun AppNavHost(
             )
         }
 
+        // 검색 화면
+        composable("search") {
+            SearchScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         // 프로필 화면
         composable("profile") {
             ProfileScreen(
@@ -130,14 +138,13 @@ fun AppNavHost(
         // Not a bottom-tab destination. Reached after a successful scan.
         composable(ScanNav.routeResult) { ScanResultScreen(navController = navController) }
 
-        composable("inventory_list/{filter}") {
+        composable(
+            route = "inventory_list/{filter}",
+            arguments = listOf(navArgument("filter") { type = NavType.StringType; defaultValue = "all" })
+        ) { backStackEntry ->
+            val filter = backStackEntry.arguments?.getString("filter") ?: "all"
             InventoryListScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
-        composable("search") {
-            SearchScreen(
+                initialFilter = filter,
                 onBackClick = { navController.popBackStack() }
             )
         }

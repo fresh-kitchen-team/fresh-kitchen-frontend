@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -50,14 +51,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,8 +72,6 @@ import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.BottomNavUnselected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.UUID
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardActions
@@ -111,18 +106,6 @@ enum class Sender {
     User,
 }
 
-private data class ChatThread(
-    val id: String,
-    val title: String,
-    val section: String,
-    val messages: SnapshotStateList<ChatMessage>,
-)
-
-private data class ChatUiState(
-    val threads: SnapshotStateList<ChatThread>,
-    val currentThreadId: String,
-)
-
 private fun dummyRecipe(): RecipeUiModel = RecipeUiModel(
     title = "토마토 계란 볶음",
     cookTime = "10분",
@@ -138,73 +121,24 @@ private fun dummyRecipe(): RecipeUiModel = RecipeUiModel(
     imageUrl = "",
 )
 
-private fun sampleConversation(): List<ChatMessage> {
-    val recipe = dummyRecipe()
-    return listOf(
-        ChatMessage(
-            id = UUID.randomUUID().toString(),
-            sender = Sender.Ai,
-            text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
-        ),
-        ChatMessage(
-            id = UUID.randomUUID().toString(),
-            sender = Sender.User,
-            text = "냉장고에 토마토랑 달걀만 있어요.",
-        ),
-        ChatMessage(
-            id = UUID.randomUUID().toString(),
-            sender = Sender.Ai,
-            text = recipe.title,
-            responseType = AI_RESPONSE_TYPE_RECIPE,
-            recipe = recipe,
-        ),
-    )
-}
-
-private fun createThread(
-    title: String,
-    section: String,
-    seedMessages: List<ChatMessage> = listOf(
-        ChatMessage(
-            id = UUID.randomUUID().toString(),
-            sender = Sender.Ai,
-            text = "안녕하세요! 무엇을 도와드릴까요?",
-        )
-    ),
-): ChatThread = ChatThread(
-    id = UUID.randomUUID().toString(),
-    title = title,
-    section = section,
-    messages = mutableStateListOf<ChatMessage>().apply { addAll(seedMessages) },
-)
-
 @Composable
 fun ChatScreen(
     reselectToken: Long = 0L,
     modifier: Modifier = Modifier,
+    topBarTitle: String = "AI 주방 비서",
+    sideMenuItems: List<SideMenuItem>,
+    messages: List<ChatMessage>,
+    currentThreadId: String,
+    isLoadingRooms: Boolean = false,
+    isLoadingMessages: Boolean = false,
+    isSending: Boolean = false,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
+    onSelectThread: (String) -> Unit = {},
+    onNewChat: () -> Unit = {},
+    onSendMessage: (String) -> Unit = {},
+    onRenameRoomLocal: (threadId: String, newTitle: String) -> Unit = { _, _ -> },
 ) {
-    val threads = remember {
-        mutableStateListOf(
-            createThread("토마토 & 계란 레시피", section = "오늘", seedMessages = sampleConversation()),
-            createThread("냉장고 재고 확인", section = "어제"),
-            createThread("유통기한이 지난 우유 아이디어", section = "어제"),
-            createThread("42주차 식사 계획", section = "7일 이전"),
-            createThread("식료품 목록", section = "7일 이전"),
-            createThread("건강한 아침 식사", section = "7일 이전"),
-        )
-    }
-
-    var currentThreadId by rememberSaveable { mutableStateOf(threads.first().id) }
-    val uiState = ChatUiState(
-        threads = threads,
-        currentThreadId = currentThreadId,
-    )
-    val currentThread by remember(uiState.currentThreadId, uiState.threads) {
-        derivedStateOf {
-            uiState.threads.firstOrNull { it.id == uiState.currentThreadId } ?: uiState.threads.first()
-        }
-    }
-
     var input by rememberSaveable { mutableStateOf("") }
     var attachedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -212,8 +146,10 @@ fun ChatScreen(
     var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
     var isContactSupportOpen by rememberSaveable { mutableStateOf(false) }
     var isReportIssueOpen by rememberSaveable { mutableStateOf(false) }
+    var openedMenuThreadId by remember { mutableStateOf<String?>(null) }
+    var editingThreadId by remember { mutableStateOf<String?>(null) }
+    var editingTitleSeed by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val cameraActivityLauncher = rememberLauncherForActivityResult(
@@ -235,9 +171,9 @@ fun ChatScreen(
         },
     )
 
-    LaunchedEffect(currentThreadId, currentThread.messages.size) {
-        if (currentThread.messages.isNotEmpty()) {
-            listState.animateScrollToItem(currentThread.messages.lastIndex)
+    LaunchedEffect(currentThreadId, messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
@@ -249,11 +185,12 @@ fun ChatScreen(
         isHelpFeedbackOpen = false
         isContactSupportOpen = false
         isReportIssueOpen = false
-        if (currentThread.messages.isNotEmpty()) {
-            listState.animateScrollToItem(currentThread.messages.lastIndex)
+        openedMenuThreadId = null
+        editingThreadId = null
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
-
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -265,9 +202,51 @@ fun ChatScreen(
                 .zIndex(0f),
         ) {
             ChatTopBar(
-                title = "AI 주방 비서",
+                title = topBarTitle,
                 onMenuClick = { isSideMenuOpen = true },
             )
+
+            if (isLoadingRooms || isLoadingMessages || isSending) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                    color = BottomNavSelected,
+                )
+            }
+
+            errorMessage?.let { err ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = Color(0xFFFFF1F2),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = err,
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFF991B1B),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Text(
+                            text = "닫기",
+                            color = Color(0xFF991B1B),
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onDismissError() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
 
             LazyColumn(
                 state = listState,
@@ -277,7 +256,7 @@ fun ChatScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(currentThread.messages, key = { it.id }) { message ->
+                items(messages, key = { it.id }) { message ->
                     ChatMessageItem(message = message)
                 }
             }
@@ -285,6 +264,7 @@ fun ChatScreen(
             ChatInputBar(
                 inputValue = input,
                 onInputChange = { input = it },
+                sendEnabled = !isSending && currentThreadId.isNotBlank(),
                 onPlusClick = {
                     // 디자인 전용 더미 동작
                 },
@@ -305,77 +285,30 @@ fun ChatScreen(
                 },
                 onSend = { text ->
                     val trimmed = text.trim()
-                    if (trimmed.isEmpty()) return@ChatInputBar
-
-                    currentThread.messages.add(
-                        ChatMessage(
-                            id = UUID.randomUUID().toString(),
-                            sender = Sender.User,
-                            text = trimmed,
-                        )
-                    )
+                    if (trimmed.isEmpty() || currentThreadId.isBlank()) return@ChatInputBar
+                    onSendMessage(trimmed)
                     input = ""
                     attachedImageUri = null
-
-                    // 간단한 더미 AI 응답(프레젠테이션용): 키워드면 레시피 카드, 아니면 텍스트
-                    scope.launch {
-                        delay(350)
-                        val keywords = listOf("레시피", "추천", "요리", "어떻게", "만들")
-                        val wantsRecipe = keywords.any { trimmed.contains(it, ignoreCase = true) }
-                        if (wantsRecipe) {
-                            val r = dummyRecipe()
-                            currentThread.messages.add(
-                                ChatMessage(
-                                    id = UUID.randomUUID().toString(),
-                                    sender = Sender.Ai,
-                                    text = r.title,
-                                    responseType = AI_RESPONSE_TYPE_RECIPE,
-                                    recipe = r,
-                                ),
-                            )
-                        } else {
-                            currentThread.messages.add(
-                                ChatMessage(
-                                    id = UUID.randomUUID().toString(),
-                                    sender = Sender.Ai,
-                                    text = "좋아요. 바로 추천 이어갈게요!",
-                                ),
-                            )
-                        }
-                    }
                 },
             )
         }
 
         SideMenuDrawer(
             isOpen = isSideMenuOpen,
-            onClose = { isSideMenuOpen = false },
-            items = uiState.threads.map { t ->
-                SideMenuItem(
-                    threadId = t.id,
-                    title = t.title,
-                    section = t.section,
-                    selected = t.id == uiState.currentThreadId,
-                )
-            },
-            onSelectThread = { threadId ->
-                currentThreadId = threadId
+            onClose = {
+                openedMenuThreadId = null
                 isSideMenuOpen = false
-                scope.launch {
-                    val newThread = uiState.threads.firstOrNull { it.id == threadId }
-                    if (newThread != null && newThread.messages.isNotEmpty()) {
-                        listState.scrollToItem(newThread.messages.lastIndex)
-                    }
-                }
+            },
+            items = sideMenuItems,
+            onSelectThread = { threadId ->
+                onSelectThread(threadId)
+                isSideMenuOpen = false
+                openedMenuThreadId = null
             },
             onNewChat = {
-                val newThread = createThread(
-                    title = "새 채팅",
-                    section = "오늘",
-                )
-                uiState.threads.add(0, newThread)
-                currentThreadId = newThread.id
+                onNewChat()
                 isSideMenuOpen = false
+                openedMenuThreadId = null
             },
             onSettingsClick = {
                 isAiSettingsOpen = true
@@ -383,8 +316,31 @@ fun ChatScreen(
             onHelpClick = {
                 isHelpFeedbackOpen = true
             },
+            openedMenuThreadId = openedMenuThreadId,
+            onToggleChatMenu = { threadId ->
+                openedMenuThreadId = if (openedMenuThreadId == threadId) null else threadId
+            },
+            onDismissChatMenu = { openedMenuThreadId = null },
+            onEditChatTitleFromMenu = { threadId, currentTitle ->
+                openedMenuThreadId = null
+                editingThreadId = threadId
+                editingTitleSeed = currentTitle
+            },
             modifier = Modifier.zIndex(1f),
         )
+
+        editingThreadId?.let { tid ->
+            Box(Modifier.fillMaxSize().zIndex(5f)) {
+                EditChatTitleDialog(
+                    initialTitle = editingTitleSeed,
+                    onDismiss = { editingThreadId = null },
+                    onSave = { trimmed ->
+                        onRenameRoomLocal(tid, trimmed)
+                        editingThreadId = null
+                    },
+                )
+            }
+        }
 
         if (isAiSettingsOpen) {
             BackHandler { isAiSettingsOpen = false }
@@ -843,6 +799,7 @@ fun ChatMessageItem(
 fun ChatInputBar(
     inputValue: String,
     onInputChange: (String) -> Unit,
+    sendEnabled: Boolean = true,
     onPlusClick: () -> Unit,
     onCameraClick: () -> Unit,
     attachedImageUri: Uri?,
@@ -928,7 +885,8 @@ fun ChatInputBar(
 
                 TextField(
                     value = inputValue,
-                    onValueChange = onInputChange,
+                    onValueChange = { if (sendEnabled) onInputChange(it) },
+                    enabled = sendEnabled,
                     placeholder = {
                         Text(
                             text = "메시지를 입력하세요...",
@@ -961,7 +919,8 @@ fun ChatInputBar(
                 )
 
                 IconButton(
-                    onClick = { onSend(inputValue) },
+                    onClick = { if (sendEnabled) onSend(inputValue) },
+                    enabled = sendEnabled,
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
@@ -1036,8 +995,41 @@ private fun AttachedImagePreview(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun ChatScreenPreview() {
+    val recipe = dummyRecipe()
+    val previewMessages = listOf(
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = "냉장고 안에 있는 재료로 오늘의 요리를 추천해드릴게요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.User,
+            text = "냉장고에 토마토랑 달걀만 있어요.",
+        ),
+        ChatMessage(
+            id = UUID.randomUUID().toString(),
+            sender = Sender.Ai,
+            text = recipe.title,
+            responseType = AI_RESPONSE_TYPE_RECIPE,
+            recipe = recipe,
+        ),
+    )
+    val previewMenu = listOf(
+        SideMenuItem(
+            threadId = "1",
+            title = "토마토 & 계란 레시피",
+            section = "오늘",
+            selected = true,
+        ),
+        SideMenuItem(threadId = "2", title = "냉장고 재고 확인", section = "지난 7일", selected = false),
+    )
     MyFrigeLocalTheme {
-        ChatScreen()
+        ChatScreen(
+            sideMenuItems = previewMenu,
+            messages = previewMessages,
+            currentThreadId = "1",
+        )
     }
 }
 

@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 
@@ -66,6 +67,10 @@ fun SideMenuDrawer(
     onNewChat: () -> Unit,
     onSettingsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    openedMenuThreadId: String? = null,
+    onToggleChatMenu: (threadId: String) -> Unit = {},
+    onDismissChatMenu: () -> Unit = {},
+    onEditChatTitleFromMenu: (threadId: String, currentTitle: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val config = LocalConfiguration.current
@@ -155,6 +160,10 @@ fun SideMenuDrawer(
                 onNewChat = onNewChat,
                 onSettingsClick = onSettingsClick,
                 onHelpClick = onHelpClick,
+                openedMenuThreadId = openedMenuThreadId,
+                onToggleChatMenu = onToggleChatMenu,
+                onDismissChatMenu = onDismissChatMenu,
+                onEditChatTitleFromMenu = onEditChatTitleFromMenu,
             )
         }
     }
@@ -168,6 +177,10 @@ private fun SideMenuContent(
     onNewChat: () -> Unit,
     onSettingsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    openedMenuThreadId: String?,
+    onToggleChatMenu: (threadId: String) -> Unit,
+    onDismissChatMenu: () -> Unit,
+    onEditChatTitleFromMenu: (threadId: String, currentTitle: String) -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -257,29 +270,16 @@ private fun SideMenuContent(
                 val bg = if (item.selected) Color(0xFFDFF7ED) else Color.Transparent
                 val iconTint = if (item.selected) BottomNavSelected else Color(0xFF94A3B8)
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(bg)
-                        .clickable { onSelectThread(item.threadId) }
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = "Chat",
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.size(10.dp))
-                    Text(
-                        text = item.title,
-                        color = Color(0xFF111827),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+                ChatRoomListItemRow(
+                    item = item,
+                    rowBackground = bg,
+                    iconTint = iconTint,
+                    menuExpanded = openedMenuThreadId == item.threadId,
+                    onSelectRow = { onSelectThread(item.threadId) },
+                    onToggleMenu = { onToggleChatMenu(item.threadId) },
+                    onDismissMenu = onDismissChatMenu,
+                    onEditChatTitle = { onEditChatTitleFromMenu(item.threadId, item.title) },
+                )
             }
         }
 
@@ -329,6 +329,59 @@ private fun SideMenuContent(
         )
 
         Spacer(modifier = Modifier.size(10.dp))
+    }
+}
+
+@Composable
+private fun ChatRoomListItemRow(
+    item: SideMenuItem,
+    rowBackground: Color,
+    iconTint: Color,
+    menuExpanded: Boolean,
+    onSelectRow: () -> Unit,
+    onToggleMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onEditChatTitle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(rowBackground)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { onSelectRow() }
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ChatBubbleOutline,
+                contentDescription = "Chat",
+                tint = iconTint,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.size(10.dp))
+            Text(
+                text = item.title,
+                color = Color(0xFF111827),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        ChatRoomMoreMenu(
+            expanded = menuExpanded,
+            onExpandRequest = onToggleMenu,
+            onDismissRequest = onDismissMenu,
+            onEditChatTitle = onEditChatTitle,
+        )
     }
 }
 
