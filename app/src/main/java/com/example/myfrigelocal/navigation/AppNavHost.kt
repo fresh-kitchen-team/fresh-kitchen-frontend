@@ -24,6 +24,7 @@ import com.example.myfrigelocal.ui.screens.LoginScreen
 import com.example.myfrigelocal.ui.screens.ProfileScreen
 import com.example.myfrigelocal.ui.screens.SearchScreen
 import com.example.myfrigelocal.ui.screens.SettingsScreen
+import com.example.myfrigelocal.data.auth.AuthTokenStore
 
 @Composable
 fun AppNavHost(

@@ -1,13 +1,421 @@
 package com.example.myfrigelocal.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.data.ChatRoomSectionMapper
+import com.example.myfrigelocal.data.SessionTokenProvider
+import com.example.myfrigelocal.data.auth.AuthTokenStore
+import com.example.myfrigelocal.data.remote.ChatRetrofitProvider
+import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
+import com.example.myfrigelocal.data.remote.dto.ChatRoomSummaryDto
+import com.example.myfrigelocal.data.mapper.toChatIngredientDto
+import com.example.myfrigelocal.data.remote.dto.ChatIngredientDto
+import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
+import com.example.myfrigelocal.data.remote.dto.UserPreferencesDto
+import com.example.myfrigelocal.data.repository.ChatRepository
+import com.example.myfrigelocal.data.repository.FridgeRepository
+import com.example.myfrigelocal.data.repository.FridgeRepositoryImpl
+import com.example.myfrigelocal.data.repository.toChatMessage
+import com.example.myfrigelocal.ui.screens.chat.ChatMessage
+import com.example.myfrigelocal.ui.screens.chat.Sender
+import com.example.myfrigelocal.ui.screens.chat.SideMenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
+import java.util.UUID
 
-data class AiChatUiState(val headline: String = "AI 채팅")
+private const val LOG_TAG = "FreshKitchenChat"
 
-class AiChatViewModel : ViewModel() {
+/** RAG / VectorStore 구분용 — Swagger `type` 기본값. */
+private const val SEND_MESSAGE_TYPE_RECIPE = "recipe"
+
+data class AiChatUiState(
+    val sideMenuItems: List<SideMenuItem> = emptyList(),
+    val messages: List<ChatMessage> = emptyList(),
+    val currentRoomId: Long? = null,
+    val topBarTitle: String = "AI 주방 비서",
+    val isLoadingRooms: Boolean = false,
+    val isLoadingMessages: Boolean = false,
+    val isSending: Boolean = false,
+    val error: String? = null,
+)
+
+class AiChatViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
+
+    private val repository = ChatRepository(
+        ChatRetrofitProvider.chatApi(SessionTokenProvider),
+    )
+
+    private val fridgeRepository: FridgeRepository = FridgeRepositoryImpl()
+
     private val _uiState = MutableStateFlow(AiChatUiState())
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()
+
+    /** Last successful GET `/ai/v1/chat/room` buckets (for sidebar + title lookup). */
+    private var cachedSections: ChatRoomSectionsDto = ChatRoomSectionsDto()
+
+    init {
+        refreshRooms(selectFirstAfterLoad = true)
+    }
+
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun refreshRooms(selectFirstAfterLoad: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingRooms = true, error = null) }
+            logTokenPresence("getChatRooms")
+            repository.getChatRooms()
+                .onSuccess { sections ->
+                    cachedSections = sections
+                    val items = buildSideMenuItems(_uiState.value.currentRoomId)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingRooms = false,
+                            sideMenuItems = items,
+                        )
+                    }
+                    if (selectFirstAfterLoad && _uiState.value.currentRoomId == null) {
+                        val firstId = items.firstOrNull()?.threadId?.toLongOrNull()
+                        if (firstId != null) selectRoom(firstId)
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("getChatRooms", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingRooms = false,
+                            error = e.toUserMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun selectRoom(roomId: Long) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    currentRoomId = roomId,
+                    isLoadingMessages = true,
+                    error = null,
+                    sideMenuItems = markSelected(buildSideMenuItems(roomId), roomId),
+                    topBarTitle = roomTitleFromCache(roomId) ?: it.topBarTitle,
+                )
+            }
+            logTokenPresence("getChatRoomDetail")
+            repository.getChatRoomDetail(roomId)
+                .onSuccess { detail ->
+                    val mapped = detail.messages.orEmpty().map { it.toChatMessage() }
+                    _uiState.update {
+                        it.copy(
+                            isLoadingMessages = false,
+                            messages = mapped,
+                            topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
+                                ?: roomTitleFromCache(roomId)
+                                ?: it.topBarTitle,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("getChatRoomDetail", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingMessages = false,
+                            error = e.toUserMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * Creates an empty room (POST body 없음). Swagger: `POST /ai/v1/chat/room`.
+     *
+     * TODO: Swagger에 채팅방 삭제 API가 없음 — 추가 시 연동.
+     */
+    fun createRoom() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingRooms = true, error = null) }
+            logTokenPresence("createChatRoom")
+            repository.createChatRoom()
+                .onSuccess { created ->
+                    val summary = ChatRoomSummaryDto(
+                        roomId = created.roomId,
+                        title = created.title,
+                        updatedAt = created.createdAt,
+                        sender = null,
+                        content = null,
+                    )
+                    cachedSections = cachedSections.withRoomPrependedToday(summary)
+                    val newId = created.roomId
+                    _uiState.update { s ->
+                        s.copy(
+                            currentRoomId = newId,
+                            isLoadingRooms = false,
+                            isLoadingMessages = true,
+                            sideMenuItems = markSelected(buildSideMenuItems(newId), newId),
+                            topBarTitle = created.title?.takeIf { it.isNotBlank() }
+                                ?: s.topBarTitle,
+                        )
+                    }
+                    logTokenPresence("getChatRoomDetail(afterCreate)")
+                    repository.getChatRoomDetail(newId)
+                        .onSuccess { detail ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoadingMessages = false,
+                                    messages = detail.messages.orEmpty().map { dto -> dto.toChatMessage() },
+                                    topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
+                                        ?: created.title
+                                        ?: it.topBarTitle,
+                                )
+                            }
+                        }
+                        .onFailure { e ->
+                            logFailure("getChatRoomDetail(afterCreate)", e)
+                            _uiState.update {
+                                it.copy(
+                                    isLoadingMessages = false,
+                                    error = e.toUserMessage(),
+                                )
+                            }
+                        }
+                }
+                .onFailure { e ->
+                    logFailure("createChatRoom", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingRooms = false,
+                            error = e.toUserMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * Swagger `POST /ai/v1/chat/room/{roomId}` 본문과 동일한 키를 보냅니다.
+     *
+     * - [FridgeRepository]에서 식재료를 [ChatIngredientDto]로 매핑합니다.
+     * - 냉장고가 비어 있으면 서버가 `ingredients` 비허용일 수 있어, **사용자가 입력한 문장**을
+     *   단일 항목(`id=1`, `name=메시지`)으로 넣습니다. (임의 재료명 하드코딩 아님.)
+     * - [UserPreferencesDto]는 네 배열을 `[]`로 명시합니다.
+     *
+     * TODO: 프로필(알레르기·선호·조리도구)을 [UserPreferencesDto]에 연동.
+     */
+    fun sendMessage(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        if (_uiState.value.isSending) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSending = true, error = null) }
+
+            var roomId = _uiState.value.currentRoomId
+            if (roomId == null) {
+                logTokenPresence("createChatRoom(beforeSend)")
+                repository.createChatRoom()
+                    .onSuccess { created ->
+                        roomId = created.roomId
+                        val summary = ChatRoomSummaryDto(
+                            roomId = created.roomId,
+                            title = created.title,
+                            updatedAt = created.createdAt,
+                            sender = null,
+                            content = null,
+                        )
+                        cachedSections = cachedSections.withRoomPrependedToday(summary)
+                        _uiState.update { s ->
+                            s.copy(
+                                currentRoomId = created.roomId,
+                                sideMenuItems = markSelected(buildSideMenuItems(created.roomId), created.roomId),
+                                topBarTitle = created.title?.takeIf { it.isNotBlank() } ?: s.topBarTitle,
+                            )
+                        }
+                    }
+                    .onFailure { e ->
+                        logFailure("createChatRoom(beforeSend)", e)
+                        _uiState.update {
+                            it.copy(isSending = false, error = e.toUserMessage())
+                        }
+                        return@launch
+                    }
+            }
+
+            val effectiveRoomId = roomId ?: run {
+                _uiState.update { it.copy(isSending = false, error = "채팅방을 만들 수 없습니다.") }
+                return@launch
+            }
+
+            val optimisticId = "local-${UUID.randomUUID()}"
+            val userBubble = ChatMessage(
+                id = optimisticId,
+                sender = Sender.User,
+                text = trimmed,
+            )
+            _uiState.update { s -> s.copy(messages = s.messages + userBubble) }
+
+            val fromFridge = fridgeRepository.observeIngredients().map { it.toChatIngredientDto() }
+            val ingredients = if (fromFridge.isNotEmpty()) {
+                fromFridge
+            } else {
+                // 백엔드가 빈 ingredients를 거절하는 경우: 사용자 입력을 단일 행으로 전달
+                listOf(
+                    ChatIngredientDto(
+                        id = 1L,
+                        name = trimmed,
+                        expiresAt = null,
+                    ),
+                )
+            }
+
+            val request = SendMessageRequest(
+                message = trimmed,
+                type = SEND_MESSAGE_TYPE_RECIPE,
+                ingredients = ingredients,
+                userPreferences = UserPreferencesDto(),
+            )
+
+            logTokenPresence("sendMessage")
+            repository.sendMessage(effectiveRoomId, request)
+                .onSuccess { resp ->
+                    val ai = resp.aiMessage.toChatMessage()
+                    _uiState.update { s ->
+                        s.copy(
+                            isSending = false,
+                            messages = s.messages + ai,
+                            topBarTitle = resp.title?.takeIf { it.isNotBlank() } ?: s.topBarTitle,
+                        )
+                    }
+                    resp.title?.let { t ->
+                        if (t.isNotBlank()) {
+                            cachedSections = cachedSections.withRoomTitle(effectiveRoomId, t)
+                            _uiState.update { s ->
+                                s.copy(sideMenuItems = markSelected(buildSideMenuItems(s.currentRoomId), s.currentRoomId))
+                            }
+                        }
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("sendMessage", e)
+                    _uiState.update { s ->
+                        s.copy(
+                            isSending = false,
+                            messages = s.messages.filterNot { it.id == optimisticId },
+                            error = e.toUserMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    /** PATCH `/ai/v1/chat/room/{roomId}` — 응답 `data.title`로 로컬 갱신. */
+    fun updateRoomTitle(roomId: Long, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            logTokenPresence("updateRoomTitle")
+            repository.updateRoomTitle(roomId, trimmed)
+                .onSuccess { body ->
+                    val resolvedTitle = body.title?.takeIf { it.isNotBlank() } ?: trimmed
+                    cachedSections = cachedSections.withRoomTitle(roomId, resolvedTitle)
+                    _uiState.update { s ->
+                        s.copy(
+                            sideMenuItems = markSelected(buildSideMenuItems(s.currentRoomId), s.currentRoomId),
+                            topBarTitle = if (s.currentRoomId == roomId) resolvedTitle else s.topBarTitle,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("updateRoomTitle", e)
+                    _uiState.update { it.copy(error = e.toUserMessage()) }
+                }
+        }
+    }
+
+    private fun buildSideMenuItems(selectedId: Long?): List<SideMenuItem> {
+        val sel = selectedId?.toString()
+        val out = mutableListOf<SideMenuItem>()
+        fun appendSection(label: String, rooms: List<ChatRoomSummaryDto>?) {
+            rooms?.sortedWith(ChatRoomSectionMapper::compareRooms)?.forEach { room ->
+                val title = room.title?.trim().orEmpty().ifBlank { "채팅" }
+                out += SideMenuItem(
+                    threadId = room.roomId.toString(),
+                    title = title,
+                    section = label,
+                    selected = room.roomId.toString() == sel,
+                )
+            }
+        }
+        appendSection(ChatRoomSectionMapper.SECTION_TODAY, cachedSections.today)
+        appendSection(ChatRoomSectionMapper.SECTION_LAST_7, cachedSections.last7Days)
+        appendSection(ChatRoomSectionMapper.SECTION_LAST_30, cachedSections.last30Days)
+        return out
+    }
+
+    private fun markSelected(items: List<SideMenuItem>, currentId: Long?): List<SideMenuItem> {
+        val idStr = currentId?.toString()
+        return items.map { it.copy(selected = it.threadId == idStr) }
+    }
+
+    private fun roomTitleFromCache(roomId: Long): String? =
+        cachedSections.allSummaries().firstOrNull { it.roomId == roomId }?.title?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun ChatRoomSectionsDto.allSummaries(): List<ChatRoomSummaryDto> =
+        (today.orEmpty() + last7Days.orEmpty() + last30Days.orEmpty())
+
+    private fun ChatRoomSectionsDto.withRoomTitle(roomId: Long, newTitle: String): ChatRoomSectionsDto {
+        fun mapList(list: List<ChatRoomSummaryDto>?) =
+            list?.map { if (it.roomId == roomId) it.copy(title = newTitle) else it }
+        return copy(
+            today = mapList(today),
+            last7Days = mapList(last7Days),
+            last30Days = mapList(last30Days),
+        )
+    }
+
+    private fun ChatRoomSectionsDto.withRoomPrependedToday(room: ChatRoomSummaryDto): ChatRoomSectionsDto {
+        val rest = today.orEmpty().filter { it.roomId != room.roomId }
+        return copy(today = listOf(room) + rest)
+    }
+
+    private fun logTokenPresence(apiName: String) {
+        val has = !AuthTokenStore.getAccessToken().isNullOrBlank()
+        Log.i(LOG_TAG, "[$apiName] Authorization token present=$has (value not logged)")
+    }
+
+    private fun logFailure(apiName: String, e: Throwable) {
+        when (e) {
+            is HttpException -> Log.e(
+                LOG_TAG,
+                "[$apiName] failed HTTP ${e.code()} ${e.message()}",
+                e,
+            )
+            is IOException -> Log.e(LOG_TAG, "[$apiName] network: ${e.message}", e)
+            else -> Log.e(LOG_TAG, "[$apiName] ${e.javaClass.simpleName}: ${e.message}", e)
+        }
+    }
+
+    private fun Throwable.toUserMessage(): String = when (this) {
+        is HttpException -> when (code()) {
+            401 -> "로그인이 필요합니다. (401)"
+            403 -> "권한이 없습니다. (403)"
+            404 -> "요청한 채팅을 찾을 수 없습니다. (404)"
+            400 -> "요청 형식이 서버와 맞지 않습니다. (400)"
+            in 500..599 -> "서버 오류가 발생했습니다. (HTTP ${code()})"
+            else -> message() ?: "요청에 실패했습니다. (${code()})"
+        }
+        is IOException -> "네트워크 연결을 확인해 주세요."
+        else -> localizedMessage ?: "오류가 발생했습니다."
+    }
 }

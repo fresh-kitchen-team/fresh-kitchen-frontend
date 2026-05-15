@@ -60,14 +60,17 @@ fun LoginScreen(
             onGoogleClick = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showSheet = false
-                    // TODO: 구글 OAuth 연동
+                    // TODO: 구글 OAuth 연동 — 로그인 API 응답의 accessToken을 받은 뒤:
+                    //   AuthTokenStore.setAccessToken(accessToken)
+                    //   (선택) EncryptedSharedPreferences / DataStore에 저장 후 앱 기동 시 복원.
+                    // 임시 테스트 토큰은 소스에 하드코딩하지 말고, 디버그 빌드 전용 메뉴나 디버거로 setAccessToken 호출.
                     if (isNewUser) onNewUser() else onExistingUser()
                 }
             },
             onKakaoClick = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showSheet = false
-                    // TODO: 카카오 OAuth 연동
+                    // TODO: 카카오 OAuth 연동 — 성공 시 동일하게 AuthTokenStore.setAccessToken(accessToken) 호출.
                     if (isNewUser) onNewUser() else onExistingUser()
                 }
             }
