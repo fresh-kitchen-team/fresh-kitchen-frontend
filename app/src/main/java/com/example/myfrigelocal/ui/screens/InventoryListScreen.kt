@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.viewmodel.*
+import androidx.compose.runtime.LaunchedEffect
 
 // 상태별 색상
 val StatusFreshColor = Color(0xFF22C55E)
@@ -412,7 +413,7 @@ fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 이름 + 카테고리 + 유통기한
+            // 이름 + 카테고리 + 수량/유통기한
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, fontWeight = FontWeight.Medium, fontSize = 15.sp)
 

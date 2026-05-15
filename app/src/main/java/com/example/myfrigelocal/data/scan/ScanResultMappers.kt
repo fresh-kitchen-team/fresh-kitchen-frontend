@@ -38,6 +38,7 @@ fun mapIngredientScanToUiModel(
         items = items,
         purchasedAt = null,
         purchasedAtSourceType = null,
+        imageAssetId = data.imageAsset?.imageAssetId,
     )
 }
 
@@ -86,6 +87,7 @@ fun mapReceiptScanToUiModel(
         purchasedAtSourceType =
             data.purchasedAtSourceType?.trim()?.takeIf { it.isNotEmpty() }
                 ?: data.sourceType?.trim()?.takeIf { it.isNotEmpty() },
+        imageAssetId = null,
     )
 }
 
@@ -109,6 +111,7 @@ fun simulatedReceiptUiModel(localUri: String?): ScanResultUiModel {
             },
         purchasedAt = today,
         purchasedAtSourceType = "SIMULATED",
+        imageAssetId = null,
     )
 }
 
@@ -130,4 +133,5 @@ fun simulatedIngredientUiModel(localUri: String?): ScanResultUiModel =
             ),
         purchasedAt = null,
         purchasedAtSourceType = null,
+        imageAssetId = null,
     )

@@ -20,5 +20,8 @@ object ScanNav {
 
     /** [com.example.myfrigelocal.data.scan.ScanResultUiModel] JSON from scan API (preferred). */
     const val keyScanResultJson = "scan_result_json"
+
+    /** 홈 요약 재조회 트리거 (저장 후 홈 이동 시). */
+    const val keyRefreshHome = "home_refresh"
 }
 

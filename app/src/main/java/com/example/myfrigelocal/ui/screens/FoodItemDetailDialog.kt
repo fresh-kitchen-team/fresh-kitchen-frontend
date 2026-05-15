@@ -94,7 +94,7 @@ fun FoodItemDetailDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 유통기한
+                // 수량 + 유통기한
                 DetailInfoCard {
                     DetailField(label = "유통기한") {
                         Text(item.expiryDate, fontSize = 15.sp, fontWeight = FontWeight.Medium)
@@ -127,7 +127,10 @@ fun FoodItemDetailDialog(
                 }
 
                 // 유통기한 남은 기간 경고 (임박/경과일 때만)
-                if (item.status == FoodStatus.NEAR_EXPIRY || item.status == FoodStatus.EXPIRED) {
+                if (
+                    item.expiryDate.isNotBlank() &&
+                        (item.status == FoodStatus.NEAR_EXPIRY || item.status == FoodStatus.EXPIRED)
+                ) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ExpiryWarningCard(expiryDate = item.expiryDate, status = item.status)
                 }

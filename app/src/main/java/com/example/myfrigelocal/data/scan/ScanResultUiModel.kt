@@ -15,6 +15,8 @@ data class ScanResultUiModel(
     val items: List<ScanResultItemUiModel>,
     val purchasedAt: String? = null,
     val purchasedAtSourceType: String? = null,
+    /** 식재료 스캔 `imageAsset.imageAssetId`. 없으면 null (영수증·시뮬 등). */
+    val imageAssetId: Long? = null,
 )
 
 data class ScanResultItemUiModel(

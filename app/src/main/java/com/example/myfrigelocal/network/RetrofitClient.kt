@@ -1,5 +1,6 @@
 package com.example.myfrigelocal.network
 
+import com.example.myfrigelocal.data.auth.AuthTokenStore
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -19,11 +20,22 @@ object RetrofitClient {
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
         .addInterceptor { chain ->
-            val request = chain.request().newBuilder().apply {
-                if (accessToken.isNotEmpty()) {
-                    addHeader("Authorization", "Bearer $accessToken")
+            val raw =
+                AuthTokenStore.getAccessToken()?.trim().orEmpty().ifEmpty { accessToken.trim() }
+            val authHeader =
+                when {
+                    raw.isEmpty() -> null
+                    raw.startsWith("Bearer ", ignoreCase = true) -> raw
+                    else -> "Bearer $raw"
                 }
-            }.build()
+            val request =
+                if (authHeader != null) {
+                    chain.request().newBuilder()
+                        .header("Authorization", authHeader)
+                        .build()
+                } else {
+                    chain.request()
+                }
             chain.proceed(request)
         }
         .connectTimeout(15, TimeUnit.SECONDS)
