@@ -8,6 +8,7 @@ import com.example.myfrigelocal.ui.MainScaffold
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 import com.example.myfrigelocal.data.auth.AuthTokenStore
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -1,0 +1,71 @@
+package com.example.myfrigelocal.data.scan
+
+import com.google.gson.annotations.SerializedName
+
+/**
+ * Swagger 공통 래퍼 `{ status, code, message, data }`.
+ * Gson 제네릭 역직렬화 이슈를 피하기 위해 Retrofit 응답은 구체 타입
+ * [IngredientImageScanApiResponse], [ReceiptImageScanApiResponse]를 사용합니다.
+ */
+data class ApiResponse<T>(
+    val status: Int,
+    val code: String? = null,
+    val message: String? = null,
+    val data: T? = null,
+)
+
+/** POST /api/v1/scan/ingredient-image — Gson용 구체 래퍼 (형태는 [ApiResponse]와 동일). */
+data class IngredientImageScanApiResponse(
+    val status: Int,
+    val code: String? = null,
+    val message: String? = null,
+    val data: IngredientImageScanData? = null,
+)
+
+/** POST /api/v1/scan/receipt-image — Gson용 구체 래퍼. */
+data class ReceiptImageScanApiResponse(
+    val status: Int,
+    val code: String? = null,
+    val message: String? = null,
+    val data: ReceiptImageScanData? = null,
+)
+
+data class IngredientImageScanData(
+    val scanType: String? = null,
+    val imageAsset: ScanImageAsset? = null,
+    val recognizedItems: List<IngredientRecognizedItem>? = null,
+    val createdAt: String? = null,
+)
+
+data class ScanImageAsset(
+    val imageAssetId: Long? = null,
+    val kind: String? = null,
+    val storageProvider: String? = null,
+    val imageUrl: String? = null,
+)
+
+data class IngredientRecognizedItem(
+    val name: String? = null,
+    val confidence: Double? = null,
+)
+
+data class ReceiptImageScanData(
+    val scanType: String? = null,
+    val storeName: String? = null,
+    val purchasedAt: String? = null,
+    @SerializedName(value = "purchasedAtSourceType", alternate = ["PurchasedAtSourceType"])
+    val purchasedAtSourceType: String? = null,
+    @SerializedName(value = "sourceType", alternate = ["SourceType"])
+    val sourceType: String? = null,
+    val recognizedItems: List<ReceiptRecognizedItem>? = null,
+    val ocrText: String? = null,
+    val createdAt: String? = null,
+)
+
+data class ReceiptRecognizedItem(
+    val name: String? = null,
+    val registeredAt: String? = null,
+    val confidence: Double? = null,
+    val estimatedExpiresAt: String? = null,
+    val expirySourceType: String? = null,
+)

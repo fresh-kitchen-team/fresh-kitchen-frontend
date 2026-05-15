@@ -14,5 +14,11 @@ object ScanNav {
     // Receipt scan: sequential multi-item processing
     const val keyReceiptItems = "receipt_items"
     const val keyReceiptIndex = "receipt_index"
+
+    /** First suggested name from ingredient image scan API (optional). */
+    const val keyIngredientSuggestion = "scan_ingredient_suggestion"
+
+    /** [com.example.myfrigelocal.data.scan.ScanResultUiModel] JSON from scan API (preferred). */
+    const val keyScanResultJson = "scan_result_json"
 }
 
