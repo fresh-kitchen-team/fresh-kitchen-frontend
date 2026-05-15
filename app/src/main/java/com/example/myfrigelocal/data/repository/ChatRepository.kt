@@ -2,51 +2,37 @@ package com.example.myfrigelocal.data.repository
 
 import com.example.myfrigelocal.data.remote.ApiResponse
 import com.example.myfrigelocal.data.remote.ChatApiService
-import com.example.myfrigelocal.data.remote.dto.ChatMessageDto
-import com.example.myfrigelocal.data.remote.dto.ChatRoomDto
-import com.example.myfrigelocal.data.remote.dto.CreateChatRoomRequest
+import com.example.myfrigelocal.data.remote.isBusinessSuccess
+import com.example.myfrigelocal.data.remote.dto.ChatRoomDetailDto
+import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
+import com.example.myfrigelocal.data.remote.dto.CreateChatRoomResponseDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
+import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleRequest
+import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleResponseDto
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
+import com.google.gson.JsonParseException
 
 class ChatRepository(
     private val api: ChatApiService,
 ) {
 
-    suspend fun listRooms(): Result<List<ChatRoomDto>> =
-        unwrapList(api.getRooms())
+    suspend fun getChatRooms(): Result<ChatRoomSectionsDto> =
+        unwrapSingle(api.getChatRooms())
 
-    suspend fun createRoom(title: String): Result<ChatRoomDto> =
-        unwrapSingle(api.createRoom(CreateChatRoomRequest(title)))
+    suspend fun createChatRoom(): Result<CreateChatRoomResponseDto> =
+        unwrapSingle(api.createChatRoom())
 
-    suspend fun getMessages(roomId: Long): Result<List<ChatMessageDto>> =
-        unwrapList(api.getMessages(roomId))
+    suspend fun getChatRoomDetail(roomId: Long): Result<ChatRoomDetailDto> =
+        unwrapSingle(api.getChatRoomDetail(roomId))
 
-    suspend fun sendMessage(roomId: Long, message: String): Result<ChatMessageDto> =
-        unwrapSingle(api.sendMessage(roomId, SendMessageRequest(message)))
+    suspend fun sendMessage(roomId: Long, body: SendMessageRequest): Result<SendMessageResponseDto> =
+        unwrapSingle(api.sendMessage(roomId, body))
 
-    suspend fun updateRoomTitle(roomId: Long, title: String): Result<Unit> {
-        return try {
-            val response = api.updateRoomTitle(roomId, UpdateRoomTitleRequest(title))
-            if (!response.isSuccessful) {
-                return Result.failure(HttpException(response))
-            }
-            val body = response.body() ?: return Result.failure(IllegalStateException("Empty body"))
-            if (!body.isBusinessSuccess()) {
-                return Result.failure(
-                    IllegalStateException(body.message ?: "updateRoomTitle failed (status=${body.status})"),
-                )
-            }
-            Result.success(Unit)
-        } catch (e: IOException) {
-            Result.failure(e)
-        }
-    }
-
-    private fun <T> ApiResponse<T>.isBusinessSuccess(): Boolean =
-        status == 0 || status == 200
+    suspend fun updateRoomTitle(roomId: Long, title: String): Result<UpdateRoomTitleResponseDto> =
+        unwrapSingle(api.updateRoomTitle(roomId, UpdateRoomTitleRequest(title)))
 
     private fun <T> unwrapSingle(response: Response<ApiResponse<T>>): Result<T> {
         return try {
@@ -65,22 +51,10 @@ class ChatRepository(
             Result.success(data)
         } catch (e: IOException) {
             Result.failure(e)
-        }
-    }
-
-    private fun <T> unwrapList(response: Response<ApiResponse<List<T>>>): Result<List<T>> {
-        return try {
-            if (!response.isSuccessful) {
-                return Result.failure(HttpException(response))
-            }
-            val body = response.body() ?: return Result.failure(IllegalStateException("Empty body"))
-            if (!body.isBusinessSuccess()) {
-                return Result.failure(
-                    IllegalStateException(body.message ?: "Request failed (status=${body.status})"),
-                )
-            }
-            Result.success(body.data.orEmpty())
-        } catch (e: IOException) {
+        } catch (e: JsonParseException) {
+            Result.failure(e)
+        } catch (e: RuntimeException) {
+            // Gson / Retrofit conversion errors often surface as RuntimeException subclasses.
             Result.failure(e)
         }
     }

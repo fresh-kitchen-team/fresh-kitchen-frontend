@@ -14,9 +14,12 @@ object ChatRetrofitProvider {
     /** Swagger / product candidate — trailing slash required for relative @GET paths. */
     private const val DEFAULT_BASE_URL = "http://api.app-fresh.com/"
 
-    fun gson(): Gson = GsonBuilder()
-        .serializeNulls()
-        .create()
+    /**
+     * Do not use [GsonBuilder.serializeNulls] here: empty JSON arrays for optional lists
+     * (e.g. `ingredients: []`) often fail backend validation with HTTP 400 "Invalid input".
+     * Null fields are omitted so the server can apply its own defaults.
+     */
+    fun gson(): Gson = GsonBuilder().create()
 
     fun okHttpClient(tokenProvider: TokenProvider): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {

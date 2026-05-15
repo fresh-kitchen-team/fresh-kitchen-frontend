@@ -4,8 +4,6 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Common Swagger wrapper.
- *
- * TODO: Confirm success semantics with backend (`status` values, HTTP codes).
  */
 data class ApiResponse<T>(
     @SerializedName("status") val status: Int,
@@ -13,3 +11,10 @@ data class ApiResponse<T>(
     @SerializedName("message") val message: String? = null,
     @SerializedName("data") val data: T? = null,
 )
+
+/** Business success: numeric `status` 0 or HTTP-style 2xx, or `COMMON-200` style code. */
+fun <T> ApiResponse<T>.isBusinessSuccess(): Boolean {
+    if (status == 0 || status in 200..299) return true
+    if (code?.equals("COMMON-200", ignoreCase = true) == true) return true
+    return false
+}

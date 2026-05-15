@@ -40,6 +40,10 @@ fun AiChatScreen(
         onSelectThread = { id -> viewModel.selectRoom(id.toLong()) },
         onNewChat = viewModel::createRoom,
         onSendMessage = viewModel::sendMessage,
-        onRenameRoomLocal = { threadId, title -> viewModel.renameRoomLocal(threadId, title) },
+        onRenameRoomLocal = { threadId, title ->
+            threadId.toLongOrNull()?.let { id ->
+                viewModel.updateRoomTitle(id, title)
+            }
+        },
     )
 }

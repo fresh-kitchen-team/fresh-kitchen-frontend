@@ -47,7 +47,7 @@ fun ChatRoomMoreMenu(
         ) {
             Icon(
                 imageVector = Icons.Outlined.MoreVert,
-                contentDescription = "More",
+                contentDescription = "더보기",
                 tint = Color(0xFF9CA3AF),
             )
         }
@@ -63,7 +63,7 @@ fun ChatRoomMoreMenu(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = "Edit chat title",
+                        text = "제목 수정",
                         color = Color(0xFF111827),
                         style = MaterialTheme.typography.bodyLarge,
                     )
@@ -95,7 +95,7 @@ fun EditChatTitleDialog(
         shape = RoundedCornerShape(18.dp),
         title = {
             Text(
-                text = "Edit chat title",
+                text = "제목 수정",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = Color(0xFF111827),
             )
@@ -124,12 +124,12 @@ fun EditChatTitleDialog(
                     }
                 },
             ) {
-                Text("Save", color = BottomNavSelected, fontWeight = FontWeight.SemiBold)
+                Text("저장", color = BottomNavSelected, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF6B7280))
+                Text("취소", color = Color(0xFF6B7280))
             }
         },
     )

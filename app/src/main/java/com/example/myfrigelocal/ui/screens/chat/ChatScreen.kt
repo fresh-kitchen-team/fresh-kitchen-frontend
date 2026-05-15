@@ -99,10 +99,6 @@ data class ChatMessage(
     /** Mirrors backend `type`: [AI_RESPONSE_TYPE_TEXT] or [AI_RESPONSE_TYPE_RECIPE]. */
     val responseType: String = AI_RESPONSE_TYPE_TEXT,
     val recipe: RecipeUiModel? = null,
-    /**
-     * Raw Swagger `aiPayload` string (if any). Do not parse until backend documents JSON shape.
-     */
-    val aiPayloadRaw: String? = null,
 )
 
 enum class Sender {
