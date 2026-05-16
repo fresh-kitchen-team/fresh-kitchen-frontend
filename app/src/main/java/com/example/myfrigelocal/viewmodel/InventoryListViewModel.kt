@@ -46,7 +46,8 @@ data class FoodItem(
     val status: FoodStatus,
     val emoji: String,
     val purchaseDate: String = "",
-    val memo: String = ""
+    val memo: String = "",
+    val storageId: Long = 0L
 )
 
 // ───────────────────────────────────────────
@@ -76,6 +77,9 @@ class InventoryListViewModel(
 
     private var allItems = mutableListOf<FoodItem>()
 
+    // StorageType → 서버 storageId 매핑 (로드 시 채워짐)
+    private val storageIdMap = mutableMapOf<StorageType, Long>()
+
     init {
         loadIngredients()
     }
@@ -98,7 +102,8 @@ class InventoryListViewModel(
                     name = updatedItem.name,
                     expiryDate = updatedItem.expiryDate.ifEmpty { null },
                     purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
-                    memo = updatedItem.memo.ifEmpty { null }
+                    memo = updatedItem.memo.ifEmpty { null },
+                    storageId = storageIdMap[updatedItem.storage]
                 )
             )
         }
@@ -115,6 +120,17 @@ class InventoryListViewModel(
                 allItems = dtos
                     .map { it.toFoodItem() }
                     .toMutableList()
+
+                // storageId 매핑 채우기
+                dtos.forEach { dto ->
+                    val type = when (dto.storage) {
+                        "FREEZER" -> StorageType.FREEZER
+                        "PANTRY"  -> StorageType.PANTRY
+                        else      -> StorageType.FRIDGE
+                    }
+                    storageIdMap[type] = dto.storageId
+                }
+
                 updateState(_uiState.value.selectedFilter)
             } else {
                 _uiState.value = _uiState.value.copy(
@@ -176,7 +192,8 @@ private fun ItemDto.toFoodItem(): FoodItem {
         status = foodStatus,
         emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
         purchaseDate = purchaseDate ?: "",
-        memo = memo ?: ""
+        memo = memo ?: "",
+        storageId = storageId
     )
 }
 
