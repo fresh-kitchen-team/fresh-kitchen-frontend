@@ -32,9 +32,11 @@ data class ItemDto(
 // ───────────────────────────────────────────
 data class ItemUpdateRequest(
     val name: String? = null,
+    val category: String? = null,
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
-    val memo: String? = null
+    val memo: String? = null,
+    val storageId: Long? = null
 )
 
 // ───────────────────────────────────────────
