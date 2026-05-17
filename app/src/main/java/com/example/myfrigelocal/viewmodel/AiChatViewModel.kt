@@ -8,11 +8,14 @@ import com.example.myfrigelocal.data.ChatRoomSectionMapper
 import com.example.myfrigelocal.data.SessionTokenProvider
 import com.example.myfrigelocal.data.auth.AuthTokenStore
 import com.example.myfrigelocal.data.remote.ChatRetrofitProvider
+import com.google.gson.Gson
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSummaryDto
 import com.example.myfrigelocal.data.mapper.toChatIngredientDto
 import com.example.myfrigelocal.data.remote.dto.ChatIngredientDto
+import com.example.myfrigelocal.BuildConfig
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
+import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.remote.dto.UserPreferencesDto
 import com.example.myfrigelocal.data.repository.ChatRepository
 import com.example.myfrigelocal.data.repository.FridgeRepository
@@ -35,6 +38,10 @@ private const val LOG_TAG = "FreshKitchenChat"
 /** RAG / VectorStore 구분용 — Swagger `type` 기본값. */
 private const val SEND_MESSAGE_TYPE_RECIPE = "recipe"
 
+private const val AI_LOADING_MESSAGE_ID = "ai-loading-pending"
+private const val AI_LOADING_TEXT = "답변 생성 중..."
+private const val SEND_AI_ERROR_MESSAGE = "AI 응답 생성에 실패했습니다. 다시 시도해 주세요."
+
 data class AiChatUiState(
     val sideMenuItems: List<SideMenuItem> = emptyList(),
     val messages: List<ChatMessage> = emptyList(),
@@ -55,6 +62,8 @@ class AiChatViewModel(
     )
 
     private val fridgeRepository: FridgeRepository = FridgeRepositoryImpl()
+
+    private val debugGson: Gson = ChatRetrofitProvider.gson()
 
     private val _uiState = MutableStateFlow(AiChatUiState())
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()
@@ -102,6 +111,18 @@ class AiChatViewModel(
     }
 
     fun selectRoom(roomId: Long) {
+        val state = _uiState.value
+        if (state.isSending && state.currentRoomId == roomId) {
+            _uiState.update {
+                it.copy(
+                    currentRoomId = roomId,
+                    sideMenuItems = markSelected(buildSideMenuItems(roomId), roomId),
+                    topBarTitle = roomTitleFromCache(roomId) ?: it.topBarTitle,
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -116,14 +137,23 @@ class AiChatViewModel(
             repository.getChatRoomDetail(roomId)
                 .onSuccess { detail ->
                     val mapped = detail.messages.orEmpty().map { it.toChatMessage() }
-                    _uiState.update {
-                        it.copy(
-                            isLoadingMessages = false,
-                            messages = mapped,
-                            topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
-                                ?: roomTitleFromCache(roomId)
-                                ?: it.topBarTitle,
-                        )
+                    _uiState.update { current ->
+                        if (current.isSending && current.currentRoomId == roomId) {
+                            current.copy(
+                                isLoadingMessages = false,
+                                topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
+                                    ?: roomTitleFromCache(roomId)
+                                    ?: current.topBarTitle,
+                            )
+                        } else {
+                            current.copy(
+                                isLoadingMessages = false,
+                                messages = mapped,
+                                topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
+                                    ?: roomTitleFromCache(roomId)
+                                    ?: current.topBarTitle,
+                            )
+                        }
                     }
                 }
                 .onFailure { e ->
@@ -263,7 +293,11 @@ class AiChatViewModel(
                 sender = Sender.User,
                 text = trimmed,
             )
-            _uiState.update { s -> s.copy(messages = s.messages + userBubble) }
+            _uiState.update { s ->
+                s.copy(
+                    messages = s.messages.withoutAiLoadingPlaceholder() + userBubble + aiLoadingPlaceholder(),
+                )
+            }
 
             val fromFridge = fridgeRepository.observeIngredients().map { it.toChatIngredientDto() }
             val ingredients = if (fromFridge.isNotEmpty()) {
@@ -289,11 +323,12 @@ class AiChatViewModel(
             logTokenPresence("sendMessage")
             repository.sendMessage(effectiveRoomId, request)
                 .onSuccess { resp ->
+                    logSendMessageResponse(resp)
                     val ai = resp.aiMessage.toChatMessage()
                     _uiState.update { s ->
                         s.copy(
                             isSending = false,
-                            messages = s.messages + ai,
+                            messages = s.messages.withoutAiLoadingPlaceholder() + ai,
                             topBarTitle = resp.title?.takeIf { it.isNotBlank() } ?: s.topBarTitle,
                         )
                     }
@@ -311,8 +346,8 @@ class AiChatViewModel(
                     _uiState.update { s ->
                         s.copy(
                             isSending = false,
-                            messages = s.messages.filterNot { it.id == optimisticId },
-                            error = e.toUserMessage(),
+                            messages = s.messages.withoutAiLoadingPlaceholder(),
+                            error = SEND_AI_ERROR_MESSAGE,
                         )
                     }
                 }
@@ -387,6 +422,36 @@ class AiChatViewModel(
     private fun ChatRoomSectionsDto.withRoomPrependedToday(room: ChatRoomSummaryDto): ChatRoomSectionsDto {
         val rest = today.orEmpty().filter { it.roomId != room.roomId }
         return copy(today = listOf(room) + rest)
+    }
+
+    private fun aiLoadingPlaceholder(): ChatMessage = ChatMessage(
+        id = AI_LOADING_MESSAGE_ID,
+        sender = Sender.Ai,
+        text = AI_LOADING_TEXT,
+        isLoading = true,
+    )
+
+    private fun List<ChatMessage>.withoutAiLoadingPlaceholder(): List<ChatMessage> =
+        filterNot { it.id == AI_LOADING_MESSAGE_ID || it.isLoading }
+
+    /** DEBUG: 파싱된 응답 요약 + raw JSON은 OkHttp BODY 로그(`FreshKitchenChat`)에서 확인. */
+    private fun logSendMessageResponse(resp: SendMessageResponseDto) {
+        val msg = resp.aiMessage
+        val recipeCount = msg.aiPayload?.recipes?.size ?: 0
+        val hasPayload = msg.aiPayload != null
+        Log.i(
+            LOG_TAG,
+            "[sendMessage] parsed: title=${resp.title}, text=${msg.text.take(80)}, " +
+                "hasAiPayload=$hasPayload, recipeCount=$recipeCount, " +
+                "uiType=${if (recipeCount > 0) "recipe-card" else "text-bubble"}",
+        )
+        if (BuildConfig.DEBUG) {
+            try {
+                Log.d(LOG_TAG, "[sendMessage] data JSON: ${debugGson.toJson(resp)}")
+            } catch (e: Exception) {
+                Log.w(LOG_TAG, "[sendMessage] could not serialize response: ${e.message}")
+            }
+        }
     }
 
     private fun logTokenPresence(apiName: String) {

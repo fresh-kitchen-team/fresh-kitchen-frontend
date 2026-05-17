@@ -1,6 +1,6 @@
 package com.example.myfrigelocal.ui.screens
 
-import android.app.Application
+import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -19,9 +19,12 @@ fun AiChatScreen(
         .getStateFlow("ai_chat_reselect", 0L)
         .collectAsStateWithLifecycle()
 
+    // Activity-scoped: survives bottom-tab switches (Nav destination VM can be cleared on leave).
+    val activity = LocalContext.current as ComponentActivity
     val viewModel: AiChatViewModel = viewModel(
+        viewModelStoreOwner = activity,
         factory = ViewModelProvider.AndroidViewModelFactory.getInstance(
-            LocalContext.current.applicationContext as Application,
+            activity.application,
         ),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()

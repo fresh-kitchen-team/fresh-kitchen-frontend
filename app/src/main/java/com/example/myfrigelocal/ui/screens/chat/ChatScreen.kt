@@ -1,10 +1,5 @@
 package com.example.myfrigelocal.ui.screens.chat
 
-import android.content.Intent
-import android.graphics.ImageDecoder
-import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,14 +27,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,7 +65,6 @@ import com.example.myfrigelocal.R
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.BottomNavUnselected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
-import androidx.compose.ui.platform.LocalContext
 import java.util.UUID
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardActions
@@ -80,9 +73,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.zIndex
 import androidx.activity.compose.BackHandler
@@ -99,6 +89,8 @@ data class ChatMessage(
     /** Mirrors backend `type`: [AI_RESPONSE_TYPE_TEXT] or [AI_RESPONSE_TYPE_RECIPE]. */
     val responseType: String = AI_RESPONSE_TYPE_TEXT,
     val recipe: RecipeUiModel? = null,
+    /** Local-only placeholder while waiting for AI response. */
+    val isLoading: Boolean = false,
 )
 
 enum class Sender {
@@ -140,7 +132,6 @@ fun ChatScreen(
     onRenameRoomLocal: (threadId: String, newTitle: String) -> Unit = { _, _ -> },
 ) {
     var input by rememberSaveable { mutableStateOf("") }
-    var attachedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
     var isAiSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
@@ -150,26 +141,6 @@ fun ChatScreen(
     var editingThreadId by remember { mutableStateOf<String?>(null) }
     var editingTitleSeed by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val context = LocalContext.current
-
-    val cameraActivityLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-        onResult = { result ->
-            val uriString = result.data?.getStringExtra(CameraCaptureActivity.RESULT_IMAGE_URI)
-            if (!uriString.isNullOrBlank()) {
-                attachedImageUri = uriString
-            }
-        },
-    )
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted ->
-            if (granted) {
-                cameraActivityLauncher.launch(Intent(context, CameraCaptureActivity::class.java))
-            }
-        },
-    )
 
     LaunchedEffect(currentThreadId, messages.size) {
         if (messages.isNotEmpty()) {
@@ -253,7 +224,12 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 12.dp,
+                    bottom = 16.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(messages, key = { it.id }) { message ->
@@ -265,30 +241,11 @@ fun ChatScreen(
                 inputValue = input,
                 onInputChange = { input = it },
                 sendEnabled = !isSending && currentThreadId.isNotBlank(),
-                onPlusClick = {
-                    // 디자인 전용 더미 동작
-                },
-                attachedImageUri = attachedImageUri?.let(Uri::parse),
-                onRemoveAttachedImage = { attachedImageUri = null },
-                onCameraClick = {
-                    val perm = android.Manifest.permission.CAMERA
-                    val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        perm,
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-                    if (granted) {
-                        cameraActivityLauncher.launch(Intent(context, CameraCaptureActivity::class.java))
-                    } else {
-                        cameraPermissionLauncher.launch(perm)
-                    }
-                },
                 onSend = { text ->
                     val trimmed = text.trim()
                     if (trimmed.isEmpty() || currentThreadId.isBlank()) return@ChatInputBar
                     onSendMessage(trimmed)
                     input = ""
-                    attachedImageUri = null
                 },
             )
         }
@@ -666,12 +623,15 @@ fun ChatTopBar(
                 )
             }
 
-            Spacer(modifier = Modifier.size(8.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-            Icon(
-                painter = painterResource(id = R.drawable.ic_ai_chat_app),
-                contentDescription = "App icon",
-                modifier = Modifier.size(32.dp),
+            Image(
+                painter = painterResource(id = R.drawable.ic_fresh_kitchen),
+                contentDescription = "FreshKitchen",
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .size(48.dp),
+                contentScale = ContentScale.Fit,
             )
         }
 
@@ -716,7 +676,11 @@ fun ChatMessageItem(
 
             Spacer(modifier = Modifier.size(10.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
                 Text(
                     text = "AI Assistant",
                     color = Color(0xFF9CA3AF),
@@ -725,9 +689,14 @@ fun ChatMessageItem(
 
                 Spacer(modifier = Modifier.size(6.dp))
 
-                val recipePayload = message.recipe
-                if (message.responseType == AI_RESPONSE_TYPE_RECIPE && recipePayload != null) {
-                    RecipeResponseCard(recipe = recipePayload)
+                if (message.isLoading) {
+                    AiTypingBubble(text = message.text)
+                } else if (message.responseType == AI_RESPONSE_TYPE_RECIPE && message.recipe != null) {
+                    val recipePayload = message.recipe
+                    RecipeResponseCard(
+                        recipe = recipePayload,
+                        expandStateKey = message.id,
+                    )
                 } else {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
@@ -796,14 +765,40 @@ fun ChatMessageItem(
 }
 
 @Composable
+private fun AiTypingBubble(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = BottomNavSelected,
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = text,
+                color = Color(0xFF6B7280),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+            )
+        }
+    }
+}
+
+@Composable
 fun ChatInputBar(
     inputValue: String,
     onInputChange: (String) -> Unit,
     sendEnabled: Boolean = true,
-    onPlusClick: () -> Unit,
-    onCameraClick: () -> Unit,
-    attachedImageUri: Uri?,
-    onRemoveAttachedImage: () -> Unit,
     onSend: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -821,69 +816,20 @@ fun ChatInputBar(
         shadowElevation = 0.dp,
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
     ) {
-        Column {
-            if (attachedImageUri != null) {
-                AttachedImagePreview(
-                    uri = attachedImageUri,
-                    onRemove = onRemoveAttachedImage,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                    ) {
-                        focusRequester.requestFocus()
-                        keyboardController?.show()
-                    }
-                    .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // + 버튼: 터치 영역은 유지하고(40dp), 보이는 원은 작게(22dp)
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onPlusClick,
-                        ),
-                    contentAlignment = Alignment.Center,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clip(CircleShape)
-                            .border(1.dp, Color(0xFFCBD5E1), CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = "Add",
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
                 }
-
-                IconButton(
-                    onClick = onCameraClick,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.CameraAlt,
-                        contentDescription = "Camera",
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-
-                TextField(
+                .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextField(
                     value = inputValue,
                     onValueChange = { if (sendEnabled) onInputChange(it) },
                     enabled = sendEnabled,
@@ -933,61 +879,6 @@ fun ChatInputBar(
                         modifier = Modifier.size(22.dp),
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttachedImagePreview(
-    uri: Uri,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    var imageBitmap by remember(uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-
-    LaunchedEffect(uri) {
-        imageBitmap = try {
-            if (Build.VERSION.SDK_INT >= 28) {
-                val source = ImageDecoder.createSource(context.contentResolver, uri)
-                ImageDecoder.decodeBitmap(source)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-            }
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-            modifier = Modifier.size(64.dp),
-        ) {
-            val bmp = imageBitmap
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Attached image",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("이미지", color = Color(0xFF9CA3AF), style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-
-        IconButton(onClick = onRemove) {
-            Text("X", color = Color(0xFF6B7280))
         }
     }
 }
