@@ -12,7 +12,7 @@ import com.example.myfrigelocal.data.auth.AuthTokenStore
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AuthTokenStore.setAccessToken("")
+        AuthTokenStore.setAccessToken("eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjMsInJvbGUiOiJVU0VSIiwidG9rZW5UeXBlIjoiYWNjZXNzIiwiaWF0IjoxNzc4ODIzNjYwLCJleHAiOjE3Nzk0Mjg0NjB9.0QBh8OOfbM_72scHyFPw2qNXPKEQKYAOphhrMZZLCGY")
         setContent {
             MyFridgeApp()
         }

@@ -26,11 +26,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ui.screens.chat.CameraCaptureActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyFrigeLocal" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

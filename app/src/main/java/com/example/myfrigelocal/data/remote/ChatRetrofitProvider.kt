@@ -1,5 +1,7 @@
 package com.example.myfrigelocal.data.remote
 
+import android.util.Log
+import com.example.myfrigelocal.BuildConfig
 import com.example.myfrigelocal.data.TokenProvider
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -22,8 +24,15 @@ object ChatRetrofitProvider {
     fun gson(): Gson = GsonBuilder().create()
 
     fun okHttpClient(tokenProvider: TokenProvider): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+        // DEBUG: request/response JSON 전체 — Logcat 필터 `FreshKitchenChat`
+        val logging = HttpLoggingInterceptor { message ->
+            Log.d("FreshKitchenChat", message)
+        }.apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.BASIC
+            }
         }
         return OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(tokenProvider))

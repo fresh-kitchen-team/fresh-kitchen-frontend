@@ -7,7 +7,9 @@ import okhttp3.Response
 /**
  * Logs Chat AI API calls: full URL, HTTP status, and error body peek on failure.
  *
- * Filter: `adb logcat -s FreshKitchenChat`
+ * Success response JSON (전체 body)는 DEBUG 빌드에서 OkHttp [HttpLoggingInterceptor.Level.BODY]로 출력됩니다.
+ *
+ * Logcat 필터: `FreshKitchenChat` 또는 Android Studio에서 tag:FreshKitchenChat
  */
 class HttpStatusLoggingInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
