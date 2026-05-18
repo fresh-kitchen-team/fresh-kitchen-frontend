@@ -71,6 +71,7 @@ fun SideMenuDrawer(
     onToggleChatMenu: (threadId: String) -> Unit = {},
     onDismissChatMenu: () -> Unit = {},
     onEditChatTitleFromMenu: (threadId: String, currentTitle: String) -> Unit = { _, _ -> },
+    onDeleteChatFromMenu: (threadId: String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val config = LocalConfiguration.current
@@ -164,6 +165,7 @@ fun SideMenuDrawer(
                 onToggleChatMenu = onToggleChatMenu,
                 onDismissChatMenu = onDismissChatMenu,
                 onEditChatTitleFromMenu = onEditChatTitleFromMenu,
+                onDeleteChatFromMenu = onDeleteChatFromMenu,
             )
         }
     }
@@ -181,6 +183,7 @@ private fun SideMenuContent(
     onToggleChatMenu: (threadId: String) -> Unit,
     onDismissChatMenu: () -> Unit,
     onEditChatTitleFromMenu: (threadId: String, currentTitle: String) -> Unit,
+    onDeleteChatFromMenu: (threadId: String) -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -279,6 +282,7 @@ private fun SideMenuContent(
                     onToggleMenu = { onToggleChatMenu(item.threadId) },
                     onDismissMenu = onDismissChatMenu,
                     onEditChatTitle = { onEditChatTitleFromMenu(item.threadId, item.title) },
+                    onDeleteChatRoom = { onDeleteChatFromMenu(item.threadId) },
                 )
             }
         }
@@ -342,6 +346,7 @@ private fun ChatRoomListItemRow(
     onToggleMenu: () -> Unit,
     onDismissMenu: () -> Unit,
     onEditChatTitle: () -> Unit,
+    onDeleteChatRoom: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -381,6 +386,7 @@ private fun ChatRoomListItemRow(
             onExpandRequest = onToggleMenu,
             onDismissRequest = onDismissMenu,
             onEditChatTitle = onEditChatTitle,
+            onDeleteChatRoom = onDeleteChatRoom,
         )
     }
 }

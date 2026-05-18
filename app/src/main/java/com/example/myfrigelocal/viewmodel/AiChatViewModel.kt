@@ -11,15 +11,11 @@ import com.example.myfrigelocal.data.remote.ChatRetrofitProvider
 import com.google.gson.Gson
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSummaryDto
-import com.example.myfrigelocal.data.mapper.toChatIngredientDto
-import com.example.myfrigelocal.data.remote.dto.ChatIngredientDto
 import com.example.myfrigelocal.BuildConfig
+import com.example.myfrigelocal.data.remote.dto.AiSettingDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
-import com.example.myfrigelocal.data.remote.dto.UserPreferencesDto
 import com.example.myfrigelocal.data.repository.ChatRepository
-import com.example.myfrigelocal.data.repository.FridgeRepository
-import com.example.myfrigelocal.data.repository.FridgeRepositoryImpl
 import com.example.myfrigelocal.data.repository.toChatMessage
 import com.example.myfrigelocal.ui.screens.chat.ChatMessage
 import com.example.myfrigelocal.ui.screens.chat.Sender
@@ -34,9 +30,6 @@ import java.io.IOException
 import java.util.UUID
 
 private const val LOG_TAG = "FreshKitchenChat"
-
-/** RAG / VectorStore 구분용 — Swagger `type` 기본값. */
-private const val SEND_MESSAGE_TYPE_RECIPE = "recipe"
 
 private const val AI_LOADING_MESSAGE_ID = "ai-loading-pending"
 private const val AI_LOADING_TEXT = "답변 생성 중..."
@@ -61,7 +54,6 @@ class AiChatViewModel(
         ChatRetrofitProvider.chatApi(SessionTokenProvider),
     )
 
-    private val fridgeRepository: FridgeRepository = FridgeRepositoryImpl()
 
     private val debugGson: Gson = ChatRetrofitProvider.gson()
 
@@ -171,7 +163,6 @@ class AiChatViewModel(
     /**
      * Creates an empty room (POST body 없음). Swagger: `POST /ai/v1/chat/room`.
      *
-     * TODO: Swagger에 채팅방 삭제 API가 없음 — 추가 시 연동.
      */
     fun createRoom() {
         viewModelScope.launch {
@@ -236,12 +227,7 @@ class AiChatViewModel(
     /**
      * Swagger `POST /ai/v1/chat/room/{roomId}` 본문과 동일한 키를 보냅니다.
      *
-     * - [FridgeRepository]에서 식재료를 [ChatIngredientDto]로 매핑합니다.
-     * - 냉장고가 비어 있으면 서버가 `ingredients` 비허용일 수 있어, **사용자가 입력한 문장**을
-     *   단일 항목(`id=1`, `name=메시지`)으로 넣습니다. (임의 재료명 하드코딩 아님.)
-     * - [UserPreferencesDto]는 네 배열을 `[]`로 명시합니다.
-     *
-     * TODO: 프로필(알레르기·선호·조리도구)을 [UserPreferencesDto]에 연동.
+     * - [AiSettingDto]는 설정 API가 없어 기본값(전부 `true`)으로 전송합니다.
      */
     fun sendMessage(text: String) {
         val trimmed = text.trim()
@@ -299,25 +285,9 @@ class AiChatViewModel(
                 )
             }
 
-            val fromFridge = fridgeRepository.observeIngredients().map { it.toChatIngredientDto() }
-            val ingredients = if (fromFridge.isNotEmpty()) {
-                fromFridge
-            } else {
-                // 백엔드가 빈 ingredients를 거절하는 경우: 사용자 입력을 단일 행으로 전달
-                listOf(
-                    ChatIngredientDto(
-                        id = 1L,
-                        name = trimmed,
-                        expiresAt = null,
-                    ),
-                )
-            }
-
             val request = SendMessageRequest(
                 message = trimmed,
-                type = SEND_MESSAGE_TYPE_RECIPE,
-                ingredients = ingredients,
-                userPreferences = UserPreferencesDto(),
+                aiSetting = AiSettingDto(),
             )
 
             logTokenPresence("sendMessage")
@@ -350,6 +320,33 @@ class AiChatViewModel(
                             error = SEND_AI_ERROR_MESSAGE,
                         )
                     }
+                }
+        }
+    }
+
+    /** DELETE `/ai/v1/chat/delete/room/{roomId}` — 목록에서 제거, 현재 방이면 채팅 화면 초기화. */
+    fun deleteRoom(roomId: Long) {
+        viewModelScope.launch {
+            logTokenPresence("deleteChatRoom")
+            repository.deleteChatRoom(roomId)
+                .onSuccess {
+                    cachedSections = cachedSections.withoutRoom(roomId)
+                    val wasCurrent = _uiState.value.currentRoomId == roomId
+                    _uiState.update { s ->
+                        s.copy(
+                            currentRoomId = if (wasCurrent) null else s.currentRoomId,
+                            messages = if (wasCurrent) emptyList() else s.messages,
+                            topBarTitle = if (wasCurrent) "AI 주방 비서" else s.topBarTitle,
+                            sideMenuItems = markSelected(
+                                buildSideMenuItems(if (wasCurrent) null else s.currentRoomId),
+                                if (wasCurrent) null else s.currentRoomId,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("deleteChatRoom", e)
+                    _uiState.update { it.copy(error = e.toUserMessage()) }
                 }
         }
     }
@@ -424,6 +421,16 @@ class AiChatViewModel(
         return copy(today = listOf(room) + rest)
     }
 
+    private fun ChatRoomSectionsDto.withoutRoom(roomId: Long): ChatRoomSectionsDto {
+        fun filterList(list: List<ChatRoomSummaryDto>?) =
+            list?.filter { it.roomId != roomId }
+        return copy(
+            today = filterList(today),
+            last7Days = filterList(last7Days),
+            last30Days = filterList(last30Days),
+        )
+    }
+
     private fun aiLoadingPlaceholder(): ChatMessage = ChatMessage(
         id = AI_LOADING_MESSAGE_ID,
         sender = Sender.Ai,
@@ -438,12 +445,10 @@ class AiChatViewModel(
     private fun logSendMessageResponse(resp: SendMessageResponseDto) {
         val msg = resp.aiMessage
         val recipeCount = msg.aiPayload?.recipes?.size ?: 0
-        val hasPayload = msg.aiPayload != null
         Log.i(
             LOG_TAG,
-            "[sendMessage] parsed: title=${resp.title}, text=${msg.text.take(80)}, " +
-                "hasAiPayload=$hasPayload, recipeCount=$recipeCount, " +
-                "uiType=${if (recipeCount > 0) "recipe-card" else "text-bubble"}",
+            "[sendMessage] parsed: title=${resp.title}, uiType=${msg.uiType}, " +
+                "text=${msg.text.take(80)}, recipeCount=$recipeCount",
         )
         if (BuildConfig.DEBUG) {
             try {

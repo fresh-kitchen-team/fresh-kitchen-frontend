@@ -6,6 +6,7 @@ import com.example.myfrigelocal.data.remote.isBusinessSuccess
 import com.example.myfrigelocal.data.remote.dto.ChatRoomDetailDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
 import com.example.myfrigelocal.data.remote.dto.CreateChatRoomResponseDto
+import com.example.myfrigelocal.data.remote.dto.EmptyApiDataDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleRequest
@@ -33,6 +34,30 @@ class ChatRepository(
 
     suspend fun updateRoomTitle(roomId: Long, title: String): Result<UpdateRoomTitleResponseDto> =
         unwrapSingle(api.updateRoomTitle(roomId, UpdateRoomTitleRequest(title)))
+
+    suspend fun deleteChatRoom(roomId: Long): Result<Unit> =
+        unwrapSuccess(api.deleteChatRoom(roomId))
+
+    private fun unwrapSuccess(response: Response<ApiResponse<EmptyApiDataDto?>>): Result<Unit> {
+        return try {
+            if (!response.isSuccessful) {
+                return Result.failure(HttpException(response))
+            }
+            val body = response.body() ?: return Result.failure(IllegalStateException("Empty body"))
+            if (!body.isBusinessSuccess()) {
+                return Result.failure(
+                    IllegalStateException(body.message ?: "Request failed (status=${body.status})"),
+                )
+            }
+            Result.success(Unit)
+        } catch (e: IOException) {
+            Result.failure(e)
+        } catch (e: JsonParseException) {
+            Result.failure(e)
+        } catch (e: RuntimeException) {
+            Result.failure(e)
+        }
+    }
 
     private fun <T> unwrapSingle(response: Response<ApiResponse<T>>): Result<T> {
         return try {
