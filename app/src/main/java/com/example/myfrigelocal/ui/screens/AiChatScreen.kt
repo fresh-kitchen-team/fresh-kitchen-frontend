@@ -48,5 +48,10 @@ fun AiChatScreen(
                 viewModel.updateRoomTitle(id, title)
             }
         },
+        onDeleteRoom = { threadId ->
+            threadId.toLongOrNull()?.let { id ->
+                viewModel.deleteRoom(id)
+            }
+        },
     )
 }

@@ -46,6 +46,8 @@ data class ChatMessageDto(
     @SerializedName(value = "text", alternate = ["content"])
     val text: String,
     @SerializedName("aiPayload") val aiPayload: AiPayloadDto? = null,
+    /** `RECIPE` (card) or `GENERAL` (text bubble). */
+    @SerializedName("uiType") val uiType: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
 )
 
@@ -72,18 +74,19 @@ data class UserPreferencesDto(
     @SerializedName("cookingTool") val cookingTool: List<String> = emptyList(),
 )
 
-/**
- * POST /ai/v1/chat/room/{roomId} — Swagger 예시와 동일한 키 구조.
- *
- * `ingredients` / `userPreferences`는 스키마상 존재해야 하며, 빈 배열만으로는 서버 검증(@NotEmpty 등)에 걸릴 수 있음.
- * 실제 재고는 [com.example.myfrigelocal.data.repository.FridgeRepository]에서 채우고,
- * 비어 있으면 ViewModel에서 사용자 메시지 기반 단일 항목으로 보완한다.
- */
+/** POST /ai/v1/chat/room/{roomId} — `aisetting` block. */
+data class AiSettingDto(
+    @SerializedName("responseStyle") val responseStyle: Boolean = true,
+    @SerializedName("priorityExpiration") val priorityExpiration: Boolean = true,
+    @SerializedName("priorityNutrition") val priorityNutrition: Boolean = true,
+    @SerializedName("priorityFrequent") val priorityFrequent: Boolean = true,
+    @SerializedName("provideExtraInfo") val provideExtraInfo: Boolean = true,
+)
+
+/** POST /ai/v1/chat/room/{roomId} — request body. */
 data class SendMessageRequest(
     @SerializedName("message") val message: String,
-    @SerializedName("type") val type: String,
-    @SerializedName("ingredients") val ingredients: List<ChatIngredientDto>,
-    @SerializedName("userPreferences") val userPreferences: UserPreferencesDto,
+    @SerializedName("aisetting") val aiSetting: AiSettingDto = AiSettingDto(),
 )
 
 /** POST /ai/v1/chat/room/{roomId} — `data` payload. */
@@ -102,3 +105,6 @@ data class UpdateRoomTitleResponseDto(
     @SerializedName("title") val title: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
 )
+
+/** DELETE `/ai/v1/chat/delete/room/{roomId}` — Swagger `data: {}`. */
+class EmptyApiDataDto

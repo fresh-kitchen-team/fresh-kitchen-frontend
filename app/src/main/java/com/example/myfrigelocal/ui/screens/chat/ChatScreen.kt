@@ -86,7 +86,7 @@ data class ChatMessage(
     val id: String,
     val sender: Sender,
     val text: String,
-    /** Mirrors backend `type`: [AI_RESPONSE_TYPE_TEXT] or [AI_RESPONSE_TYPE_RECIPE]. */
+    /** Mirrors backend `uiType`: [AI_RESPONSE_TYPE_TEXT] (GENERAL) or [AI_RESPONSE_TYPE_RECIPE] (RECIPE). */
     val responseType: String = AI_RESPONSE_TYPE_TEXT,
     val recipe: RecipeUiModel? = null,
     /** Local-only placeholder while waiting for AI response. */
@@ -130,6 +130,7 @@ fun ChatScreen(
     onNewChat: () -> Unit = {},
     onSendMessage: (String) -> Unit = {},
     onRenameRoomLocal: (threadId: String, newTitle: String) -> Unit = { _, _ -> },
+    onDeleteRoom: (threadId: String) -> Unit = {},
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -140,6 +141,7 @@ fun ChatScreen(
     var openedMenuThreadId by remember { mutableStateOf<String?>(null) }
     var editingThreadId by remember { mutableStateOf<String?>(null) }
     var editingTitleSeed by remember { mutableStateOf("") }
+    var deletingThreadId by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(currentThreadId, messages.size) {
@@ -158,6 +160,7 @@ fun ChatScreen(
         isReportIssueOpen = false
         openedMenuThreadId = null
         editingThreadId = null
+        deletingThreadId = null
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
@@ -240,10 +243,11 @@ fun ChatScreen(
             ChatInputBar(
                 inputValue = input,
                 onInputChange = { input = it },
-                sendEnabled = !isSending && currentThreadId.isNotBlank(),
+                // No room yet (e.g. after delete): ViewModel creates a room then sends the message.
+                sendEnabled = !isSending,
                 onSend = { text ->
                     val trimmed = text.trim()
-                    if (trimmed.isEmpty() || currentThreadId.isBlank()) return@ChatInputBar
+                    if (trimmed.isEmpty()) return@ChatInputBar
                     onSendMessage(trimmed)
                     input = ""
                 },
@@ -283,8 +287,25 @@ fun ChatScreen(
                 editingThreadId = threadId
                 editingTitleSeed = currentTitle
             },
+            onDeleteChatFromMenu = { threadId ->
+                openedMenuThreadId = null
+                deletingThreadId = threadId
+            },
             modifier = Modifier.zIndex(1f),
         )
+
+        deletingThreadId?.let { tid ->
+            Box(Modifier.fillMaxSize().zIndex(6f)) {
+                DeleteChatConfirmDialog(
+                    onDismiss = { deletingThreadId = null },
+                    onConfirmDelete = {
+                        onDeleteRoom(tid)
+                        deletingThreadId = null
+                        isSideMenuOpen = false
+                    },
+                )
+            }
+        }
 
         editingThreadId?.let { tid ->
             Box(Modifier.fillMaxSize().zIndex(5f)) {
