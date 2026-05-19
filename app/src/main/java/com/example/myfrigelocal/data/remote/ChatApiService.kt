@@ -3,12 +3,14 @@ package com.example.myfrigelocal.data.remote
 import com.example.myfrigelocal.data.remote.dto.ChatRoomDetailDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
 import com.example.myfrigelocal.data.remote.dto.CreateChatRoomResponseDto
+import com.example.myfrigelocal.data.remote.dto.EmptyApiDataDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleRequest
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -42,4 +44,10 @@ interface ChatApiService {
         @Path("roomId") roomId: Long,
         @Body body: UpdateRoomTitleRequest,
     ): Response<ApiResponse<UpdateRoomTitleResponseDto>>
+
+    /** Swagger: `DELETE /ai/v1/chat/delete/room/{roomId}` — `data` is `{}`. */
+    @DELETE("ai/v1/chat/delete/room/{roomId}")
+    suspend fun deleteChatRoom(
+        @Path("roomId") roomId: Long,
+    ): Response<ApiResponse<EmptyApiDataDto?>>
 }

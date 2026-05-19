@@ -13,7 +13,7 @@ import com.example.myfrigelocal.ui.screens.chat.Sender
  * Maps [ChatMessageDto] (Swagger /ai/v1) to UI [ChatMessage].
  *
  * `sender`: treats USER / user / AI / Ai / ASSISTANT (case-insensitive) safely.
- * `aiPayload`: object with recipes/tips/missingIngredients — first recipe drives [RecipeUiModel] card when present.
+ * `uiType`: `RECIPE` → recipe card when [aiPayload] has a recipe; `GENERAL` → text bubble.
  */
 fun ChatMessageDto.toChatMessage(): ChatMessage {
     val normalized = sender.trim().uppercase()
@@ -25,7 +25,11 @@ fun ChatMessageDto.toChatMessage(): ChatMessage {
         }
     val recipe = aiPayload?.toPrimaryRecipeUiModel()
     val responseType =
-        if (recipe != null) AI_RESPONSE_TYPE_RECIPE else AI_RESPONSE_TYPE_TEXT
+        when (uiType?.trim()?.uppercase()) {
+            "RECIPE" -> AI_RESPONSE_TYPE_RECIPE
+            "GENERAL" -> AI_RESPONSE_TYPE_TEXT
+            else -> if (recipe != null) AI_RESPONSE_TYPE_RECIPE else AI_RESPONSE_TYPE_TEXT
+        }
     return ChatMessage(
         id = messageId.toString(),
         sender = senderEnum,

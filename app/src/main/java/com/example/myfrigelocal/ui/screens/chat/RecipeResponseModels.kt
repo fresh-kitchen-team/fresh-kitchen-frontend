@@ -1,9 +1,10 @@
 package com.example.myfrigelocal.ui.screens.chat
 
-/** Matches backend/API `type` field for AI payloads. */
-const val AI_RESPONSE_TYPE_TEXT = "text"
+/** Matches backend `uiType` for general chat bubbles. */
+const val AI_RESPONSE_TYPE_TEXT = "GENERAL"
 
-const val AI_RESPONSE_TYPE_RECIPE = "recipe"
+/** Matches backend `uiType` for recipe cards. */
+const val AI_RESPONSE_TYPE_RECIPE = "RECIPE"
 
 /**
  * UI model aligned with a typical recipe JSON payload from the backend.
