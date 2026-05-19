@@ -118,4 +118,10 @@ dependencies {
 
 // Coroutines (이미 있으면 스킵)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Kakao SDK v2
+    implementation("com.kakao.sdk:v2-user:2.20.6")
 }

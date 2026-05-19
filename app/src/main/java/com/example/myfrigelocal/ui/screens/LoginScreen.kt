@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,13 +24,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.R
 import com.example.myfrigelocal.ui.theme.FreshGreen
 import com.example.myfrigelocal.ui.theme.FreshGreenDark
+import com.example.myfrigelocal.viewmodel.LoginState
+import com.example.myfrigelocal.viewmodel.LoginViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.kakao.sdk.auth.model.OAuthToken
+import com.kakao.sdk.common.model.ClientError
+import com.kakao.sdk.common.model.ClientErrorCause
+import com.kakao.sdk.user.UserApiClient
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 // ───────────────────────────────────────────
 // 로그인 화면
@@ -41,17 +56,64 @@ fun LoginScreen(
     onExistingUser: () -> Unit = {}, // 이미 계정 있어요 → home
     onBackClick: () -> Unit = {}     // 뒤로가기 → onboarding
 ) {
+    val context = LocalContext.current
+    val viewModel: LoginViewModel = viewModel()
+    val loginState by viewModel.loginState.collectAsStateWithLifecycle()
+
     // 바텀시트 상태
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
     var isNewUser by remember { mutableStateOf(false) }
 
+    // ── Google Sign-In 설정 ──
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("481500254244-t5ram70598u3m967nmnv3a4o2j0toati.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            android.util.Log.d("LoginScreen", "account: $account, idToken: ${idToken?.take(20)}")
+            if (idToken != null) {
+                viewModel.loginWithGoogle(
+                    idToken = idToken,
+                    context = context,
+                    displayName = account?.displayName,
+                    email = account?.email,
+                    photoUrl = account?.photoUrl?.toString()
+                )
+            } else {
+                android.util.Log.e("LoginScreen", "idToken이 null — SHA-1 등록 확인 필요")
+            }
+        } catch (e: ApiException) {
+            android.util.Log.e("LoginScreen", "ApiException: ${e.statusCode} - ${e.message}")
+        }
+    }
+
+    // ── 로그인 상태 처리 ── (LaunchedEffect: 컴포지션 중 네비게이션 방지)
+    LaunchedEffect(loginState) {
+        if (loginState is LoginState.Success) {
+            val newUser = (loginState as LoginState.Success).isNewUser
+            viewModel.resetState()
+            if (newUser) onNewUser() else onExistingUser()
+        }
+    }
+
     // 바텀시트
     if (showSheet) {
         SocialLoginBottomSheet(
             isNewUser = isNewUser,
             sheetState = sheetState,
+            isLoading = loginState is LoginState.Loading,
             onDismiss = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showSheet = false
@@ -60,18 +122,52 @@ fun LoginScreen(
             onGoogleClick = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showSheet = false
-                    // TODO: 구글 OAuth 연동 — 로그인 API 응답의 accessToken을 받은 뒤:
-                    //   AuthTokenStore.setAccessToken(accessToken)
-                    //   (선택) EncryptedSharedPreferences / DataStore에 저장 후 앱 기동 시 복원.
-                    // 임시 테스트 토큰은 소스에 하드코딩하지 말고, 디버그 빌드 전용 메뉴나 디버거로 setAccessToken 호출.
-                    if (isNewUser) onNewUser() else onExistingUser()
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        googleLauncher.launch(googleSignInClient.signInIntent)
+                    }
                 }
             },
             onKakaoClick = {
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showSheet = false
-                    // TODO: 카카오 OAuth 연동 — 성공 시 동일하게 AuthTokenStore.setAccessToken(accessToken) 호출.
-                    if (isNewUser) onNewUser() else onExistingUser()
+                    // 카카오 로그인 콜백
+                    val kakaoCallback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
+                        if (error != null) {
+                            android.util.Log.e("LoginScreen", "카카오 로그인 실패: ${error.message}")
+                        } else if (token != null) {
+                            val idToken = token.idToken
+                            if (idToken != null) {
+                                android.util.Log.d("LoginScreen", "카카오 로그인 성공: ${idToken.take(20)}")
+                                // 카카오 프로필 조회 후 ViewModel에 전달
+                                UserApiClient.instance.me { user, _ ->
+                                    val nickname = user?.kakaoAccount?.profile?.nickname
+                                    val profileImageUrl = user?.kakaoAccount?.profile?.thumbnailImageUrl
+                                    viewModel.loginWithKakao(
+                                        idToken = idToken,
+                                        context = context,
+                                        nickname = nickname,
+                                        profileImageUrl = profileImageUrl
+                                    )
+                                }
+                            } else {
+                                android.util.Log.e("LoginScreen", "카카오 idToken null — Kakao 콘솔에서 openid 스코프 활성화 필요")
+                            }
+                        }
+                    }
+                    // 카카오톡 설치 여부에 따라 분기
+                    if (UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
+                        UserApiClient.instance.loginWithKakaoTalk(context) { token, error ->
+                            if (error != null) {
+                                // 카카오톡 취소 시 카카오 계정으로 fallback
+                                if (error is ClientError && error.reason == ClientErrorCause.Cancelled) return@loginWithKakaoTalk
+                                UserApiClient.instance.loginWithKakaoAccount(context, callback = kakaoCallback)
+                            } else if (token != null) {
+                                kakaoCallback(token, null)
+                            }
+                        }
+                    } else {
+                        UserApiClient.instance.loginWithKakaoAccount(context, callback = kakaoCallback)
+                    }
                 }
             }
         )
@@ -224,6 +320,7 @@ fun LoginScreen(
 fun SocialLoginBottomSheet(
     isNewUser: Boolean,
     sheetState: SheetState,
+    isLoading: Boolean = false,
     onDismiss: () -> Unit,
     onGoogleClick: () -> Unit,
     onKakaoClick: () -> Unit
@@ -264,6 +361,7 @@ fun SocialLoginBottomSheet(
             // 구글 버튼
             OutlinedButton(
                 onClick = onGoogleClick,
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),

@@ -11,8 +11,6 @@ object RetrofitClient {
 
     private const val BASE_URL = "http://api.app-fresh.com/"
 
-    // TODO: 로그인 연동 후 DataStore에서 읽어온 토큰으로 교체
-    var accessToken: String = ""
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
@@ -20,22 +18,12 @@ object RetrofitClient {
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
         .addInterceptor { chain ->
-            val raw =
-                AuthTokenStore.getAccessToken()?.trim().orEmpty().ifEmpty { accessToken.trim() }
-            val authHeader =
-                when {
-                    raw.isEmpty() -> null
-                    raw.startsWith("Bearer ", ignoreCase = true) -> raw
-                    else -> "Bearer $raw"
+            val request = chain.request().newBuilder().apply {
+                val token = AuthTokenStore.getAccessToken()
+                if (!token.isNullOrEmpty()) {
+                    addHeader("Authorization", "Bearer $token")
                 }
-            val request =
-                if (authHeader != null) {
-                    chain.request().newBuilder()
-                        .header("Authorization", authHeader)
-                        .build()
-                } else {
-                    chain.request()
-                }
+            }.build()
             chain.proceed(request)
         }
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -55,5 +43,13 @@ object RetrofitClient {
 
     val ingredientApi: IngredientApiService by lazy {
         retrofit.create(IngredientApiService::class.java)
+    }
+
+    val authApi: AuthApiService by lazy {
+        retrofit.create(AuthApiService::class.java)
+    }
+
+    val userApi: UserApiService by lazy {
+        retrofit.create(UserApiService::class.java)
     }
 }
