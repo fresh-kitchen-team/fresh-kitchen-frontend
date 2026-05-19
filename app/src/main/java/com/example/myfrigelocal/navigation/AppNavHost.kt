@@ -1,7 +1,9 @@
 package com.example.myfrigelocal.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -85,8 +87,12 @@ fun AppNavHost(
             )
         }
 
-        composable(BottomNavRoute.Home.route) {
+        composable(BottomNavRoute.Home.route) { backStackEntry ->
+            val refreshHomeTrigger by backStackEntry.savedStateHandle
+                .getStateFlow(ScanNav.keyRefreshHome, 0L)
+                .collectAsStateWithLifecycle()
             HomeScreen(
+                refreshHomeTrigger = refreshHomeTrigger,
                 onNavigateToInventory = { filter ->
                     navController.navigate("inventory_list/$filter")
                 },
@@ -98,7 +104,7 @@ fun AppNavHost(
                 },
                 onNavigateToSearch = {
                     navController.navigate("search")
-                }
+                },
             )
         }
 

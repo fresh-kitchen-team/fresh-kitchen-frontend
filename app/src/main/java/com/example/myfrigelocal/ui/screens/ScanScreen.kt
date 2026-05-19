@@ -31,12 +31,16 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -134,6 +138,25 @@ fun ScanScreen(
             scanViewModel.resetOperation()
             navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, false)
         }
+    }
+
+    // Defensive reset: any time the Scan composable (re)enters composition, start from a
+    // clean state so users never see a stale SUCCESS/LOADING overlay after navigating away.
+    LaunchedEffect(Unit) {
+        scanState = ScanState.IDLE
+        hasNavigatedToResult = false
+        lastBarcodeRawValue = null
+        lastSelectedImageUri = null
+        receiptItems = emptyList()
+        navController.currentBackStackEntry?.savedStateHandle?.apply {
+            remove<String>(ScanNav.keyScanResultJson)
+            remove<String>(ScanNav.keyImageUri)
+            remove<String>(ScanNav.keyBarcodeValue)
+            remove<ArrayList<String>>(ScanNav.keyReceiptItems)
+            remove<Int>(ScanNav.keyReceiptIndex)
+            set(ScanNav.keyReset, false)
+        }
+        scanViewModel.resetOperation()
     }
 
     LaunchedEffect(operationState) {
@@ -332,22 +355,13 @@ fun ScanScreen(
         )
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top section (title + tabs)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
+            // White top bar with light segmented control to match the app's light/green tone.
+            Surface(
+                color = Color.White,
+                shadowElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 ScanTopBar(
-                    onClose = {
-                        // Scan is a bottom-tab destination; closing returns to Home.
-                        navController.navigate("home") {
-                            launchSingleTop = true
-                            popUpTo("home") { inclusive = false }
-                        }
-                    },
-                )
-                ScanTabs(
                     selectedTab = selectedTab,
                     onSelect = { tab -> selectedTab = tab },
                 )
@@ -358,7 +372,7 @@ fun ScanScreen(
                 ScanTab.Receipt -> "영수증을 프레임 안에 맞춰주세요"
             }
 
-            // Middle section (frame ONLY, centered)
+            // Middle section (frame ONLY, centered, on top of camera preview)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -366,7 +380,6 @@ fun ScanScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (scanState == ScanState.SUCCESS) {
-                    // Keep success feedback out of the frame area (per requirement).
                     ScanSuccessOverlay()
                 } else {
                     when (selectedTab) {
@@ -389,53 +402,53 @@ fun ScanScreen(
                 }
             }
 
-            // Guide section (same position/spacing for both tabs, never clipped)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 6.dp, bottom = 8.dp),
-                contentAlignment = Alignment.Center,
+            // Bottom section: white surface with guide text + shutter + gallery.
+            Surface(
+                color = Color.White,
+                shadowElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(
-                    text = guideText,
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.widthIn(max = 520.dp),
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 10.dp, bottom = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = guideText,
+                        color = Color(0xFF0F172A),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(max = 520.dp),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ScanBottomSection(
+                        modifier = Modifier.fillMaxWidth(),
+                        selectedTab = selectedTab,
+                        controlsEnabled = scanState != ScanState.LOADING,
+                        onPrimaryAction = {
+                            when (selectedTab) {
+                                ScanTab.Ingredient -> {
+                                    scanState = ScanState.SCANNING
+                                    lastBarcodeRawValue = null
+                                    receiptItems = emptyList()
+                                    captureRequestToken = System.currentTimeMillis()
+                                }
+                                ScanTab.Receipt -> {
+                                    lastSelectedImageUri = null
+                                    lastBarcodeRawValue = null
+                                    receiptItems = emptyList()
+                                    scanState = ScanState.SCANNING
+                                    captureRequestToken = System.currentTimeMillis()
+                                }
+                            }
+                        },
+                        onPickFromGallery = { galleryLauncher.launch("image/*") },
+                    )
+                }
             }
-
-            // Bottom section (guide text + primary button + floating gallery button)
-            ScanBottomSection(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                selectedTab = selectedTab,
-                controlsEnabled = scanState != ScanState.LOADING,
-                onPrimaryAction = {
-                    when (selectedTab) {
-                        ScanTab.Ingredient -> {
-                            scanState = ScanState.SCANNING
-                            // Capture photo via CameraX, then crop using the frame bounds.
-                            lastBarcodeRawValue = null
-                            receiptItems = emptyList()
-                            captureRequestToken = System.currentTimeMillis()
-                        }
-
-                        ScanTab.Receipt -> {
-                            lastSelectedImageUri = null
-                            lastBarcodeRawValue = null
-                            receiptItems = emptyList()
-                            scanState = ScanState.SCANNING
-                            captureRequestToken = System.currentTimeMillis()
-                        }
-                    }
-                },
-                onPickFromGallery = { galleryLauncher.launch("image/*") },
-            )
         }
 
         if (scanState == ScanState.LOADING || operationState is ScanOperationState.Loading) {
@@ -467,66 +480,47 @@ private fun Context.showShortToast(message: String) {
 
 @Composable
 private fun ScanTopBar(
-    onClose: () -> Unit,
+    selectedTab: ScanTab,
+    onSelect: (ScanTab) -> Unit,
 ) {
-    Surface(
-        color = Color.White,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 12.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(24.dp)
-                    .clickable(onClick = onClose),
-            )
-            Text(
-                text = "식재료 등록",
-                color = Color(0xFF111827),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
+        ScanTabSegmented(
+            selectedTab = selectedTab,
+            onSelect = onSelect,
+            modifier = Modifier.widthIn(max = 480.dp),
+        )
     }
 }
 
 @Composable
-private fun ScanTabs(
+private fun ScanTabSegmented(
     selectedTab: ScanTab,
     onSelect: (ScanTab) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = Color.White,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+        shape = CircleShape,
+        color = Color(0xFFF1F5F9),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-        ) {
-            TabItem(
+        Row(modifier = Modifier.padding(4.dp)) {
+            SegmentChip(
                 modifier = Modifier.weight(1f),
                 selected = selectedTab == ScanTab.Ingredient,
                 icon = Icons.Outlined.PhotoCamera,
-                label = "식재료 촬영",
+                label = "식재료",
                 onClick = { onSelect(ScanTab.Ingredient) },
             )
-            TabItem(
+            SegmentChip(
                 modifier = Modifier.weight(1f),
                 selected = selectedTab == ScanTab.Receipt,
                 icon = Icons.Filled.Receipt,
-                label = "영수증 촬영",
+                label = "영수증",
                 onClick = { onSelect(ScanTab.Receipt) },
             )
         }
@@ -534,41 +528,41 @@ private fun ScanTabs(
 }
 
 @Composable
-private fun TabItem(
+private fun SegmentChip(
     modifier: Modifier,
     selected: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
 ) {
-    val tint = if (selected) PrimaryGreen else Color(0xFF9CA3AF)
-    Column(
+    val bg = if (selected) PrimaryGreen else Color.Transparent
+    val fg = if (selected) Color.White else Color(0xFF64748B)
+    Surface(
+        shape = CircleShape,
+        color = bg,
         modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .height(36.dp)
+            .clickable(onClick = onClick),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            color = tint,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Box(
-            modifier = Modifier
-                .height(2.dp)
-                .fillMaxWidth()
-                .background(if (selected) PrimaryGreen else Color.Transparent),
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = fg,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                color = fg,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 
@@ -619,108 +613,56 @@ private fun ScanFrameBox(
 
 @Composable
 private fun CornerFrame(modifier: Modifier = Modifier) {
-    // Minimal corner-only frame, like the reference.
-    Box(modifier = modifier) {
-        val cornerSize = 44.dp
-        val stroke = 4.dp
+    // Clean, minimal L-shaped corners with rounded stroke ends.
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cornerLen = minOf(w, h) * 0.14f
+        val stroke = 3.dp.toPx()
 
-        // Top-left
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(cornerSize),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .fillMaxWidth()
-                    .height(stroke)
-                    .background(PrimaryGreen),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .width(stroke)
-                    .fillMaxSize()
-                    .background(PrimaryGreen),
-            )
-        }
-        // Top-right
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(cornerSize),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .fillMaxWidth()
-                    .height(stroke)
-                    .background(PrimaryGreen),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .width(stroke)
-                    .fillMaxSize()
-                    .background(PrimaryGreen),
-            )
-        }
-        // Bottom-left
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .size(cornerSize),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(stroke)
-                    .background(PrimaryGreen),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .width(stroke)
-                    .fillMaxSize()
-                    .background(PrimaryGreen),
-            )
-        }
-        // Bottom-right
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(cornerSize),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .fillMaxWidth()
-                    .height(stroke)
-                    .background(PrimaryGreen),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .width(stroke)
-                    .fillMaxSize()
-                    .background(PrimaryGreen),
-            )
-        }
+        drawCornerL(0f, 0f, cornerLen, stroke, isTopLeft = true)
+        drawCornerL(w, 0f, cornerLen, stroke, isTopRight = true)
+        drawCornerL(0f, h, cornerLen, stroke, isBottomLeft = true)
+        drawCornerL(w, h, cornerLen, stroke, isBottomRight = true)
     }
+}
+
+private fun DrawScope.drawCornerL(
+    anchorX: Float,
+    anchorY: Float,
+    length: Float,
+    strokeWidth: Float,
+    isTopLeft: Boolean = false,
+    isTopRight: Boolean = false,
+    isBottomLeft: Boolean = false,
+    isBottomRight: Boolean = false,
+) {
+    val xDir = if (isTopLeft || isBottomLeft) 1f else -1f
+    val yDir = if (isTopLeft || isTopRight) 1f else -1f
+    drawLine(
+        color = PrimaryGreen,
+        start = Offset(anchorX, anchorY),
+        end = Offset(anchorX + xDir * length, anchorY),
+        strokeWidth = strokeWidth,
+        cap = StrokeCap.Round,
+    )
+    drawLine(
+        color = PrimaryGreen,
+        start = Offset(anchorX, anchorY),
+        end = Offset(anchorX, anchorY + yDir * length),
+        strokeWidth = strokeWidth,
+        cap = StrokeCap.Round,
+    )
 }
 
 @Composable
 private fun RoundedRectFrame(modifier: Modifier = Modifier) {
+    // Simple rounded rectangle border. No animation.
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .border(width = 3.dp, color = PrimaryGreen, shape = RoundedCornerShape(18.dp))
-            .background(Color.Transparent),
-    ) {
-        // Empty: border is the frame.
-    }
+            .clip(RoundedCornerShape(20.dp))
+            .border(width = 2.dp, color = PrimaryGreen, shape = RoundedCornerShape(20.dp)),
+    )
 }
 
 @Composable
@@ -802,39 +744,22 @@ private fun ScanBottomSection(
     onPrimaryAction: () -> Unit,
     onPickFromGallery: () -> Unit,
 ) {
-    val hintText = when (selectedTab) {
-        ScanTab.Ingredient -> "촬영 버튼을 눌러 스캔하세요"
-        ScanTab.Receipt -> "스캔 버튼을 눌러주세요"
+    val innerIcon = when (selectedTab) {
+        ScanTab.Ingredient -> Icons.Outlined.PhotoCamera
+        ScanTab.Receipt -> Icons.Outlined.QrCodeScanner
     }
 
     Box(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            when (selectedTab) {
-                ScanTab.Ingredient -> CaptureButton(
-                    enabled = controlsEnabled,
-                    onClick = onPrimaryAction,
-                )
-                ScanTab.Receipt -> ScanButton(
-                    enabled = controlsEnabled,
-                    onClick = onPrimaryAction,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = hintText,
-                color = Color(0xCCFFFFFF),
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-
+        ShutterButton(
+            enabled = controlsEnabled,
+            innerIcon = innerIcon,
+            onClick = onPrimaryAction,
+            modifier = Modifier.align(Alignment.Center),
+        )
         FloatingGalleryButton(
-            modifier = Modifier.align(Alignment.BottomEnd),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp),
             enabled = controlsEnabled,
             onClick = onPickFromGallery,
         )
@@ -851,62 +776,50 @@ private fun FloatingGalleryButton(
         modifier = modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(Color(0x66000000))
+            .background(Color(0xFFF1F5F9))
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Outlined.Image,
             contentDescription = "Gallery",
-            tint = Color.White,
-            modifier = Modifier.size(22.dp),
+            tint = Color(0xFF475569),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
 
 @Composable
-private fun CaptureButton(
+private fun ShutterButton(
     enabled: Boolean = true,
+    innerIcon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val bg = if (enabled) PrimaryGreen else PrimaryGreen.copy(alpha = 0.45f)
+    val innerBg = if (enabled) PrimaryGreen else PrimaryGreen.copy(alpha = 0.45f)
     Box(
-        modifier = Modifier
-            .size(74.dp)
+        modifier = modifier
+            .size(64.dp)
             .clip(CircleShape)
-            .background(bg)
+            .background(Color(0xFFDCFCE7))
+            .border(width = 2.dp, color = PrimaryGreen.copy(alpha = 0.4f), shape = CircleShape)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = Icons.Outlined.PhotoCamera,
-            contentDescription = "Capture",
-            tint = Color(0xFF062115),
-            modifier = Modifier.size(28.dp),
-        )
-    }
-}
-
-@Composable
-private fun ScanButton(
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val bg = if (enabled) PrimaryGreen else PrimaryGreen.copy(alpha = 0.45f)
-    Box(
-        modifier = Modifier
-            .size(74.dp)
-            .clip(CircleShape)
-            .background(bg)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.QrCodeScanner,
-            contentDescription = "Scan",
-            tint = Color(0xFF062115),
-            modifier = Modifier.size(28.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(innerBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = innerIcon,
+                contentDescription = "Capture",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
