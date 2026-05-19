@@ -3,6 +3,9 @@ package com.example.myfrigelocal.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.network.IngredientRepository
+import com.example.myfrigelocal.network.ItemCreateRequest
+import com.example.myfrigelocal.network.ProfileEnumMapper
 import com.example.myfrigelocal.network.UserProfileUpdateRequest
 import com.example.myfrigelocal.network.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +30,8 @@ data class OnboardingSetupState(
 // 온보딩 설정 ViewModel
 // ───────────────────────────────────────────
 class OnboardingSetupViewModel(
-    private val userRepository: UserRepository = UserRepository()
+    private val userRepository: UserRepository = UserRepository(),
+    private val ingredientRepository: IngredientRepository = IngredientRepository()
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingSetupState())
@@ -81,31 +85,42 @@ class OnboardingSetupViewModel(
         val s = _state.value
         viewModelScope.launch {
             _state.value = s.copy(isSubmitting = true, submitError = null)
+
+            // ── 1. 프로필 PATCH (실패해도 계속 진행) ──
             try {
                 val request = UserProfileUpdateRequest(
-                    allergies = s.selectedAllergies.toList(),
-                    foodStyles = s.selectedFoodStyles.toList(),
+                    allergies = ProfileEnumMapper.allergiesToEnum(s.selectedAllergies),
+                    foodStyles = ProfileEnumMapper.foodStylesToEnum(s.selectedFoodStyles),
                     preferredIngredients = s.selectedQuickItems.toList()
                 )
                 val response = userRepository.updateProfile(request)
-                Log.d("OnboardingSetupVM", "PATCH 응답: ${response.code}")
-                if (response.code == "COMMON-200") {
-                    _state.value = _state.value.copy(isSubmitting = false, submitDone = true)
-                    onSuccess()
-                } else {
-                    _state.value = _state.value.copy(
-                        isSubmitting = false,
-                        submitError = "프로필 저장에 실패했어요 (${response.code})"
-                    )
-                    // 저장 실패해도 다음으로 넘기기 (UX)
-                    onSuccess()
-                }
+                Log.d("OnboardingSetupVM", "프로필 PATCH 응답: ${response.code}")
             } catch (e: Exception) {
-                Log.e("OnboardingSetupVM", "PATCH 예외: ${e.message}")
-                _state.value = _state.value.copy(isSubmitting = false, submitError = e.message)
-                // 네트워크 오류도 다음으로 넘기기 (UX)
-                onSuccess()
+                Log.w("OnboardingSetupVM", "프로필 PATCH 실패 (무시하고 계속): ${e.message}")
             }
+
+            // ── 2. 선택한 식재료 인벤토리 추가 (storageId=1: 냉장실) ──
+            if (s.selectedQuickItems.isNotEmpty()) {
+                var addedCount = 0
+                s.selectedQuickItems.forEach { item ->
+                    // "🧅 양파" → "양파" (이모지 이후 텍스트 추출)
+                    val name = item.substringAfter(" ").trim()
+                    if (name.isNotBlank()) {
+                        try {
+                            val success = ingredientRepository.addItem(
+                                ItemCreateRequest(name = name, storageId = 1)
+                            )
+                            if (success) addedCount++
+                        } catch (e: Exception) {
+                            Log.w("OnboardingSetupVM", "식재료 추가 실패 ($name): ${e.message}")
+                        }
+                    }
+                }
+                Log.d("OnboardingSetupVM", "식재료 추가 완료: $addedCount/${s.selectedQuickItems.size}개")
+            }
+
+            _state.value = _state.value.copy(isSubmitting = false, submitDone = true)
+            onSuccess()
         }
     }
 }

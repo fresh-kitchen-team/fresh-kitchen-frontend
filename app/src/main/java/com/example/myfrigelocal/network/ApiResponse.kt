@@ -28,6 +28,22 @@ data class ItemDto(
 )
 
 // ───────────────────────────────────────────
+// POST /api/v1/items 요청 데이터
+// ───────────────────────────────────────────
+data class ItemCreateRequest(
+    val name: String,
+    val catalogId: Long? = null,   // 시연용 catalog seed ID (null 허용)
+    val storageId: Long,
+    val expiryDate: String? = null,
+    val purchaseDate: String? = null,
+    val memo: String? = null
+)
+
+data class ItemCreateResponse(
+    val id: Long
+)
+
+// ───────────────────────────────────────────
 // PATCH /api/v1/items/{id} 요청 데이터
 // ───────────────────────────────────────────
 data class ItemUpdateRequest(

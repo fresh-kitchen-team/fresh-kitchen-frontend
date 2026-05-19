@@ -3,6 +3,7 @@ package com.example.myfrigelocal.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myfrigelocal.network.ProfileEnumMapper
 import com.example.myfrigelocal.network.UserProfileUpdateRequest
 import com.example.myfrigelocal.network.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,10 +56,10 @@ class ProfileViewModel(
                         isLoading = false,
                         nickname = dto.nickname ?: "",
                         profileImageUrl = dto.profileImageUrl,
-                        selectedAllergies = dto.allergies?.toSet() ?: emptySet(),
+                        selectedAllergies = ProfileEnumMapper.allergiesFromEnum(dto.allergies),
                         selectedIngredients = dto.preferredIngredients?.toSet() ?: emptySet(),
-                        selectedFoodStyles = dto.foodStyles?.toSet() ?: emptySet(),
-                        selectedUtensils = dto.cookingTools?.toSet() ?: emptySet()
+                        selectedFoodStyles = ProfileEnumMapper.foodStylesFromEnum(dto.foodStyles),
+                        selectedUtensils = ProfileEnumMapper.cookingToolsFromEnum(dto.cookingTools)
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(isLoading = false)
@@ -121,10 +122,10 @@ class ProfileViewModel(
                 val request = UserProfileUpdateRequest(
                     nickname = s.nickname.ifBlank { null },
                     profileImageUrl = s.profileImageUrl,
-                    allergies = s.selectedAllergies.toList(),
+                    allergies = ProfileEnumMapper.allergiesToEnum(s.selectedAllergies),
                     preferredIngredients = s.selectedIngredients.toList(),
-                    foodStyles = s.selectedFoodStyles.toList(),
-                    cookingTools = s.selectedUtensils.toList()
+                    foodStyles = ProfileEnumMapper.foodStylesToEnum(s.selectedFoodStyles),
+                    cookingTools = ProfileEnumMapper.cookingToolsToEnum(s.selectedUtensils)
                 )
                 val response = userRepository.updateProfile(request)
                 Log.d("ProfileVM", "PATCH 응답: ${response.code}")
