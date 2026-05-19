@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,9 +27,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfrigelocal.ui.theme.FreshGreen
 import com.example.myfrigelocal.ui.theme.FreshGreenDark
 import com.example.myfrigelocal.viewmodel.OnboardingSetupViewModel
-
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 // ───────────────────────────────────────────
 // 온보딩 설정 메인 스크린
@@ -92,9 +90,10 @@ fun OnboardingSetupScreen(
             SetupBottomButton(
                 currentStep = state.currentStep,
                 isLastStep = state.currentStep == 2,
+                isSubmitting = state.isSubmitting,
                 onNext = {
                     if (state.currentStep < 2) viewModel.nextStep()
-                    else onFinish()
+                    else viewModel.submitProfile { onFinish() }
                 },
                 onSkip = onFinish
             )
@@ -346,7 +345,6 @@ fun FoodStyleSetupStep(
 // ───────────────────────────────────────────
 // Step 3: 식재료 간편 등록
 // ───────────────────────────────────────────
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuickAddSetupStep(
@@ -481,6 +479,7 @@ fun SelectableChip(
 fun SetupBottomButton(
     currentStep: Int,
     isLastStep: Boolean,
+    isSubmitting: Boolean = false,
     onNext: () -> Unit,
     onSkip: () -> Unit
 ) {
@@ -493,6 +492,7 @@ fun SetupBottomButton(
     ) {
         Button(
             onClick = onNext,
+            enabled = !isSubmitting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),
@@ -501,16 +501,24 @@ fun SetupBottomButton(
                 containerColor = if (isLastStep) Color(0xFFF97316) else FreshGreen
             )
         ) {
-            Text(
-                text = when (currentStep) {
-                    0 -> "다음  ›"
-                    1 -> "다음  ›"
-                    else -> "완료  ✓"
-                },
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = Color.White,
+                    strokeWidth = 2.5.dp
+                )
+            } else {
+                Text(
+                    text = when (currentStep) {
+                        0 -> "다음  ›"
+                        1 -> "다음  ›"
+                        else -> "완료  ✓"
+                    },
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
         }
     }
 }

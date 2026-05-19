@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 @Composable
 fun MainScaffold(
     mainScaffoldViewModel: MainScaffoldViewModel = viewModel(),
+    isLoggedIn: Boolean = false,
 ) {
     val navController = rememberNavController()
     val destinations = mainScaffoldViewModel.bottomNavDestinations()
@@ -26,17 +27,15 @@ fun MainScaffold(
 
     Scaffold(
         bottomBar = {
-            // 온보딩일 때는 하단바 숨김
-            val noNavBarRoutes =
-                setOf(
-                    "onboarding",
-                    "login",
-                    "onboarding_setup",
-                    "profile",
-                    "settings",
-                    "search",
-                    ScanNav.routeResult,
-                )
+            val noNavBarRoutes = setOf(
+                "onboarding",
+                "login",
+                "onboarding_setup",
+                "profile",
+                "settings",
+                "search",
+                ScanNav.routeResult,
+            )
             if (currentRoute !in noNavBarRoutes) {
                 MyFridgeBottomNavigationBar(
                     navController = navController,
@@ -48,6 +47,7 @@ fun MainScaffold(
         AppNavHost(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
+            isLoggedIn = isLoggedIn,
         )
     }
 }

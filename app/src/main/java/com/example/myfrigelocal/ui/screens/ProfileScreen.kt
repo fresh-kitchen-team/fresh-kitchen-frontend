@@ -1,7 +1,11 @@
 package com.example.myfrigelocal.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,11 +21,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.myfrigelocal.ui.theme.FreshGreen
 import com.example.myfrigelocal.ui.theme.FreshGreenDark
 import com.example.myfrigelocal.viewmodel.ProfileViewModel
@@ -36,6 +42,13 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // 이미지 피커 (갤러리에서 선택)
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { viewModel.onImageSelected(it.toString()) }
+    }
 
     // 저장 완료 스낵바
     val snackbarHostState = remember { SnackbarHostState() }
@@ -73,7 +86,14 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // ── 프로필 사진 ──
-            ProfilePhotoSection()
+            ProfilePhotoSection(
+                imageUrl = uiState.profileImageUrl,
+                onCameraClick = {
+                    imagePicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            )
 
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -212,7 +232,10 @@ fun ProfileScreen(
 // 프로필 사진 영역
 // ───────────────────────────────────────────
 @Composable
-fun ProfilePhotoSection() {
+fun ProfilePhotoSection(
+    imageUrl: String? = null,
+    onCameraClick: () -> Unit = {}
+) {
     Box(contentAlignment = Alignment.BottomEnd) {
         // 프로필 사진 원형
         Box(
@@ -220,22 +243,35 @@ fun ProfilePhotoSection() {
                 .size(96.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFE8F5E9))
-                .border(2.dp, Color(0xFFE0E0E0), CircleShape),
+                .border(2.dp, Color(0xFFE0E0E0), CircleShape)
+                .clickable { onCameraClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = FreshGreenDark
-            )
+            if (!imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "프로필 사진",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = FreshGreenDark
+                )
+            }
         }
         // 편집 버튼 (우측 하단)
         Box(
             modifier = Modifier
                 .size(28.dp)
                 .clip(CircleShape)
-                .background(FreshGreenDark),
+                .background(FreshGreenDark)
+                .clickable { onCameraClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
