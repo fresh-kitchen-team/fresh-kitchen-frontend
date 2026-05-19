@@ -137,7 +137,7 @@ fun LoginScreen(
                         } else if (token != null) {
                             val idToken = token.idToken
                             if (idToken != null) {
-                                android.util.Log.d("LoginScreen", "카카오 로그인 성공: ${idToken.take(20)}")
+                                android.util.Log.d("LoginScreen", "카카오 idToken (디버그용): $idToken")
                                 // 카카오 프로필 조회 후 ViewModel에 전달
                                 UserApiClient.instance.me { user, _ ->
                                     val nickname = user?.kakaoAccount?.profile?.nickname
