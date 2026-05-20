@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.data.ChatRoomSectionMapper
 import com.example.myfrigelocal.data.SessionTokenProvider
 import com.example.myfrigelocal.data.auth.AuthTokenStore
+import com.example.myfrigelocal.data.auth.TokenDataStore
 import com.example.myfrigelocal.data.remote.ChatRetrofitProvider
 import com.google.gson.Gson
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
@@ -17,13 +18,18 @@ import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.repository.ChatRepository
 import com.example.myfrigelocal.data.repository.toChatMessage
+import com.example.myfrigelocal.logging.ApiLog
+import com.example.myfrigelocal.network.InquiryApiType
+import com.example.myfrigelocal.network.InquiryRepository
 import com.example.myfrigelocal.ui.screens.chat.ChatMessage
 import com.example.myfrigelocal.ui.screens.chat.Sender
 import com.example.myfrigelocal.ui.screens.chat.SideMenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
@@ -44,6 +50,12 @@ data class AiChatUiState(
     val isLoadingMessages: Boolean = false,
     val isSending: Boolean = false,
     val error: String? = null,
+    val isSubmittingSupport: Boolean = false,
+    val supportError: String? = null,
+    /** 문의/신고 접수 완료 문구 (폼에 표시 후 잠시 뒤 닫힘). */
+    val supportSuccessMessage: String? = null,
+    /** Increments after success message — UI closes form overlay. */
+    val supportSubmitSuccessToken: Long = 0L,
 )
 
 class AiChatViewModel(
@@ -53,6 +65,8 @@ class AiChatViewModel(
     private val repository = ChatRepository(
         ChatRetrofitProvider.chatApi(SessionTokenProvider),
     )
+
+    private val inquiryRepository = InquiryRepository()
 
 
     private val debugGson: Gson = ChatRetrofitProvider.gson()
@@ -67,8 +81,110 @@ class AiChatViewModel(
         refreshRooms(selectFirstAfterLoad = true)
     }
 
+    /**
+     * AI 채팅 탭 재진입 시 호출.
+     * Activity-scoped VM이라 예전 401 메시지가 남거나, [AuthTokenStore]만 비어 있는 경우가 있어
+     * DataStore에서 토큰을 다시 올린 뒤 필요 시 방 목록을 재요청합니다.
+     */
+    fun onAiChatScreenVisible() {
+        viewModelScope.launch {
+            hydrateTokenFromStore()
+            val s = _uiState.value
+            if (s.error != null || s.sideMenuItems.isEmpty()) {
+                refreshRooms(selectFirstAfterLoad = s.currentRoomId == null && s.sideMenuItems.isEmpty())
+            }
+        }
+    }
+
+    private suspend fun hydrateTokenFromStore() {
+        val stored = TokenDataStore.getAccessToken(getApplication()).first()
+        if (!stored.isNullOrBlank()) {
+            AuthTokenStore.setAccessToken(stored)
+            Log.i(LOG_TAG, "[hydrateToken] loaded access token from DataStore")
+        } else {
+            Log.w(LOG_TAG, "[hydrateToken] no token in DataStore")
+        }
+        logTokenPresence("onAiChatScreenVisible")
+    }
+
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun dismissSupportError() {
+        _uiState.update { it.copy(supportError = null) }
+    }
+
+    /** Swagger `POST /api/v1/inquiries` — `type=INQUIRY` */
+    fun submitInquiry(categoryLabel: String, content: String, imageUri: String? = null) {
+        submitSupport(InquiryApiType.INQUIRY, categoryLabel, content, imageUri)
+    }
+
+    /** Swagger `POST /api/v1/inquiries` — `type=REPORT` */
+    fun submitReport(categoryLabel: String, content: String, imageUri: String? = null) {
+        submitSupport(InquiryApiType.REPORT, categoryLabel, content, imageUri)
+    }
+
+    private fun submitSupport(
+        apiType: InquiryApiType,
+        categoryLabel: String,
+        content: String,
+        imageUri: String?,
+    ) {
+        val trimmed = content.trim()
+        if (trimmed.isEmpty()) {
+            _uiState.update { it.copy(supportError = "내용을 입력해 주세요.") }
+            return
+        }
+        if (_uiState.value.isSubmittingSupport) return
+
+        val category = inquiryRepository.categoryFromUiLabel(categoryLabel)
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSubmittingSupport = true,
+                    supportError = null,
+                    supportSuccessMessage = null,
+                )
+            }
+            ApiLog.i(
+                "Inquiry:ViewModel",
+                "submit ${apiType.apiValue} category=${category.apiValue} len=${trimmed.length} " +
+                    "hasImage=${!imageUri.isNullOrBlank()}",
+            )
+            inquiryRepository.send(
+                context = getApplication(),
+                type = apiType,
+                category = category,
+                content = trimmed,
+                imageUri = imageUri,
+            )
+                .onSuccess { displayMessage ->
+                    ApiLog.i("Inquiry:ViewModel", "submit success: $displayMessage")
+                    _uiState.update {
+                        it.copy(
+                            isSubmittingSupport = false,
+                            supportSuccessMessage = displayMessage,
+                        )
+                    }
+                    delay(2_000)
+                    _uiState.update { s ->
+                        s.copy(
+                            supportSuccessMessage = null,
+                            supportSubmitSuccessToken = s.supportSubmitSuccessToken + 1,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    ApiLog.e("Inquiry:ViewModel", "submit failed: ${e.message}", e)
+                    _uiState.update {
+                        it.copy(
+                            isSubmittingSupport = false,
+                            supportError = e.toUserMessage(),
+                        )
+                    }
+                }
+        }
     }
 
     fun refreshRooms(selectFirstAfterLoad: Boolean = false) {

@@ -131,6 +131,13 @@ fun ChatScreen(
     onSendMessage: (String) -> Unit = {},
     onRenameRoomLocal: (threadId: String, newTitle: String) -> Unit = { _, _ -> },
     onDeleteRoom: (threadId: String) -> Unit = {},
+    isSubmittingSupport: Boolean = false,
+    supportError: String? = null,
+    supportSuccessMessage: String? = null,
+    supportSubmitSuccessToken: Long = 0L,
+    onDismissSupportError: () -> Unit = {},
+    onSubmitInquiry: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
+    onSubmitReport: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -147,6 +154,14 @@ fun ChatScreen(
     LaunchedEffect(currentThreadId, messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
+
+    LaunchedEffect(supportSubmitSuccessToken) {
+        if (supportSubmitSuccessToken > 0L) {
+            isContactSupportOpen = false
+            isReportIssueOpen = false
+            isHelpFeedbackOpen = false
         }
     }
 
@@ -347,6 +362,11 @@ fun ChatScreen(
             ContactSupportScreen(
                 onClose = { isContactSupportOpen = false },
                 modifier = Modifier.zIndex(4f),
+                isSubmitting = isSubmittingSupport,
+                errorMessage = supportError,
+                successMessage = supportSuccessMessage,
+                onDismissError = onDismissSupportError,
+                onSubmit = onSubmitInquiry,
             )
         }
 
@@ -355,6 +375,11 @@ fun ChatScreen(
             ReportIssueScreen(
                 onClose = { isReportIssueOpen = false },
                 modifier = Modifier.zIndex(4f),
+                isSubmitting = isSubmittingSupport,
+                errorMessage = supportError,
+                successMessage = supportSuccessMessage,
+                onDismissError = onDismissSupportError,
+                onSubmit = onSubmitReport,
             )
         }
     }

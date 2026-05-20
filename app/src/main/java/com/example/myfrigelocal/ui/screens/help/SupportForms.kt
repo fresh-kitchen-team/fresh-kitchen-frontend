@@ -1,6 +1,10 @@
 package com.example.myfrigelocal.ui.screens.help
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -40,10 +43,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 
@@ -53,7 +61,11 @@ private enum class SupportType { Recipe, Ai, Other }
 fun ContactSupportScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    onSubmit: (type: String, message: String) -> Unit = { _, _ -> },
+    isSubmitting: Boolean = false,
+    errorMessage: String? = null,
+    successMessage: String? = null,
+    onDismissError: () -> Unit = {},
+    onSubmit: (type: String, message: String, imageUri: String?) -> Unit = { _, _, _ -> },
 ) {
     SupportFormScreen(
         title = "문의 보내기",
@@ -63,6 +75,10 @@ fun ContactSupportScreen(
         bodyLabel = "문의 내용",
         onClose = onClose,
         modifier = modifier,
+        isSubmitting = isSubmitting,
+        errorMessage = errorMessage,
+        successMessage = successMessage,
+        onDismissError = onDismissError,
         onSubmit = onSubmit,
     )
 }
@@ -71,7 +87,11 @@ fun ContactSupportScreen(
 fun ReportIssueScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    onSubmit: (type: String, message: String) -> Unit = { _, _ -> },
+    isSubmitting: Boolean = false,
+    errorMessage: String? = null,
+    successMessage: String? = null,
+    onDismissError: () -> Unit = {},
+    onSubmit: (type: String, message: String, imageUri: String?) -> Unit = { _, _, _ -> },
 ) {
     SupportFormScreen(
         title = "문제 신고하기",
@@ -81,6 +101,10 @@ fun ReportIssueScreen(
         bodyLabel = "신고 내용",
         onClose = onClose,
         modifier = modifier,
+        isSubmitting = isSubmitting,
+        errorMessage = errorMessage,
+        successMessage = successMessage,
+        onDismissError = onDismissError,
         onSubmit = onSubmit,
     )
 }
@@ -94,12 +118,24 @@ private fun SupportFormScreen(
     bodyLabel: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    onSubmit: (type: String, message: String) -> Unit,
+    isSubmitting: Boolean = false,
+    errorMessage: String? = null,
+    successMessage: String? = null,
+    onDismissError: () -> Unit = {},
+    onSubmit: (type: String, message: String, imageUri: String?) -> Unit,
 ) {
     BackHandler { onClose() }
 
+    val context = LocalContext.current
     var type by rememberSaveable { mutableStateOf(SupportType.Recipe) }
     var message by rememberSaveable { mutableStateOf("") }
+    var attachedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        attachedImageUri = uri?.toString()
+    }
 
     LazyColumn(
         modifier = modifier
@@ -196,35 +232,73 @@ private fun SupportFormScreen(
 
         item {
             FormCard {
+                val previewUri = attachedImageUri?.let { Uri.parse(it) }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(150.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .border(
                             width = 2.dp,
                             color = Color(0xFFD1D5DB),
                             shape = RoundedCornerShape(16.dp),
-                        ),
+                        )
+                        .clickable(
+                            enabled = !isSubmitting && successMessage == null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            imagePicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.PhotoCamera,
-                            contentDescription = "Add image",
-                            tint = Color(0xFF6B7280),
-                            modifier = Modifier.size(30.dp),
+                    if (previewUri != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(previewUri)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "첨부 이미지",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
                         )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            text = "이미지 추가",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF6B7280),
-                        )
+                        IconButton(
+                            onClick = { attachedImageUri = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .size(32.dp)
+                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(16.dp)),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "이미지 제거",
+                                tint = Color(0xFF111827),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoCamera,
+                                contentDescription = "Add image",
+                                tint = Color(0xFF6B7280),
+                                modifier = Modifier.size(30.dp),
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = "이미지 추가",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF6B7280),
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.size(10.dp))
                 Text(
-                    text = "문제 상황을 더 정확히 전달할 수 있습니다.",
+                    text = "문제 상황을 더 정확히 전달할 수 있습니다. (선택)",
                     style = MaterialTheme.typography.labelMedium,
                     color = Color(0xFF9CA3AF),
                     modifier = Modifier.padding(start = 4.dp),
@@ -232,16 +306,46 @@ private fun SupportFormScreen(
             }
         }
 
+        successMessage?.let { ok ->
+            item {
+                Text(
+                    text = ok,
+                    color = Color(0xFF059669),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                )
+            }
+        }
+
+        errorMessage?.let { err ->
+            item {
+                Text(
+                    text = err,
+                    color = Color(0xFFB91C1C),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDismissError() }
+                        .padding(horizontal = 4.dp),
+                )
+            }
+        }
+
         item {
             Spacer(modifier = Modifier.size(6.dp))
+            val canSubmit = !isSubmitting && successMessage == null && message.trim().isNotEmpty()
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .clickable(
+                        enabled = canSubmit,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) {
+                        if (!canSubmit) return@clickable
                         onSubmit(
                             when (type) {
                                 SupportType.Recipe -> "레시피 관련"
@@ -249,8 +353,8 @@ private fun SupportFormScreen(
                                 SupportType.Other -> "기타"
                             },
                             message,
+                            attachedImageUri,
                         )
-                        onClose()
                     },
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = ctaColor),
@@ -261,9 +365,9 @@ private fun SupportFormScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = ctaText,
+                        text = if (isSubmitting) "전송 중..." else ctaText,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF111827),
+                        color = Color(0xFF111827).copy(alpha = if (canSubmit) 1f else 0.45f),
                     )
                 }
             }

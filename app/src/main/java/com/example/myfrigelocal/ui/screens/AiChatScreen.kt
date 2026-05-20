@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
@@ -29,6 +30,11 @@ fun AiChatScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LifecycleResumeEffect(reselectToken.value) {
+        viewModel.onAiChatScreenVisible()
+        onPauseOrDispose { }
+    }
+
     ChatScreen(
         reselectToken = reselectToken.value,
         topBarTitle = state.topBarTitle,
@@ -52,6 +58,17 @@ fun AiChatScreen(
             threadId.toLongOrNull()?.let { id ->
                 viewModel.deleteRoom(id)
             }
+        },
+        isSubmittingSupport = state.isSubmittingSupport,
+        supportError = state.supportError,
+        supportSuccessMessage = state.supportSuccessMessage,
+        supportSubmitSuccessToken = state.supportSubmitSuccessToken,
+        onDismissSupportError = viewModel::dismissSupportError,
+        onSubmitInquiry = { category, content, imageUri ->
+            viewModel.submitInquiry(category, content, imageUri)
+        },
+        onSubmitReport = { category, content, imageUri ->
+            viewModel.submitReport(category, content, imageUri)
         },
     )
 }
