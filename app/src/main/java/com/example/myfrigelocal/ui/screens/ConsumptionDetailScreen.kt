@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,16 +27,14 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,78 +44,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
+import com.example.myfrigelocal.viewmodel.ConsumptionDdayTone
+import com.example.myfrigelocal.viewmodel.ConsumptionItemUi
+import com.example.myfrigelocal.viewmodel.ConsumptionStorageFilter
+import com.example.myfrigelocal.viewmodel.ConsumptionViewModel
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 fun ConsumptionDetailScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
+    viewModel: ConsumptionViewModel = viewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    var selectedFilter by rememberSaveable { mutableStateOf(StorageFilter.All) }
+    var selectedFilter by rememberSaveable { mutableStateOf(ConsumptionStorageFilter.All) }
 
-    val items = remember {
-        mutableStateListOf(
-            ConsumptionItem(
-                id = "milk",
-                name = "신선한 우유",
-                storage = "냉장실",
-                expiry = "2026-03-25",
-                ddayLabel = "D-1",
-                ddayTone = DdayTone.Critical,
-                filter = StorageFilter.Fridge,
-            ),
-            ConsumptionItem(
-                id = "chicken",
-                name = "닭가슴살",
-                storage = "냉장실",
-                expiry = "2026-03-25",
-                ddayLabel = "D-1",
-                ddayTone = DdayTone.Critical,
-                filter = StorageFilter.Fridge,
-            ),
-            ConsumptionItem(
-                id = "tomato",
-                name = "방울토마토",
-                storage = "냉장실",
-                expiry = "2026-03-27",
-                ddayLabel = "D-3",
-                ddayTone = DdayTone.Warning,
-                filter = StorageFilter.Fridge,
-            ),
-            ConsumptionItem(
-                id = "frozen-veg",
-                name = "냉동 브로콜리",
-                storage = "냉동실",
-                expiry = "2026-03-26",
-                ddayLabel = "D-2",
-                ddayTone = DdayTone.Warning,
-                filter = StorageFilter.Freezer,
-            ),
-            ConsumptionItem(
-                id = "pasta",
-                name = "스파게티면",
-                storage = "팬트리",
-                expiry = "2026-03-26",
-                ddayLabel = "D-2",
-                ddayTone = DdayTone.Warning,
-                filter = StorageFilter.Pantry,
-            ),
-        )
-    }
-
-    val filteredItems by remember(selectedFilter) {
-        derivedStateOf {
-            // SnapshotStateList mutation won't change the list reference,
-            // so we must read it inside derivedStateOf to trigger updates.
-            val snapshot = items.toList()
-            snapshot.filter { selectedFilter == StorageFilter.All || it.filter == selectedFilter }
+    val filteredItems = remember(uiState.items, selectedFilter) {
+        if (selectedFilter == ConsumptionStorageFilter.All) {
+            uiState.items
+        } else {
+            uiState.items.filter { it.storageType.equals(selectedFilter.apiValue, ignoreCase = true) }
         }
     }
 
@@ -133,36 +89,66 @@ fun ConsumptionDetailScreen(
         },
         containerColor = background,
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item {
-                SummaryCard(
-                    count = items.size,
-                    accent = accent,
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                item {
+                    SummaryCard(
+                        count = uiState.items.size,
+                        accent = accent,
+                    )
+                }
+
+                item {
+                    FilterRow(
+                        selected = selectedFilter,
+                        onSelect = { selectedFilter = it },
+                    )
+                }
+
+                when {
+                    uiState.error != null && uiState.items.isEmpty() -> {
+                        item {
+                            ErrorCard(
+                                message = uiState.error.orEmpty(),
+                                onRetry = { viewModel.loadExpiringItems() },
+                            )
+                        }
+                    }
+                    !uiState.isLoading && filteredItems.isEmpty() -> {
+                        item {
+                            EmptyCard(filter = selectedFilter)
+                        }
+                    }
+                    else -> {
+                        items(
+                            items = filteredItems,
+                            key = { it.id },
+                        ) { item ->
+                            ConsumptionItemCard(
+                                modifier = Modifier.animateItemPlacement(),
+                                item = item,
+                                accent = accent,
+                                onConsumeComplete = { viewModel.removeItemLocally(item.id) },
+                            )
+                        }
+                    }
+                }
             }
 
-            item {
-                FilterRow(
-                    selected = selectedFilter,
-                    onSelect = { selectedFilter = it },
-                )
-            }
-
-            items(
-                items = filteredItems,
-                key = { it.id },
-            ) { item ->
-                ConsumptionItemCard(
-                    modifier = Modifier.animateItemPlacement(),
-                    item = item,
-                    accent = accent,
-                    onConsumeComplete = { items.remove(item) },
+            if (uiState.isLoading && uiState.items.isEmpty()) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(36.dp),
+                    color = accent,
                 )
             }
         }
@@ -249,7 +235,11 @@ private fun SummaryCard(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "총 ${count}개의 품목의 유통기한이\n3일 이내입니다.",
+                text = if (count > 0) {
+                    "총 ${count}개의 품목의 유통기한이\n7일 이내입니다."
+                } else {
+                    "유통기한이 7일 이내로 남은\n식재료가 없습니다."
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF101418),
@@ -258,17 +248,10 @@ private fun SummaryCard(
     }
 }
 
-private enum class StorageFilter(val label: String) {
-    All("전체"),
-    Fridge("냉장"),
-    Freezer("냉동"),
-    Pantry("팬트리"),
-}
-
 @Composable
 private fun FilterRow(
-    selected: StorageFilter,
-    onSelect: (StorageFilter) -> Unit,
+    selected: ConsumptionStorageFilter,
+    onSelect: (ConsumptionStorageFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
@@ -276,7 +259,7 @@ private fun FilterRow(
         contentPadding = PaddingValues(horizontal = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(StorageFilter.entries, key = { it.name }) { filter ->
+        items(ConsumptionStorageFilter.entries, key = { it.name }) { filter ->
             FilterChip(
                 text = filter.label,
                 selected = filter == selected,
@@ -314,22 +297,9 @@ private fun FilterChip(
     }
 }
 
-private enum class DdayTone { Critical, Warning }
-
-@Immutable
-private data class ConsumptionItem(
-    val id: String,
-    val name: String,
-    val storage: String,
-    val expiry: String,
-    val ddayLabel: String,
-    val ddayTone: DdayTone,
-    val filter: StorageFilter,
-)
-
 @Composable
 private fun ConsumptionItemCard(
-    item: ConsumptionItem,
+    item: ConsumptionItemUi,
     accent: Color,
     onConsumeComplete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -349,7 +319,7 @@ private fun ConsumptionItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ItemImagePlaceholder()
+                ItemEmojiBox(emoji = item.emoji)
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -363,13 +333,17 @@ private fun ConsumptionItemCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = item.storage,
+                        text = item.storageLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF6B7680),
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "유통기한: ${item.expiry}",
+                        text = if (!item.expiryDate.isNullOrBlank()) {
+                            "유통기한: ${item.expiryDate}"
+                        } else {
+                            "유통기한: -"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF6B7680),
                     )
@@ -393,7 +367,8 @@ private fun ConsumptionItemCard(
 }
 
 @Composable
-private fun ItemImagePlaceholder(
+private fun ItemEmojiBox(
+    emoji: String?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -404,24 +379,32 @@ private fun ItemImagePlaceholder(
             .border(1.dp, Color(0xFFE5EAEE), RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = Icons.Outlined.Image,
-            contentDescription = null,
-            tint = Color(0xFF9AA5AE),
-            modifier = Modifier.size(22.dp),
-        )
+        if (!emoji.isNullOrBlank()) {
+            Text(
+                text = emoji,
+                fontSize = 26.sp,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Outlined.Image,
+                contentDescription = null,
+                tint = Color(0xFF9AA5AE),
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
 @Composable
 private fun DdayBadge(
     text: String,
-    tone: DdayTone,
+    tone: ConsumptionDdayTone,
     modifier: Modifier = Modifier,
 ) {
     val fg = when (tone) {
-        DdayTone.Critical -> Color(0xFFFF3B30)
-        DdayTone.Warning -> Color(0xFFFF6A00)
+        ConsumptionDdayTone.Critical -> Color(0xFFFF3B30)
+        ConsumptionDdayTone.Warning -> Color(0xFFFF6A00)
+        ConsumptionDdayTone.Info -> Color(0xFF22A87E)
     }
     val bg = fg.copy(alpha = 0.12f)
 
@@ -466,24 +449,70 @@ private fun ConsumeButton(
     }
 }
 
-// Reusable card helper kept local to this screen for now (no backend / no shared design system yet).
 @Composable
-private fun MyFridgeCard(
+private fun EmptyCard(
+    filter: ConsumptionStorageFilter,
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(
+        Text(
+            text = if (filter == ConsumptionStorageFilter.All) {
+                "유통기한이 7일 이내로 남은 식재료가 없습니다."
+            } else {
+                "${filter.label}에 임박한 식재료가 없습니다."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF9AA4AE),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            content = content,
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            textAlign = TextAlign.Center,
         )
     }
 }
 
+@Composable
+private fun ErrorCard(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFD64545),
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFD64545))
+                    .clickable(onClick = onRetry)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = "다시 시도",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+        }
+    }
+}

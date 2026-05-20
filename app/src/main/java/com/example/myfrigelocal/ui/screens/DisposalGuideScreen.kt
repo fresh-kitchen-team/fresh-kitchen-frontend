@@ -23,71 +23,41 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.myfrigelocal.R
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
+import com.example.myfrigelocal.viewmodel.DisposalGuideViewModel
+import com.example.myfrigelocal.viewmodel.DisposalItemUi
+import com.example.myfrigelocal.viewmodel.DisposalWasteTone
 
 @Composable
 fun DisposalGuideScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
+    viewModel: DisposalGuideViewModel = viewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
-
-    val confusingItems = remember {
-        listOf(
-            DisposalConfusingItem(
-                id = "egg_shell",
-                name = "달걀 껍데기",
-                description = "사료화가 불가능해 일반쓰레기입니다.",
-                label = "일반쓰레기",
-                tone = DisposalTone.General,
-                iconRes = R.drawable.ic_disposal_egg,
-            ),
-            DisposalConfusingItem(
-                id = "bones",
-                name = "닭뼈 / 생선뼈",
-                description = "뼈 종류는 분쇄가 힘들어 일반입니다.",
-                label = "일반쓰레기",
-                tone = DisposalTone.General,
-                iconRes = R.drawable.ic_disposal_bone,
-            ),
-            DisposalConfusingItem(
-                id = "shell",
-                name = "조개 · 게 껍질",
-                description = "패각류는 100% 분류입니다.",
-                label = "일반쓰레기",
-                tone = DisposalTone.General,
-                iconRes = R.drawable.ic_disposal_shellfish,
-            ),
-            DisposalConfusingItem(
-                id = "hard_seed",
-                name = "단단한 과일 씨",
-                description = "복숭아, 감 등의 씨앗은 무조건 일반입니다.",
-                label = "일반쓰레기",
-                tone = DisposalTone.General,
-                iconRes = R.drawable.ic_disposal_seed,
-            ),
-        )
-    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -100,32 +70,58 @@ fun DisposalGuideScreen(
         },
         containerColor = background,
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                GuideHeaderCard(
-                    accent = accent,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item {
+                    GuideHeaderCard(
+                        accent = accent,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                item {
+                    Text(
+                        text = "자주 헷갈리는 품목",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF101418),
+                        modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
+                    )
+                }
+
+                if (uiState.error != null && uiState.items.isEmpty()) {
+                    item {
+                        ErrorCard(
+                            message = uiState.error.orEmpty(),
+                            onRetry = { viewModel.loadRecyclingTips() },
+                        )
+                    }
+                } else if (!uiState.isLoading && uiState.items.isEmpty()) {
+                    item {
+                        EmptyCard()
+                    }
+                }
+
+                items(uiState.items, key = { it.id }) { item ->
+                    DisposalItemCard(item = item)
+                }
             }
 
-            item {
-                Text(
-                    text = "자주 헷갈리는 품목",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF101418),
-                    modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
+            if (uiState.isLoading && uiState.items.isEmpty()) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(36.dp),
+                    color = accent,
                 )
-            }
-
-            items(confusingItems, key = { it.id }) { item ->
-                DisposalItemCard(item = item)
             }
         }
     }
@@ -261,21 +257,9 @@ private fun CategoryInfoCard(
     }
 }
 
-private enum class DisposalTone { General, Food }
-
-@Immutable
-private data class DisposalConfusingItem(
-    val id: String,
-    val name: String,
-    val description: String,
-    val label: String,
-    val tone: DisposalTone,
-    val iconRes: Int,
-)
-
 @Composable
 private fun DisposalItemCard(
-    item: DisposalConfusingItem,
+    item: DisposalItemUi,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -298,11 +282,9 @@ private fun DisposalItemCard(
                     .border(1.dp, Color(0xFFE5EAEE), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(item.iconRes),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(26.dp),
+                Text(
+                    text = item.toneEmoji(),
+                    fontSize = 22.sp,
                 )
             }
 
@@ -327,20 +309,27 @@ private fun DisposalItemCard(
                 )
             }
 
-            DisposalLabel(text = item.label, tone = item.tone)
+            DisposalLabel(text = item.wasteType, tone = item.tone)
         }
     }
+}
+
+private fun DisposalItemUi.toneEmoji(): String = when (tone) {
+    DisposalWasteTone.General -> "🗑️"
+    DisposalWasteTone.Food -> "🍽️"
+    DisposalWasteTone.Other -> "♻️"
 }
 
 @Composable
 private fun DisposalLabel(
     text: String,
-    tone: DisposalTone,
+    tone: DisposalWasteTone,
     modifier: Modifier = Modifier,
 ) {
     val fg = when (tone) {
-        DisposalTone.General -> Color(0xFFFF3B30)
-        DisposalTone.Food -> Color(0xFF22C55E)
+        DisposalWasteTone.General -> Color(0xFFFF3B30)
+        DisposalWasteTone.Food -> Color(0xFF22C55E)
+        DisposalWasteTone.Other -> Color(0xFF6B7680)
     }
     Box(
         modifier = modifier
@@ -358,3 +347,63 @@ private fun DisposalLabel(
     }
 }
 
+@Composable
+private fun ErrorCard(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFD64545),
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFD64545))
+                    .clickable(onClick = onRetry)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = "다시 시도",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyCard(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Text(
+            text = "표시할 품목이 아직 없어요.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF9AA4AE),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            textAlign = TextAlign.Center,
+        )
+    }
+}

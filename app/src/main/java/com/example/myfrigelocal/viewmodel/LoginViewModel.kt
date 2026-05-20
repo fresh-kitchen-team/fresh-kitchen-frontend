@@ -57,6 +57,10 @@ class LoginViewModel(
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken)
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "로그인 성공 - newUser: ${data.newUser}")
+                    // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
+                    Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
+                    Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
+                    Log.d("LoginViewModel", "SWAGGER_AUTHORIZATION=Bearer ${data.accessToken}")
 
                     // 신규 유저: Google 프로필 정보로 초기 프로필 설정
                     if (data.newUser) {
@@ -110,6 +114,10 @@ class LoginViewModel(
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken)
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "카카오 로그인 성공 - newUser: ${data.newUser}")
+                    // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
+                    Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
+                    Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
+                    Log.d("LoginViewModel", "SWAGGER_AUTHORIZATION=Bearer ${data.accessToken}")
 
                     // 신규 유저: 카카오 프로필 정보로 초기 프로필 설정
                     if (data.newUser) {
