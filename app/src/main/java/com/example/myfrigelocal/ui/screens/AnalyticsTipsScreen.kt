@@ -27,13 +27,14 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,14 +45,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
+import com.example.myfrigelocal.viewmodel.AnalyticsViewModel
+import com.example.myfrigelocal.viewmodel.CategoryRateUi
+import com.example.myfrigelocal.viewmodel.ExpiringChipUi
+import com.example.myfrigelocal.viewmodel.formatDdayLabel
 
 @Composable
 fun AnalyticsTipsScreen(
     navController: NavHostController,
+    viewModel: AnalyticsViewModel = viewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     AnalyticsTipsContent(
+        categoryRates = uiState.categoryRates,
+        disposalRatePercent = uiState.disposalRatePercent,
+        expiringChips = uiState.expiringChips,
+        isLoading = uiState.isLoading,
+        error = uiState.error,
+        onRetry = { viewModel.loadAnalytics() },
         onConsumptionCardClick = { navController.navigate("consumption_detail") },
         onStorageTipCardClick = { navController.navigate("storage_tip_detail") },
         onDisposalGuideCardClick = { navController.navigate("disposal_guide") },
@@ -61,28 +76,18 @@ fun AnalyticsTipsScreen(
 @Composable
 private fun AnalyticsTipsContent(
     modifier: Modifier = Modifier,
+    categoryRates: List<CategoryRateUi>,
+    disposalRatePercent: Int?,
+    expiringChips: List<ExpiringChipUi>,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
     onConsumptionCardClick: () -> Unit,
     onStorageTipCardClick: () -> Unit,
     onDisposalGuideCardClick: () -> Unit,
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
-
-    val categoryRates = remember {
-        listOf(
-            CategoryRate(label = "채소류", percent = 40, barColor = Color(0xFF32E0A1)),
-            CategoryRate(label = "유제품", percent = 25, barColor = Color(0xFF7BECC3)),
-            CategoryRate(label = "육류", percent = 15, barColor = Color(0xFF7BECC3)),
-            CategoryRate(label = "기타", percent = 20, barColor = Color(0xFF7BECC3)),
-        )
-    }
-    val expiringItems = remember {
-        listOf(
-            "닭가슴살 (D-5)",
-            "우유 (D-3)",
-            "시금치 (D-2)",
-        )
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -111,6 +116,10 @@ private fun AnalyticsTipsContent(
                 DisposalRateCard(
                     title = "카테고리 별 폐기율",
                     rates = categoryRates,
+                    disposalRatePercent = disposalRatePercent,
+                    isLoading = isLoading,
+                    error = error,
+                    onRetry = onRetry,
                     accent = accent,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -126,15 +135,21 @@ private fun AnalyticsTipsContent(
                     iconBackground = Color(0xFFFFEEE3),
                     iconTint = Color(0xFFFF7A2F),
                     title = "소비 권장 알림",
-                    body = "유통기한이 7일 이내로 남은 식재료가 있습니다.",
+                    body = if (expiringChips.isEmpty()) {
+                        "유통기한이 7일 이내로 남은 식재료가 없습니다."
+                    } else {
+                        "유통기한이 7일 이내로 남은 식재료가 있습니다."
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onConsumptionCardClick),
                 ) {
-                    ChipsRow(
-                        chips = expiringItems,
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
+                    if (expiringChips.isNotEmpty()) {
+                        ChipsRow(
+                            chips = expiringChips.map { it.toChipLabel() },
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
                 }
             }
 
@@ -226,17 +241,14 @@ private fun AnalyticsTipsTopBar(
     }
 }
 
-@Immutable
-private data class CategoryRate(
-    val label: String,
-    val percent: Int,
-    val barColor: Color,
-)
-
 @Composable
 private fun DisposalRateCard(
     title: String,
-    rates: List<CategoryRate>,
+    rates: List<CategoryRateUi>,
+    disposalRatePercent: Int?,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
     accent: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -250,15 +262,61 @@ private fun DisposalRateCard(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        MiniBarChart(
-            rates = rates,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        when {
+            isLoading && rates.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(108.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = accent,
+                    )
+                }
+            }
+            error != null && rates.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7680),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .background(accent, RoundedCornerShape(999.dp))
+                            .clickable(onClick = onRetry)
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = "다시 시도",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                    }
+                }
+            }
+            else -> {
+                MiniBarChart(
+                    rates = rates,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         InfoBanner(
             accent = accent,
+            disposalRatePercent = disposalRatePercent,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -266,11 +324,13 @@ private fun DisposalRateCard(
 
 @Composable
 private fun MiniBarChart(
-    rates: List<CategoryRate>,
+    rates: List<CategoryRateUi>,
     modifier: Modifier = Modifier,
 ) {
     val maxPercent = remember(rates) { (rates.maxOfOrNull { it.percent } ?: 1).coerceAtLeast(1) }
+    val topCategory = remember(rates) { rates.maxByOrNull { it.percent }?.category }
     val maxBarHeight = 72.dp
+    val minBarHeight = 6.dp
 
     Row(
         modifier = modifier,
@@ -283,11 +343,17 @@ private fun MiniBarChart(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val heightFraction = rate.percent.toFloat() / maxPercent.toFloat()
+                val computedHeight = (maxBarHeight.value * heightFraction).dp
+                val barHeight = if (rate.percent <= 0) minBarHeight else computedHeight
+                val isTop = rate.category == topCategory && rate.percent > 0
                 Box(
                     modifier = Modifier
-                        .height((maxBarHeight.value * heightFraction).dp)
+                        .height(barHeight)
                         .fillMaxWidth()
-                        .background(rate.barColor, RoundedCornerShape(12.dp)),
+                        .background(
+                            color = if (isTop) Color(0xFF32E0A1) else Color(0xFF7BECC3),
+                            shape = RoundedCornerShape(12.dp),
+                        ),
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
@@ -312,15 +378,20 @@ private fun MiniBarChart(
 @Composable
 private fun InfoBanner(
     accent: Color,
+    disposalRatePercent: Int?,
     modifier: Modifier = Modifier,
 ) {
     val bannerBg = Color(0xFFEAF7F2)
     val text = buildAnnotatedString {
-        append("이번 달 평균 폐기율은 ")
-        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) { append("26%") }
-        append("입니다.\n지난달보다 ")
-        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) { append("3%") }
-        append(" 감소했습니다.")
+        if (disposalRatePercent != null) {
+            append("전체 폐기율은 ")
+            withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) {
+                append("${disposalRatePercent}%")
+            }
+            append("입니다.\nconsume 가 아닌 delete 처리된 식재료만 집계돼요.")
+        } else {
+            append("아직 분석할 식재료가 충분하지 않아요.\n식재료를 추가하면 폐기율이 표시됩니다.")
+        }
     }
 
     Row(
@@ -351,6 +422,8 @@ private fun InfoBanner(
         )
     }
 }
+
+private fun ExpiringChipUi.toChipLabel(): String = "$name (${formatDdayLabel(dday)})"
 
 @Composable
 private fun SectionHeader(

@@ -85,3 +85,73 @@ data class RecentItemDto(
     val status: String,     // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
     val emoji: String
 )
+
+// ───────────────────────────────────────────
+// GET /api/v1/tips/storage 응답 데이터
+// ───────────────────────────────────────────
+data class StorageTipDto(
+    val id: Long,
+    val displayCategory: String,        // "VEGETABLE_FRUIT" | "DAIRY_DRINK" | "MEAT_SEAFOOD" | "ETC"
+    val displayCategoryName: String,    // "채소/과일" 등 화면 표시용 라벨
+    val name: String,                   // 팁 제목
+    val emoji: String,                  // 이모지 (예: "🥦")
+    val tip: String,                    // 팁 본문
+    val storageType: String             // "FRIDGE" | "FREEZER" | "PANTRY" 등
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/tips/recycling 응답 데이터
+// ───────────────────────────────────────────
+data class RecyclingTipDto(
+    val id: Long,
+    val name: String,           // 품목 이름 (예: "달걀 껍데기")
+    val wasteType: String,      // "일반쓰레기" | "음식물쓰레기" 등
+    val description: String     // 설명
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/analytics/summary 응답 데이터
+//   - totalCount = 현재 보관 중인 식재료 수
+//   - expiredCount = 폐기 처리(delete) 된 식재료 수
+//     (consume 은 폐기율에 반영되지 않음 - 백엔드 측 집계 룰)
+// ───────────────────────────────────────────
+data class AnalyticsSummaryData(
+    val totalCount: Int,
+    val freshCount: Int,
+    val nearExpiryCount: Int,
+    val expiredCount: Int,
+    val storages: List<AnalyticsStorageDto>?,
+    val nearExpiryItems: List<AnalyticsItemDto>?,
+    val expiredItems: List<AnalyticsItemDto>?,
+    val recentItems: List<AnalyticsItemDto>?
+)
+
+data class AnalyticsStorageDto(
+    val storageId: Long,
+    val storageType: String,    // "FRIDGE" | "FREEZER" | "PANTRY"
+    val name: String
+)
+
+data class AnalyticsItemDto(
+    val id: Long,
+    val name: String,
+    val storage: String,
+    val expiryDate: String?,
+    val status: String,         // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
+    val emoji: String?
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/analytics/expiring-items 응답 데이터
+//   - maxDDay 가 null 이면 백엔드 기본값(10) 사용
+// ───────────────────────────────────────────
+data class ExpiringItemDto(
+    val id: Long,
+    val name: String,
+    val emoji: String?,
+    val category: String,                  // "VEGETABLE_FRUIT" | "DAIRY_DRINK" | "MEAT_SEAFOOD" | "ETC"
+    val categoryDisplayName: String?,      // 화면 표시용 라벨 (예: "채소/과일")
+    val expiresAt: String?,
+    val dday: Int,
+    val storageType: String                // "FRIDGE" | "FREEZER" | "PANTRY"
+)
