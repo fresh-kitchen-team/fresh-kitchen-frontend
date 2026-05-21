@@ -171,7 +171,12 @@ fun AppNavHost(
         composable("manual_add") {
             ManualAddScreen(
                 onBackClick = { navController.popBackStack() },
-                onAddSuccess = { navController.popBackStack() }
+                onAddSuccess = {
+                    // 홈 화면 데이터 새로고침 트리거 (스캔과 동일한 방식)
+                    navController.getBackStackEntry(BottomNavRoute.Home.route).savedStateHandle
+                        .set(ScanNav.keyRefreshHome, System.currentTimeMillis())
+                    navController.popBackStack()
+                }
             )
         }
 

@@ -71,6 +71,12 @@ class ManualAddViewModel(
     fun onMemoChange(memo: String)         { _uiState.value = _uiState.value.copy(memo = memo) }
     fun clearError()                       { _uiState.value = _uiState.value.copy(error = null) }
 
+    // 숫자 8자리 → "YYYY-MM-DD" 변환 (8자리 미만이면 null)
+    private fun formatDate(digits: String): String? {
+        if (digits.length != 8) return null
+        return "${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}"
+    }
+
     // ── 식재료 추가 제출 ──
     fun submit(onSuccess: () -> Unit) {
         val s = _uiState.value
@@ -92,8 +98,8 @@ class ManualAddViewModel(
                 ItemCreateRequest(
                     name         = s.name.trim(),
                     storageId    = storageId,
-                    expiryDate   = s.expiryDate.ifBlank { null },
-                    purchaseDate = s.purchaseDate.ifBlank { null },
+                    expiryDate   = formatDate(s.expiryDate),
+                    purchaseDate = formatDate(s.purchaseDate),
                     memo         = s.memo.ifBlank { null }
                 )
             )
