@@ -1,6 +1,8 @@
 package com.example.myfrigelocal.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,13 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.foundation.clickable
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myfrigelocal.ui.theme.FreshGreen
+import com.example.myfrigelocal.ui.theme.FreshGreenDark
+import com.example.myfrigelocal.ui.theme.LightGray
 import com.example.myfrigelocal.viewmodel.*
-import androidx.compose.runtime.LaunchedEffect
 
 // 상태별 색상
 val StatusFreshColor = Color(0xFF22C55E)
@@ -55,13 +53,13 @@ fun InventoryListScreen(
 
     LaunchedEffect(initialFilter) {
         val filter = when (initialFilter) {
-            "fridge" -> InventoryFilter.FRIDGE
-            "freezer" -> InventoryFilter.FREEZER
-            "pantry" -> InventoryFilter.PANTRY
+            "fridge"     -> InventoryFilter.FRIDGE
+            "freezer"    -> InventoryFilter.FREEZER
+            "pantry"     -> InventoryFilter.PANTRY
             "near_expiry" -> InventoryFilter.NEAR_EXPIRY
-            "expired" -> InventoryFilter.EXPIRED
-            "recent" -> InventoryFilter.RECENT
-            else -> InventoryFilter.ALL
+            "expired"    -> InventoryFilter.EXPIRED
+            "recent"     -> InventoryFilter.RECENT
+            else         -> InventoryFilter.ALL
         }
         viewModel.onFilterSelected(filter)
     }
@@ -73,7 +71,11 @@ fun InventoryListScreen(
         onNavigateToSearch = onNavigateToSearch,
         onNavigateToSettings = onNavigateToSettings,
         onFilterSelected = { viewModel.onFilterSelected(it) },
-        onUpdateItem = { viewModel.updateItem(it) }
+        onUpdateItem = { viewModel.updateItem(it) },
+        onToggleSelectMode = { viewModel.toggleSelectMode() },
+        onToggleItemSelection = { viewModel.toggleItemSelection(it) },
+        onDeleteSelected = { viewModel.deleteSelected() },
+        onConsumeSelected = { viewModel.consumeSelected() },
     )
 }
 
@@ -89,25 +91,37 @@ fun InventoryListContent(
     onNavigateToSettings: () -> Unit = {},
     onFilterSelected: (InventoryFilter) -> Unit = {},
     onUpdateItem: (FoodItem) -> Unit = {},
+    onToggleSelectMode: () -> Unit = {},
+    onToggleItemSelection: (Int) -> Unit = {},
+    onDeleteSelected: () -> Unit = {},
+    onConsumeSelected: () -> Unit = {},
 ) {
-    // 상세 팝업 상태
+    // 상세 팝업 상태 (선택 모드가 아닐 때만 열림)
     var selectedItem by remember { mutableStateOf<FoodItem?>(null) }
     // 수정 팝업 상태
     var editingItem by remember { mutableStateOf<FoodItem?>(null) }
 
-    // 상세 팝업 표시
+    // 선택 모드 진입 시 팝업 닫기
+    LaunchedEffect(uiState.isSelectMode) {
+        if (uiState.isSelectMode) {
+            selectedItem = null
+            editingItem = null
+        }
+    }
+
+    // 상세 팝업
     selectedItem?.let { item ->
         FoodItemDetailDialog(
             item = item,
             onDismiss = { selectedItem = null },
             onEdit = {
-                selectedItem = null   // 상세 팝업 닫고
-                editingItem = it      // 수정 팝업 열기
+                selectedItem = null
+                editingItem = it
             }
         )
     }
 
-    // 수정 팝업 표시
+    // 수정 팝업
     editingItem?.let { item ->
         FoodItemEditDialog(
             item = item,
@@ -123,19 +137,30 @@ fun InventoryListContent(
         topBar = {
             InventoryTopBar(
                 title = when (uiState.selectedFilter) {
-                    InventoryFilter.ALL -> "전체 식재료"
-                    InventoryFilter.FRIDGE -> "냉장실"
-                    InventoryFilter.FREEZER -> "냉동실"
-                    InventoryFilter.PANTRY -> "팬트리"
-                    InventoryFilter.RECENT -> "최근 추가"
+                    InventoryFilter.ALL        -> "전체 식재료"
+                    InventoryFilter.FRIDGE     -> "냉장실"
+                    InventoryFilter.FREEZER    -> "냉동실"
+                    InventoryFilter.PANTRY     -> "팬트리"
+                    InventoryFilter.RECENT     -> "최근 추가"
                     InventoryFilter.NEAR_EXPIRY -> "소비 임박"
-                    InventoryFilter.EXPIRED -> "유통기한 경과"
+                    InventoryFilter.EXPIRED    -> "유통기한 경과"
                 },
                 onBackClick = onBackClick,
                 onNavigateToProfile = onNavigateToProfile,
                 onNavigateToSearch = onNavigateToSearch,
                 onNavigateToSettings = onNavigateToSettings
             )
+        },
+        // 선택 모드일 때 하단 액션 바 표시
+        bottomBar = {
+            if (uiState.isSelectMode) {
+                SelectionActionBar(
+                    selectedCount = uiState.selectedItemIds.size,
+                    isProcessing = uiState.isProcessing,
+                    onConsume = onConsumeSelected,
+                    onDispose = onDeleteSelected,
+                )
+            }
         },
         containerColor = Color.White
     ) { innerPadding ->
@@ -150,21 +175,23 @@ fun InventoryListContent(
                 onFilterSelected = onFilterSelected
             )
 
-            // 요약 카드
+            // 요약 카드 (선택하기 버튼 포함)
             SummaryCard(
                 label = when (uiState.selectedFilter) {
-                    InventoryFilter.ALL -> "전체"
-                    InventoryFilter.FRIDGE -> "냉장실"
-                    InventoryFilter.FREEZER -> "냉동실"
-                    InventoryFilter.PANTRY -> "팬트리"
-                    InventoryFilter.RECENT -> "최근 추가"
+                    InventoryFilter.ALL        -> "전체"
+                    InventoryFilter.FRIDGE     -> "냉장실"
+                    InventoryFilter.FREEZER    -> "냉동실"
+                    InventoryFilter.PANTRY     -> "팬트리"
+                    InventoryFilter.RECENT     -> "최근 추가"
                     InventoryFilter.NEAR_EXPIRY -> "소비 임박"
-                    InventoryFilter.EXPIRED -> "유통기한 경과"
+                    InventoryFilter.EXPIRED    -> "유통기한 경과"
                 },
                 totalCount = uiState.totalCount,
                 freshCount = uiState.freshCount,
                 nearExpiryCount = uiState.nearExpiryCount,
-                expiredCount = uiState.expiredCount
+                expiredCount = uiState.expiredCount,
+                isSelectMode = uiState.isSelectMode,
+                onToggleSelectMode = onToggleSelectMode,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -173,16 +200,20 @@ fun InventoryListContent(
             if (uiState.selectedFilter == InventoryFilter.NEAR_EXPIRY ||
                 uiState.selectedFilter == InventoryFilter.EXPIRED
             ) {
-                // 임박/경과는 저장공간별 그룹핑
                 GroupedFoodList(
                     items = uiState.filteredItems,
-                    onItemClick = { selectedItem = it }
+                    onItemClick = { if (!uiState.isSelectMode) selectedItem = it },
+                    isSelectMode = uiState.isSelectMode,
+                    selectedItemIds = uiState.selectedItemIds,
+                    onToggleSelection = onToggleItemSelection,
                 )
             } else {
-                // 나머지는 일반 리스트
                 FoodItemList(
                     items = uiState.filteredItems,
-                    onItemClick = { selectedItem = it }
+                    onItemClick = { if (!uiState.isSelectMode) selectedItem = it },
+                    isSelectMode = uiState.isSelectMode,
+                    selectedItemIds = uiState.selectedItemIds,
+                    onToggleSelection = onToggleItemSelection,
                 )
             }
         }
@@ -226,13 +257,13 @@ fun FilterTabRow(
     onFilterSelected: (InventoryFilter) -> Unit
 ) {
     val tabs = listOf(
-        InventoryFilter.ALL to "전체",
-        InventoryFilter.FRIDGE to "냉장실",
-        InventoryFilter.FREEZER to "냉동실",
-        InventoryFilter.PANTRY to "팬트리",
-        InventoryFilter.RECENT to "최근 추가",
+        InventoryFilter.ALL        to "전체",
+        InventoryFilter.FRIDGE     to "냉장실",
+        InventoryFilter.FREEZER    to "냉동실",
+        InventoryFilter.PANTRY     to "팬트리",
+        InventoryFilter.RECENT     to "최근 추가",
         InventoryFilter.NEAR_EXPIRY to "소비임박",
-        InventoryFilter.EXPIRED to "유통기한경과",
+        InventoryFilter.EXPIRED    to "유통기한경과",
     )
 
     Row(
@@ -274,7 +305,9 @@ fun SummaryCard(
     totalCount: Int,
     freshCount: Int,
     nearExpiryCount: Int,
-    expiredCount: Int
+    expiredCount: Int,
+    isSelectMode: Boolean = false,
+    onToggleSelectMode: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -288,6 +321,7 @@ fun SummaryCard(
             )
             .padding(20.dp)
     ) {
+        // 왼쪽: 라벨 + 총 개수
         Column {
             Text(label, color = Color.White, fontSize = 13.sp)
             Text(
@@ -297,6 +331,8 @@ fun SummaryCard(
                 fontWeight = FontWeight.Bold
             )
         }
+
+        // 오른쪽 하단: 상태 뱃지
         Row(
             modifier = Modifier.align(Alignment.BottomEnd),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -304,6 +340,26 @@ fun SummaryCard(
             StatusBadgeSmall("신선 $freshCount", StatusFreshColor)
             StatusBadgeSmall("임박 $nearExpiryCount", StatusNearExpiryColor)
             StatusBadgeSmall("경과 $expiredCount", StatusExpiredColor)
+        }
+    }
+
+    // 선택하기 버튼 — 카드 아래 오른쪽 정렬
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        TextButton(
+            onClick = onToggleSelectMode,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = if (isSelectMode) "✕ 취소" else "선택하기",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = FreshGreenDark
+            )
         }
     }
 }
@@ -321,17 +377,101 @@ fun StatusBadgeSmall(text: String, color: Color) {
 }
 
 // ───────────────────────────────────────────
+// 하단 선택 액션 바 (소비 / 폐기)
+// ───────────────────────────────────────────
+@Composable
+fun SelectionActionBar(
+    selectedCount: Int,
+    isProcessing: Boolean,
+    onConsume: () -> Unit,
+    onDispose: () -> Unit,
+) {
+    Surface(
+        shadowElevation = 8.dp,
+        color = Color.White
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (selectedCount > 0) "${selectedCount}개 선택됨" else "항목을 선택하세요",
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = if (selectedCount > 0) Color.Black else Color.Gray,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (isProcessing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = FreshGreenDark,
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 소비 버튼 (녹색 outlined)
+                    OutlinedButton(
+                        onClick = onConsume,
+                        enabled = selectedCount > 0,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = FreshGreenDark,
+                            disabledContentColor = Color.LightGray
+                        ),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (selectedCount > 0) FreshGreenDark else Color.LightGray
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("소비", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    // 폐기 버튼 (빨간 filled)
+                    Button(
+                        onClick = onDispose,
+                        enabled = selectedCount > 0,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFEF4444),
+                            disabledContainerColor = Color(0xFFE0E0E0)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("폐기", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────────────────────
 // 일반 식재료 리스트
 // ───────────────────────────────────────────
 @Composable
-fun FoodItemList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {}) {
+fun FoodItemList(
+    items: List<FoodItem>,
+    onItemClick: (FoodItem) -> Unit = {},
+    isSelectMode: Boolean = false,
+    selectedItemIds: Set<Int> = emptySet(),
+    onToggleSelection: (Int) -> Unit = {},
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(items) { item ->
-            FoodItemCard(item = item, onClick = { onItemClick(item) })
+            FoodItemCard(
+                item = item,
+                onClick = { onItemClick(item) },
+                isSelectMode = isSelectMode,
+                isSelected = item.id in selectedItemIds,
+                onToggleSelection = { onToggleSelection(item.id) }
+            )
         }
     }
 }
@@ -340,11 +480,17 @@ fun FoodItemList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {}) {
 // 저장공간별 그룹핑 리스트 (임박/경과용)
 // ───────────────────────────────────────────
 @Composable
-fun GroupedFoodList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {}) {
+fun GroupedFoodList(
+    items: List<FoodItem>,
+    onItemClick: (FoodItem) -> Unit = {},
+    isSelectMode: Boolean = false,
+    selectedItemIds: Set<Int> = emptySet(),
+    onToggleSelection: (Int) -> Unit = {},
+) {
     val grouped = mapOf(
-        StorageType.FRIDGE to (items.filter { it.storage == StorageType.FRIDGE } to ("🥛" to "냉장실")),
+        StorageType.FRIDGE  to (items.filter { it.storage == StorageType.FRIDGE }  to ("🥛" to "냉장실")),
         StorageType.FREEZER to (items.filter { it.storage == StorageType.FREEZER } to ("❄️" to "냉동실")),
-        StorageType.PANTRY to (items.filter { it.storage == StorageType.PANTRY } to ("🥫" to "팬트리")),
+        StorageType.PANTRY  to (items.filter { it.storage == StorageType.PANTRY }  to ("🥫" to "팬트리")),
     )
 
     LazyColumn(
@@ -363,17 +509,9 @@ fun GroupedFoodList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {})
                 ) {
                     Text(emoji, fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = label,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
+                    Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${groupItems.size}",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
+                    Text("${groupItems.size}", fontSize = 14.sp, color = Color.Gray)
                 }
             }
 
@@ -388,7 +526,13 @@ fun GroupedFoodList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {})
                 }
             } else {
                 items(groupItems) { item ->
-                    FoodItemCard(item = item, onClick = { onItemClick(item) })
+                    FoodItemCard(
+                        item = item,
+                        onClick = { onItemClick(item) },
+                        isSelectMode = isSelectMode,
+                        isSelected = item.id in selectedItemIds,
+                        onToggleSelection = { onToggleSelection(item.id) }
+                    )
                 }
             }
         }
@@ -396,22 +540,33 @@ fun GroupedFoodList(items: List<FoodItem>, onItemClick: (FoodItem) -> Unit = {})
 }
 
 // ───────────────────────────────────────────
-// 식재료 카드
+// 식재료 카드 (선택 모드 지원)
 // ───────────────────────────────────────────
 @Composable
-fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
+fun FoodItemCard(
+    item: FoodItem,
+    onClick: () -> Unit = {},
+    isSelectMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: () -> Unit = {},
+) {
     val (statusText, statusTextColor, statusBgColor) = when (item.status) {
-        FoodStatus.FRESH -> Triple("신선", StatusFreshColor, StatusFreshBgColor)
+        FoodStatus.FRESH       -> Triple("신선", StatusFreshColor, StatusFreshBgColor)
         FoodStatus.NEAR_EXPIRY -> Triple("소비임박", StatusNearExpiryColor, StatusNearExpiryBgColor)
-        FoodStatus.EXPIRED -> Triple("유통기한경과", StatusExpiredColor, StatusExpiredBgColor)
+        FoodStatus.EXPIRED     -> Triple("유통기한경과", StatusExpiredColor, StatusExpiredBgColor)
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable {
+                if (isSelectMode) onToggleSelection() else onClick()
+            },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            // 선택된 카드는 연한 녹색 배경
+            containerColor = if (isSelected) Color(0xFFE8F5E9) else Color.White
+        ),
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Row(
@@ -431,20 +586,19 @@ fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 이름 + 카테고리 + 수량/유통기한
+            // 이름 + 카테고리 + 유통기한
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, fontWeight = FontWeight.Medium, fontSize = 15.sp)
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 저장공간 + 카테고리 뱃지
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     StorageBadge(
                         text = when (item.storage) {
-                            StorageType.FRIDGE -> "냉장실"
+                            StorageType.FRIDGE  -> "냉장실"
                             StorageType.FREEZER -> "냉동실"
-                            StorageType.PANTRY -> "팬트리"
-                            StorageType.ALL -> ""
+                            StorageType.PANTRY  -> "팬트리"
+                            StorageType.ALL     -> ""
                         }
                     )
                     Text(item.category, fontSize = 12.sp, color = Color.Gray)
@@ -459,14 +613,30 @@ fun FoodItemCard(item: FoodItem, onClick: () -> Unit = {}) {
                 )
             }
 
-            // 상태 뱃지
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(statusBgColor)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(statusText, color = statusTextColor, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            // 오른쪽: 선택 모드면 체크박스, 아니면 상태 뱃지
+            if (isSelectMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelection() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = FreshGreenDark,
+                        uncheckedColor = Color.Gray
+                    )
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(statusBgColor)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        statusText,
+                        color = statusTextColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -508,19 +678,23 @@ fun InventoryListPreview() {
     InventoryListContent(uiState = dummyState)
 }
 
-@Preview(showBackground = true, showSystemUi = true, name = "소비임박 리스트")
+@Preview(showBackground = true, showSystemUi = true, name = "선택 모드")
 @Composable
-fun InventoryListNearExpiryPreview() {
+fun InventoryListSelectModePreview() {
     val dummyState = InventoryListUiState(
-        selectedFilter = InventoryFilter.NEAR_EXPIRY,
-        totalCount = 5,
-        freshCount = 0,
-        nearExpiryCount = 5,
-        expiredCount = 0,
+        selectedFilter = InventoryFilter.ALL,
+        totalCount = 6,
+        freshCount = 4,
+        nearExpiryCount = 1,
+        expiredCount = 1,
+        isSelectMode = true,
+        selectedItemIds = setOf(1, 3),
         filteredItems = listOf(
+            FoodItem(1, "신선한 우유", "유제품", StorageType.FRIDGE, "1L", "2026-03-25", FoodStatus.FRESH, "🥛"),
+            FoodItem(2, "소고기 안심", "육류", StorageType.FREEZER, "500g", "2026-04-15", FoodStatus.FRESH, "🥩"),
+            FoodItem(3, "유기농 브로콜리", "채소", StorageType.FRIDGE, "1개", "2026-03-28", FoodStatus.FRESH, "🥦"),
             FoodItem(4, "계란", "유제품", StorageType.FRIDGE, "10개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🥚"),
-            FoodItem(5, "토마토", "채소", StorageType.FRIDGE, "5개", "2026-03-23", FoodStatus.NEAR_EXPIRY, "🍅"),
-            FoodItem(9, "바나나", "과일", StorageType.PANTRY, "5개", "2026-03-24", FoodStatus.NEAR_EXPIRY, "🍌"),
+            FoodItem(6, "햄", "육류", StorageType.FRIDGE, "300g", "2026-03-20", FoodStatus.EXPIRED, "🍖"),
         )
     )
     InventoryListContent(uiState = dummyState)
