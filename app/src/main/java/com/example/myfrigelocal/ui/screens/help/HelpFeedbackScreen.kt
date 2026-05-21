@@ -50,6 +50,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myfrigelocal.ui.screens.chat.ChatDesign
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 
@@ -79,9 +81,9 @@ fun HelpFeedbackScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5)),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(ChatDesign.ScreenBg),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
             TopBar(
@@ -92,9 +94,18 @@ fun HelpFeedbackScreen(
 
         item {
             Text(
+                text = "AI 주방 비서 이용 중 궁금한 점이나\n피드백을 편하게 남겨주세요.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ChatDesign.TextSecondary,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            )
+        }
+
+        item {
+            Text(
                 text = "자주 묻는 질문",
-                style = MaterialTheme.typography.titleSmall,
-                color = Color(0xFF6B7280),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = ChatDesign.TextSecondary,
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
@@ -108,7 +119,7 @@ fun HelpFeedbackScreen(
                         onToggle = { expandedStates[index] = !expandedStates[index] },
                     )
                     if (index != faqQuestions.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFE5E7EB))
+                        HorizontalDivider(color = ChatDesign.BorderSoft)
                     }
                 }
             }
@@ -118,16 +129,16 @@ fun HelpFeedbackScreen(
             SettingCard {
                 Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)) {
                     Text(
-                        text = "AI가 레시피를 생성하는 동안 시간이 소요\n될 수 있습니다.\n생성이 완료되면 알림으로 안내됩니다.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color(0xFF111827),
+                        text = "AI가 레시피를 생성하는 동안 시간이 소요될 수 있습니다.\n생성이 완료되면 알림으로 안내됩니다.",
+                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                        color = ChatDesign.TextPrimary,
                     )
 
                     Spacer(modifier = Modifier.size(14.dp))
 
                     Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F8F7)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -192,20 +203,20 @@ private fun TopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp),
+            .height(52.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = Color(0xFF111827),
+            color = ChatDesign.TextPrimary,
         )
         Spacer(modifier = Modifier.weight(1f))
         IconButton(onClick = onClose) {
             Icon(
                 imageVector = Icons.Outlined.Close,
-                contentDescription = "Close",
-                tint = BottomNavSelected,
+                contentDescription = "닫기",
+                tint = ChatDesign.TextSecondary,
             )
         }
     }
@@ -240,13 +251,13 @@ fun FaqItem(
             Text(
                 text = question,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = Color(0xFF111827),
+                color = ChatDesign.TextPrimary,
                 modifier = Modifier.weight(1f),
             )
             Icon(
                 imageVector = Icons.Outlined.ExpandMore,
-                contentDescription = "Expand",
-                tint = Color(0xFF6B7280),
+                contentDescription = "펼치기",
+                tint = ChatDesign.TextSecondary,
                 modifier = Modifier
                     .size(22.dp)
                     .padding(start = 8.dp)
@@ -258,7 +269,7 @@ fun FaqItem(
             Text(
                 text = "내용을 여기에 추가하세요.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF6B7280),
+                color = ChatDesign.TextSecondary,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -272,9 +283,10 @@ fun SettingCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ChatDesign.SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
     ) {
         Column {
             content()
@@ -300,9 +312,10 @@ fun ActionCard(
                 indication = null,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ChatDesign.SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
     ) {
         Row(
             modifier = Modifier
@@ -330,13 +343,13 @@ fun ActionCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF111827),
+                    color = ChatDesign.TextPrimary,
                 )
                 Spacer(modifier = Modifier.size(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF6B7280),
+                    color = ChatDesign.TextSecondary,
                 )
             }
 

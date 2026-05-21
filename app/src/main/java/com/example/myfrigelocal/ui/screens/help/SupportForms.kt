@@ -26,12 +26,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -52,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
+import com.example.myfrigelocal.ui.screens.chat.ChatDesign
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 
@@ -140,7 +144,7 @@ private fun SupportFormScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5)),
+            .background(ChatDesign.ScreenBg),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -148,20 +152,20 @@ private fun SupportFormScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(52.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF111827),
+                    color = ChatDesign.TextPrimary,
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF111827),
+                        contentDescription = "닫기",
+                        tint = ChatDesign.TextSecondary,
                     )
                 }
             }
@@ -308,28 +312,62 @@ private fun SupportFormScreen(
 
         successMessage?.let { ok ->
             item {
-                Text(
-                    text = ok,
-                    color = Color(0xFF059669),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 4.dp),
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFE8FAF2),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFB8F0D4)),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircleOutline,
+                            contentDescription = null,
+                            tint = Color(0xFF059669),
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = ok,
+                            color = Color(0xFF059669),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    }
+                }
             }
         }
 
         errorMessage?.let { err ->
             item {
-                Text(
-                    text = err,
-                    color = Color(0xFFB91C1C),
-                    style = MaterialTheme.typography.bodySmall,
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onDismissError() }
-                        .padding(horizontal = 4.dp),
-                )
+                        .clickable { onDismissError() },
+                    shape = RoundedCornerShape(16.dp),
+                    color = ChatDesign.ErrorBg,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.ErrorBorder),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            tint = ChatDesign.ErrorText,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = err,
+                            color = ChatDesign.ErrorText,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
 
@@ -356,9 +394,9 @@ private fun SupportFormScreen(
                             attachedImageUri,
                         )
                     },
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = ctaColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -382,9 +420,10 @@ private fun FormCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ChatDesign.SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
             content()
