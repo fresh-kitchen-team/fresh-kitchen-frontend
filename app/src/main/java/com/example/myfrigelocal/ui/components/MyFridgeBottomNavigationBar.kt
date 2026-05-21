@@ -49,31 +49,39 @@ fun MyFridgeBottomNavigationBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    // Reselect behavior:
-                    // If the user taps the already-selected AI Chat tab, return to the "base" AI chat state
-                    // (close overlays and scroll to the latest message) without clearing message history.
-                    if (destination == BottomNavRoute.Scan) {
-                        // Scan must always start from the initial state.
-                        // This clears any in-progress/finished scan flow (including scan_result) and recreates scan.
-                        navController.navigate(BottomNavRoute.Scan.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true
-                                saveState = false
+                    when {
+                        // Scan: 항상 초기 상태로. 스캔 결과/진행중 화면을 모두 폐기하고
+                        //       start destination(home)까지 inclusive popup 후 새로 시작.
+                        destination == BottomNavRoute.Scan -> {
+                            navController.navigate(BottomNavRoute.Scan.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                    saveState = false
+                                }
+                                launchSingleTop = true
+                                restoreState = false
                             }
-                            launchSingleTop = true
-                            restoreState = false
                         }
-                    } else if (selected && destination == BottomNavRoute.AiChat) {
-                        navController.currentBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("ai_chat_reselect", System.currentTimeMillis())
-                    } else if (!selected) {
-                        navController.navigate(destination.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        // AI Chat reselect: 이미 AI 채팅 탭이 선택된 상태에서 다시 누르면
+                        //                  "최신 메시지로 스크롤 / 오버레이 닫기" 신호만 보낸다.
+                        //                  AI Chat ViewModel 은 Activity scope 이라 메시지 히스토리는 유지.
+                        selected && destination == BottomNavRoute.AiChat -> {
+                            navController.currentBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("ai_chat_reselect", System.currentTimeMillis())
+                        }
+                        // 모든 탭(Home / AiChat / AnalyticsTips) 클릭 시
+                        // 어떤 sub 화면(consumption_detail, disposal_guide, inventory_list, profile,
+                        // settings, search, storage_tip_* 등) 에 있든 항상 그 탭의 초기 화면으로 이동.
+                        // saveState=false / restoreState=false 로 이전에 떠있던 sub 화면을 폐기.
+                        !selected -> {
+                            navController.navigate(destination.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = false
+                                }
+                                launchSingleTop = true
+                                restoreState = false
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 },

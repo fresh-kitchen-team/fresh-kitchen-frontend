@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.logging.ApiLog
 import com.example.myfrigelocal.network.AnalyticsRepository
 import com.example.myfrigelocal.network.ExpiringItemDto
+import com.example.myfrigelocal.network.IngredientRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +50,8 @@ data class ConsumptionUiState(
     val items: List<ConsumptionItemUi> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** 현재 소비 처리(PATCH /consume) API 호출 중인 itemId 들. 버튼 중복 클릭 방지용. */
+    val consumingIds: Set<Long> = emptySet(),
 )
 
 // ───────────────────────────────────────────
@@ -59,6 +62,7 @@ data class ConsumptionUiState(
 // ───────────────────────────────────────────
 class ConsumptionViewModel(
     private val repository: AnalyticsRepository = AnalyticsRepository(),
+    private val ingredientRepository: IngredientRepository = IngredientRepository(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConsumptionUiState())
@@ -104,12 +108,52 @@ class ConsumptionViewModel(
     }
 
     /**
-     * 화면에서 "소비 완료" 를 누른 항목을 리스트에서 제거.
-     * (실제 백엔드 소비 처리 API 는 아직 미연동이라 로컬 상태만 갱신)
+     * "소비 완료" 클릭 → PATCH /api/v1/items/{id}/consume 호출.
+     *  - 폐기율(/analytics/summary)에는 반영되지 않는 "소비 처리"
+     *  - 성공: 리스트에서 해당 항목 제거
+     *  - 실패: 리스트는 유지하고 error 메시지 노출 (Snackbar 등에서 표시)
+     *  - 동일 id 재호출은 무시 (중복 클릭 방지)
      */
-    fun removeItemLocally(id: Long) {
-        val current = _uiState.value
-        _uiState.value = current.copy(items = current.items.filterNot { it.id == id })
+    fun consumeItem(id: Long) {
+        if (id in _uiState.value.consumingIds) {
+            ApiLog.d(TAG, "consumeItem() ignore duplicate id=$id (already in-flight)")
+            return
+        }
+
+        viewModelScope.launch {
+            ApiLog.i(TAG, "consumeItem() START id=$id (PATCH /consume)")
+            _uiState.value = _uiState.value.copy(
+                consumingIds = _uiState.value.consumingIds + id,
+                error = null,
+            )
+
+            val ok = ingredientRepository.consumeItem(id)
+            val current = _uiState.value
+            if (ok) {
+                val newItems = current.items.filterNot { it.id == id }
+                ApiLog.i(
+                    TAG,
+                    "consumeItem() OK id=$id 로컬 제거. 남은 itemCount=${newItems.size}",
+                )
+                _uiState.value = current.copy(
+                    items = newItems,
+                    consumingIds = current.consumingIds - id,
+                )
+            } else {
+                ApiLog.w(TAG, "consumeItem() FAILED id=$id")
+                _uiState.value = current.copy(
+                    consumingIds = current.consumingIds - id,
+                    error = "소비 처리에 실패했어요. 잠시 후 다시 시도해주세요.",
+                )
+            }
+        }
+    }
+
+    /** Snackbar 등에서 에러를 한 번 보여준 뒤 호출해 상태를 비운다. */
+    fun clearError() {
+        if (_uiState.value.error != null) {
+            _uiState.value = _uiState.value.copy(error = null)
+        }
     }
 
     private fun ExpiringItemDto.toUi(today: LocalDate): ConsumptionItemUi {

@@ -1,30 +1,47 @@
 package com.example.myfrigelocal.network
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
-// ───────────────────────────────────────────
-// 식재료 API 인터페이스
-// ───────────────────────────────────────────
+// ???????????????????????????????????????????
+// ������� API ���?���������
+// ???????????????????????????????????????????
 interface IngredientApiService {
 
-    // POST /api/v1/items — 식재료 추가
+    // POST /api/v1/items � ������� ??
     @POST("api/v1/items")
     suspend fun addItem(
         @Body request: ItemCreateRequest
     ): ApiResponse<ItemCreateResponse>
 
-    // GET /api/v1/items — 전체 식재료 목록
+    // GET /api/v1/items � ?? ������� �����
     @GET("api/v1/items")
     suspend fun getIngredients(): ApiResponse<List<ItemDto>>
 
-    // PATCH /api/v1/items/{id} — 식재료 수정
+    // PATCH /api/v1/items/{id} � ������� ���?
     @PATCH("api/v1/items/{id}")
     suspend fun updateItem(
         @Path("id") id: Long,
         @Body request: ItemUpdateRequest
+    ): ApiResponse<Void>
+
+    // PATCH /api/v1/items/{id}/consume
+    //   - Mark item as consumed. NOT counted as disposal in /analytics/summary.
+    //   - Used by the "consume complete" button on the consumption recommendation screen.
+    @PATCH("api/v1/items/{id}/consume")
+    suspend fun consumeItem(
+        @Path("id") id: Long
+    ): ApiResponse<ItemConsumeResponse>
+
+    // DELETE /api/v1/items/{id}
+    //   - Discard item. Counted as disposal in /analytics/summary.
+    //   - Use only for actual disposal/expired flows, NOT for "consume complete".
+    @DELETE("api/v1/items/{id}")
+    suspend fun deleteItem(
+        @Path("id") id: Long
     ): ApiResponse<Void>
 }

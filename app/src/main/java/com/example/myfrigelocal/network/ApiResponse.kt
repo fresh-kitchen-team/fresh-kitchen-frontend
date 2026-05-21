@@ -56,6 +56,14 @@ data class ItemUpdateRequest(
 )
 
 // ───────────────────────────────────────────
+// PATCH /api/v1/items/{id}/consume 응답 데이터
+//   - 소비 처리(폐기율에는 반영되지 않음)
+// ───────────────────────────────────────────
+data class ItemConsumeResponse(
+    val consumedAt: String?
+)
+
+// ───────────────────────────────────────────
 // GET /api/v1/home/summary 응답 데이터
 // ───────────────────────────────────────────
 data class HomeSummaryData(
@@ -111,34 +119,39 @@ data class RecyclingTipDto(
 
 // ───────────────────────────────────────────
 // GET /api/v1/analytics/summary 응답 데이터
-//   - totalCount = 현재 보관 중인 식재료 수
-//   - expiredCount = 폐기 처리(delete) 된 식재료 수
-//     (consume 은 폐기율에 반영되지 않음 - 백엔드 측 집계 룰)
+//   - overallDiscardRate: 전체 폐기율 (%)
+//   - categoryStats[].discardRate: 카테고리별 폐기율 (%) → 막대 그래프
+//   - consume 은 폐기율에 반영되지 않고, delete 만 반영 (백엔드 집계)
 // ───────────────────────────────────────────
 data class AnalyticsSummaryData(
-    val totalCount: Int,
-    val freshCount: Int,
-    val nearExpiryCount: Int,
-    val expiredCount: Int,
-    val storages: List<AnalyticsStorageDto>?,
-    val nearExpiryItems: List<AnalyticsItemDto>?,
-    val expiredItems: List<AnalyticsItemDto>?,
-    val recentItems: List<AnalyticsItemDto>?
+    val totalActiveCount: Int,
+    val urgentCount: Int,
+    val topUrgentCategory: String?,
+    val topUrgentCategoryDisplayName: String?,
+    val topUrgentCategoryCount: Int,
+    val message: String?,
+    val overallDiscardRate: Double,
+    val categoryStats: List<AnalyticsCategoryStatDto>?,
+    val urgentItems: List<AnalyticsUrgentItemDto>?,
 )
 
-data class AnalyticsStorageDto(
-    val storageId: Long,
-    val storageType: String,    // "FRIDGE" | "FREEZER" | "PANTRY"
-    val name: String
+data class AnalyticsCategoryStatDto(
+    val category: String,           // "VEGETABLE_FRUIT" | "DAIRY_DRINK" | "MEAT_SEAFOOD" | "ETC"
+    val displayName: String,
+    val activeCount: Int,
+    val urgentCount: Int,
+    val discardRate: Double,        // 0..100, 소수 가능 (예: 66.7)
 )
 
-data class AnalyticsItemDto(
+data class AnalyticsUrgentItemDto(
     val id: Long,
     val name: String,
-    val storage: String,
-    val expiryDate: String?,
-    val status: String,         // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
-    val emoji: String?
+    val emoji: String?,
+    val category: String?,
+    val categoryDisplayName: String?,
+    val expiresAt: String?,
+    val dday: Int?,
+    val storageType: String?,
 )
 
 // ───────────────────────────────────────────
