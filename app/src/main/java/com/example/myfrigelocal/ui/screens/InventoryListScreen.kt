@@ -46,6 +46,9 @@ val StatusExpiredBgColor = Color(0xFFFEF2F2)
 fun InventoryListScreen(
     initialFilter: String = "all",
     onBackClick: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: InventoryListViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -66,6 +69,9 @@ fun InventoryListScreen(
     InventoryListContent(
         uiState = uiState,
         onBackClick = onBackClick,
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToSearch = onNavigateToSearch,
+        onNavigateToSettings = onNavigateToSettings,
         onFilterSelected = { viewModel.onFilterSelected(it) },
         onUpdateItem = { viewModel.updateItem(it) }
     )
@@ -78,6 +84,9 @@ fun InventoryListScreen(
 fun InventoryListContent(
     uiState: InventoryListUiState,
     onBackClick: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     onFilterSelected: (InventoryFilter) -> Unit = {},
     onUpdateItem: (FoodItem) -> Unit = {},
 ) {
@@ -122,7 +131,10 @@ fun InventoryListContent(
                     InventoryFilter.NEAR_EXPIRY -> "소비 임박"
                     InventoryFilter.EXPIRED -> "유통기한 경과"
                 },
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                onNavigateToProfile = onNavigateToProfile,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToSettings = onNavigateToSettings
             )
         },
         containerColor = Color.White
@@ -182,7 +194,13 @@ fun InventoryListContent(
 // ───────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InventoryTopBar(title: String, onBackClick: () -> Unit) {
+fun InventoryTopBar(
+    title: String,
+    onBackClick: () -> Unit,
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
+) {
     TopAppBar(
         title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
         navigationIcon = {
@@ -191,9 +209,9 @@ fun InventoryTopBar(title: String, onBackClick: () -> Unit) {
             }
         },
         actions = {
-            IconButton(onClick = {}) { Icon(Icons.Default.Person, contentDescription = "프로필") }
-            IconButton(onClick = {}) { Icon(Icons.Default.Search, contentDescription = "검색") }
-            IconButton(onClick = {}) { Icon(Icons.Default.Settings, contentDescription = "설정") }
+            IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "프로필") }
+            IconButton(onClick = onNavigateToSearch) { Icon(Icons.Default.Search, contentDescription = "검색") }
+            IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "설정") }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
     )

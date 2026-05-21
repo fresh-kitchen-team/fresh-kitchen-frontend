@@ -159,7 +159,10 @@ fun AppNavHost(
             val filter = backStackEntry.arguments?.getString("filter") ?: "all"
             InventoryListScreen(
                 initialFilter = filter,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onNavigateToProfile = { navController.navigate("profile") },
+                onNavigateToSearch = { navController.navigate("search") },
+                onNavigateToSettings = { navController.navigate("settings") }
             )
         }
 
