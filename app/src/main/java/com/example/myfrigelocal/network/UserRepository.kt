@@ -10,4 +10,6 @@ class UserRepository(
 
     suspend fun updateProfile(request: UserProfileUpdateRequest): ApiResponse<Void> =
         api.updateProfile(request)
+
+    suspend fun deleteAccount(): ApiResponse<Void> = api.deleteAccount()
 }

@@ -99,24 +99,40 @@ class OnboardingSetupViewModel(
                 Log.w("OnboardingSetupVM", "프로필 PATCH 실패 (무시하고 계속): ${e.message}")
             }
 
-            // ── 2. 선택한 식재료 인벤토리 추가 (storageId=1: 냉장실) ──
+            // ── 2. 선택한 식재료 인벤토리 추가 ──
             if (s.selectedQuickItems.isNotEmpty()) {
-                var addedCount = 0
-                s.selectedQuickItems.forEach { item ->
-                    // "🧅 양파" → "양파" (이모지 이후 텍스트 추출)
-                    val name = item.substringAfter(" ").trim()
-                    if (name.isNotBlank()) {
-                        try {
-                            val success = ingredientRepository.addItem(
-                                ItemCreateRequest(name = name, storageId = 1)
-                            )
-                            if (success) addedCount++
-                        } catch (e: Exception) {
-                            Log.w("OnboardingSetupVM", "식재료 추가 실패 ($name): ${e.message}")
+                // 유저의 실제 냉장실 storageId 조회 — GET /api/v1/items/storages
+                val fridgeStorageId = try {
+                    val storages = ingredientRepository.getStorages()
+                    val fridge = storages.find { it.storageType == "FRIDGE" || it.storageType == "fridge" }
+                    fridge?.storageId?.also {
+                        Log.d("OnboardingSetupVM", "냉장실 storageId 조회 성공: $it")
+                    }
+                } catch (e: Exception) {
+                    Log.w("OnboardingSetupVM", "storageId 조회 실패: ${e.message}")
+                    null
+                }
+
+                if (fridgeStorageId == null) {
+                    Log.e("OnboardingSetupVM", "냉장실 storageId를 가져오지 못해 식재료 추가 중단")
+                } else {
+                    var addedCount = 0
+                    s.selectedQuickItems.forEach { item ->
+                        // "🧅 양파" → "양파" (이모지 이후 텍스트 추출)
+                        val name = item.substringAfter(" ").trim()
+                        if (name.isNotBlank()) {
+                            try {
+                                val success = ingredientRepository.addItem(
+                                    ItemCreateRequest(name = name, storageId = fridgeStorageId)
+                                )
+                                if (success) addedCount++
+                            } catch (e: Exception) {
+                                Log.w("OnboardingSetupVM", "식재료 추가 실패 ($name): ${e.message}")
+                            }
                         }
                     }
+                    Log.d("OnboardingSetupVM", "식재료 추가 완료: $addedCount/${s.selectedQuickItems.size}개")
                 }
-                Log.d("OnboardingSetupVM", "식재료 추가 완료: $addedCount/${s.selectedQuickItems.size}개")
             }
 
             _state.value = _state.value.copy(isSubmitting = false, submitDone = true)

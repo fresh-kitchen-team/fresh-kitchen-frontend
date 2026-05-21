@@ -31,4 +31,8 @@ interface AuthApiService {
     suspend fun loginWithKakao(
         @Body request: KakaoLoginRequest
     ): ApiResponse<AuthResponse>
+
+    // POST /api/v1/auth/logout — 로그아웃 (서버 토큰 블랙리스트 처리)
+    @POST("api/v1/auth/logout")
+    suspend fun logout(): ApiResponse<Void>
 }

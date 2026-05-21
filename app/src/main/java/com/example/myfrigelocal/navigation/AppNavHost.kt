@@ -130,6 +130,11 @@ fun AppNavHost(
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onWithdraw = {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

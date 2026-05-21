@@ -38,29 +38,62 @@ import com.example.myfrigelocal.viewmodel.SettingsViewModel
 fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onLogout: () -> Unit = {},
+    onWithdraw: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        viewModel.loadAccountInfo(context)
+    }
+
     // 탈퇴 확인 다이얼로그
     var showWithdrawDialog by remember { mutableStateOf(false) }
 
+    // 탈퇴 성공 시 로그인 화면으로 이동
+    LaunchedEffect(uiState.isWithdrawing) {
+        // isWithdrawing이 false로 돌아왔고 오류도 없으면 → onWithdraw는 ViewModel 내부에서 직접 호출
+    }
+
+    // 탈퇴 오류 스낵바
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.withdrawError) {
+        if (uiState.withdrawError != null) {
+            snackbarHostState.showSnackbar(uiState.withdrawError!!)
+            viewModel.clearWithdrawError()
+        }
+    }
+
     if (showWithdrawDialog) {
         AlertDialog(
-            onDismissRequest = { showWithdrawDialog = false },
+            onDismissRequest = { if (!uiState.isWithdrawing) showWithdrawDialog = false },
             title = { Text("탈퇴하기", fontWeight = FontWeight.Bold) },
             text = { Text("탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요. 정말 탈퇴할까요?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showWithdrawDialog = false
-                    // TODO: 탈퇴 API 호출
-                }) {
-                    Text("탈퇴", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                TextButton(
+                    onClick = {
+                        showWithdrawDialog = false
+                        viewModel.withdraw(context) { onWithdraw() }
+                    },
+                    enabled = !uiState.isWithdrawing
+                ) {
+                    if (uiState.isWithdrawing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFFEF4444)
+                        )
+                    } else {
+                        Text("탈퇴", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showWithdrawDialog = false }) {
+                TextButton(
+                    onClick = { showWithdrawDialog = false },
+                    enabled = !uiState.isWithdrawing
+                ) {
                     Text("취소", color = Color.Gray)
                 }
             }
@@ -79,6 +112,7 @@ fun SettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color(0xFFF8F8F8)
     ) { innerPadding ->
         Column(
@@ -137,33 +171,38 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // 소셜 로그인 아이콘 (Google: 파란 배경 G / Kakao: 노란 배경 K)
+                    val isKakao = uiState.loginProvider == "KAKAO"
                     Box(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(FreshGreenDark),
+                            .background(
+                                if (isKakao) Color(0xFFFEE500) else Color(0xFF4285F4)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                        Text(
+                            text = if (isKakao) "K" else "G",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKakao) Color(0xFF191919) else Color.White
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            // TODO: 백엔드 연동 시 실제 계정 정보로 교체
-                            "Google 계정으로 로그인됨",
+                            text = if (isKakao) "카카오 계정으로 로그인됨" else "Google 계정으로 로그인됨",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        Text(
-                            "chef.alchemist@gmail.com",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
+                        if (!uiState.nickname.isNullOrBlank()) {
+                            Text(
+                                text = uiState.nickname!!,
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
                 }
 

@@ -12,19 +12,29 @@ data class ApiResponse<T>(
 )
 
 // ───────────────────────────────────────────
-// GET /api/v1/items 응답 데이터
+// GET /api/v1/items, GET /api/v1/items/{id} 응답 데이터
 // ───────────────────────────────────────────
 data class ItemDto(
     val id: Long,
     val name: String,
-    val status: String,             // "FRESH" | "NEAR_EXPIRY" | "EXPIRED" (신선도 상태)
+    val status: String,             // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
+    val catalogId: Long?,           // 카탈로그 ID (null 가능)
     val storageId: Long,
     val storage: String,            // "FRIDGE" | "FREEZER" | "PANTRY"
-    val category: String?,          // 카테고리 (null 가능)
+    val category: String?,          // "VEGETABLE"|"FRUIT"|"MEAT"|"SEAFOOD"|"DAIRY"|"SAUCE"|"DRINK"|"ETC"
     val expiryDate: String?,        // 유통기한 "2026-05-28" (null 가능)
-    val emoji: String?,             // 카탈로그 이모지 (null 가능)
+    val emoji: String?,             // 이모지 (null 가능)
     val purchaseDate: String?,      // 구매일 "2026-05-13"
     val memo: String?               // 메모
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/items/storages 응답 데이터
+// ───────────────────────────────────────────
+data class StorageDto(
+    val storageId: Long,
+    val storageType: String?,  // "FRIDGE" | "FREEZER" | "PANTRY"
+    val name: String
 )
 
 // ───────────────────────────────────────────
@@ -32,15 +42,11 @@ data class ItemDto(
 // ───────────────────────────────────────────
 data class ItemCreateRequest(
     val name: String,
-    val catalogId: Long? = null,   // 시연용 catalog seed ID (null 허용)
     val storageId: Long,
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
-    val memo: String? = null
-)
-
-data class ItemCreateResponse(
-    val id: Long
+    val memo: String? = null,
+    val imageAssetId: Long? = null
 )
 
 // ───────────────────────────────────────────
@@ -58,32 +64,25 @@ data class ItemUpdateRequest(
 // ───────────────────────────────────────────
 // GET /api/v1/home/summary 응답 데이터
 // ───────────────────────────────────────────
+// home/summary 와 analytics/summary 가 동일한 SummaryResponse 스키마 사용
 data class HomeSummaryData(
     val totalCount: Int,
     val freshCount: Int,
     val nearExpiryCount: Int,
     val expiredCount: Int,
-    val storages: List<StorageSummaryDto>,
+    val storages: List<StorageDto>,       // storageId, storageType, name
     val nearExpiryItems: List<RecentItemDto>,
     val expiredItems: List<RecentItemDto>,
     val recentItems: List<RecentItemDto>
-)
-
-data class StorageSummaryDto(
-    val storage: String,    // "FRIDGE" | "FREEZER" | "PANTRY"
-    val emoji: String,
-    val name: String,
-    val itemCount: Int,
-    val filterKey: String   // "fridge" | "freezer" | "pantry"
 )
 
 data class RecentItemDto(
     val id: Long,
     val name: String,
     val storage: String,
-    val expiryDate: String,
+    val expiryDate: String?,
     val status: String,     // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
-    val emoji: String
+    val emoji: String?
 )
 
 // ───────────────────────────────────────────
@@ -115,31 +114,8 @@ data class RecyclingTipDto(
 //   - expiredCount = 폐기 처리(delete) 된 식재료 수
 //     (consume 은 폐기율에 반영되지 않음 - 백엔드 측 집계 룰)
 // ───────────────────────────────────────────
-data class AnalyticsSummaryData(
-    val totalCount: Int,
-    val freshCount: Int,
-    val nearExpiryCount: Int,
-    val expiredCount: Int,
-    val storages: List<AnalyticsStorageDto>?,
-    val nearExpiryItems: List<AnalyticsItemDto>?,
-    val expiredItems: List<AnalyticsItemDto>?,
-    val recentItems: List<AnalyticsItemDto>?
-)
-
-data class AnalyticsStorageDto(
-    val storageId: Long,
-    val storageType: String,    // "FRIDGE" | "FREEZER" | "PANTRY"
-    val name: String
-)
-
-data class AnalyticsItemDto(
-    val id: Long,
-    val name: String,
-    val storage: String,
-    val expiryDate: String?,
-    val status: String,         // "FRESH" | "NEAR_EXPIRY" | "EXPIRED"
-    val emoji: String?
-)
+// analytics/summary 도 동일한 SummaryResponse 스키마 사용 — HomeSummaryData 와 동일
+typealias AnalyticsSummaryData = HomeSummaryData
 
 // ───────────────────────────────────────────
 // GET /api/v1/analytics/expiring-items 응답 데이터
