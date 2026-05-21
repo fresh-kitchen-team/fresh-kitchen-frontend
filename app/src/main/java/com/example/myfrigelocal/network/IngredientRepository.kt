@@ -23,10 +23,21 @@ class IngredientRepository(
         return try {
             val response = api.addItem(request)
             Log.d("IngredientRepo", "addItem 응답 code=${response.code}, name=${request.name}")
-            response.code == "COMMON-201"
+            response.code == "COMMON-200"
         } catch (e: Exception) {
             Log.e("IngredientRepo", "addItem 예외: ${e.message}, name=${request.name}")
             false
+        }
+    }
+
+    suspend fun getStorages(): List<StorageDto> {
+        return try {
+            val response = api.getStorages()
+            if (response.code == "COMMON-200") response.data ?: emptyList()
+            else emptyList()
+        } catch (e: Exception) {
+            Log.e("IngredientRepo", "getStorages 예외: ${e.message}")
+            emptyList()
         }
     }
 

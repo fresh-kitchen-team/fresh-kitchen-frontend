@@ -13,4 +13,6 @@ class AuthRepository(
     suspend fun loginWithKakao(idToken: String): ApiResponse<AuthResponse> {
         return api.loginWithKakao(KakaoLoginRequest(idToken))
     }
+
+    suspend fun logout(): ApiResponse<Void> = api.logout()
 }

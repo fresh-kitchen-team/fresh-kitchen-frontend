@@ -54,7 +54,7 @@ class LoginViewModel(
                 Log.d("LoginViewModel", "응답 code: ${response.code}, data: ${response.data}")
                 if (response.code == "COMMON-200" && response.data != null) {
                     val data = response.data
-                    TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken)
+                    TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "GOOGLE")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "로그인 성공 - newUser: ${data.newUser}")
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
@@ -111,7 +111,7 @@ class LoginViewModel(
                 Log.d("LoginViewModel", "카카오 응답 code: ${response.code}, data: ${response.data}")
                 if (response.code == "COMMON-200" && response.data != null) {
                     val data = response.data
-                    TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken)
+                    TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "KAKAO")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "카카오 로그인 성공 - newUser: ${data.newUser}")
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
