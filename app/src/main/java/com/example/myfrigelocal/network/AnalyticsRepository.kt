@@ -24,8 +24,15 @@ class AnalyticsRepository(
                 if (d != null) {
                     ApiLog.i(
                         sub,
-                        "OK total=${d.totalCount} fresh=${d.freshCount} near=${d.nearExpiryCount} expired=${d.expiredCount}",
+                        "OK totalActive=${d.totalActiveCount} overallDiscardRate=${d.overallDiscardRate} " +
+                            "categoryStats=${d.categoryStats?.size ?: 0} urgentItems=${d.urgentItems?.size ?: 0}",
                     )
+                    d.categoryStats.orEmpty().forEach { stat ->
+                        ApiLog.i(
+                            sub,
+                            "  category=${stat.category} discardRate=${stat.discardRate}% active=${stat.activeCount}",
+                        )
+                    }
                 }
                 d
             } else {

@@ -31,9 +31,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +81,17 @@ fun ConsumptionDetailScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    // 리스트가 비어있지 않을 때 발생한 에러(주로 삭제 실패)는 Snackbar 로 노출.
+    // 리스트가 비어있는 로드 실패는 본문 ErrorCard 가 처리.
+    LaunchedEffect(uiState.error) {
+        val msg = uiState.error
+        if (!msg.isNullOrBlank() && uiState.items.isNotEmpty()) {
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -87,6 +101,7 @@ fun ConsumptionDetailScreen(
                 containerColor = Color(0xFFF1F6F6),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = background,
     ) { innerPadding ->
         Box(
@@ -136,7 +151,8 @@ fun ConsumptionDetailScreen(
                                 modifier = Modifier.animateItemPlacement(),
                                 item = item,
                                 accent = accent,
-                                onConsumeComplete = { viewModel.removeItemLocally(item.id) },
+                                isConsuming = item.id in uiState.consumingIds,
+                                onConsumeComplete = { viewModel.consumeItem(item.id) },
                             )
                         }
                     }
@@ -303,6 +319,7 @@ private fun ConsumptionItemCard(
     accent: Color,
     onConsumeComplete: () -> Unit,
     modifier: Modifier = Modifier,
+    isConsuming: Boolean = false,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -358,8 +375,9 @@ private fun ConsumptionItemCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             ConsumeButton(
-                text = "소비 완료",
+                text = if (isConsuming) "처리 중..." else "소비 완료",
                 accent = accent,
+                isLoading = isConsuming,
                 onClick = onConsumeComplete,
             )
         }
@@ -430,22 +448,44 @@ private fun ConsumeButton(
     accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
 ) {
+    val backgroundColor = if (isLoading) accent.copy(alpha = 0.6f) else accent
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(accent)
-            .clickable(onClick = onClick),
+            .background(backgroundColor)
+            .clickable(enabled = !isLoading, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White,
-        )
+        if (isLoading) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+        } else {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+        }
     }
 }
 

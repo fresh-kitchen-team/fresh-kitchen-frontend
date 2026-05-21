@@ -9,7 +9,7 @@ import retrofit2.http.Query
 interface AnalyticsApiService {
 
     // GET /api/v1/analytics/summary
-    //  - 폐기율 계산용 전체 통계 (totalCount, expiredCount 등)
+    //  - overallDiscardRate, categoryStats[].discardRate (카테고리별 폐기율 막대)
     @GET("api/v1/analytics/summary")
     suspend fun getAnalyticsSummary(): ApiResponse<AnalyticsSummaryData>
 

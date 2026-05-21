@@ -63,6 +63,7 @@ fun AnalyticsTipsScreen(
     AnalyticsTipsContent(
         categoryRates = uiState.categoryRates,
         disposalRatePercent = uiState.disposalRatePercent,
+        urgentItemCount = uiState.urgentItemCount,
         expiringChips = uiState.expiringChips,
         isLoading = uiState.isLoading,
         error = uiState.error,
@@ -78,6 +79,7 @@ private fun AnalyticsTipsContent(
     modifier: Modifier = Modifier,
     categoryRates: List<CategoryRateUi>,
     disposalRatePercent: Int?,
+    urgentItemCount: Int,
     expiringChips: List<ExpiringChipUi>,
     isLoading: Boolean,
     error: String?,
@@ -117,6 +119,7 @@ private fun AnalyticsTipsContent(
                     title = "카테고리 별 폐기율",
                     rates = categoryRates,
                     disposalRatePercent = disposalRatePercent,
+                    urgentItemCount = urgentItemCount,
                     isLoading = isLoading,
                     error = error,
                     onRetry = onRetry,
@@ -246,6 +249,7 @@ private fun DisposalRateCard(
     title: String,
     rates: List<CategoryRateUi>,
     disposalRatePercent: Int?,
+    urgentItemCount: Int,
     isLoading: Boolean,
     error: String?,
     onRetry: () -> Unit,
@@ -317,6 +321,7 @@ private fun DisposalRateCard(
         InfoBanner(
             accent = accent,
             disposalRatePercent = disposalRatePercent,
+            urgentItemCount = urgentItemCount,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -379,6 +384,7 @@ private fun MiniBarChart(
 private fun InfoBanner(
     accent: Color,
     disposalRatePercent: Int?,
+    urgentItemCount: Int,
     modifier: Modifier = Modifier,
 ) {
     val bannerBg = Color(0xFFEAF7F2)
@@ -388,7 +394,11 @@ private fun InfoBanner(
             withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) {
                 append("${disposalRatePercent}%")
             }
-            append("입니다.\nconsume 가 아닌 delete 처리된 식재료만 집계돼요.")
+            append("입니다.\n유통기한이 3일 이내인 식재료는 ")
+            withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) {
+                append("${urgentItemCount}개")
+            }
+            append(" 있습니다.")
         } else {
             append("아직 분석할 식재료가 충분하지 않아요.\n식재료를 추가하면 폐기율이 표시됩니다.")
         }

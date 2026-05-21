@@ -68,18 +68,13 @@ class HomeViewModel(
                     expiredCount = data.expiredCount,
                     storageList = data.storages.map { storage ->
                         StorageInfo(
-                            emoji = when (storage.storageType) {
-                                "FRIDGE"  -> "❄️"
-                                "FREEZER" -> "🧊"
-                                "PANTRY"  -> "🥫"
-                                else      -> "📦"
-                            },
+                            emoji = storage.emoji,
                             name = storage.name,
-                            itemCount = 0,  // 스토리지별 개수는 별도 API 미제공
-                            filterKey = storage.storageType?.lowercase() ?: "fridge"
+                            itemCount = storage.itemCount,
+                            filterKey = storage.filterKey,
                         )
                     },
-                    recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji ?: "🍽️", name = it.name) },
+                    recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji, name = it.name) },
                     isLoading = false
                 )
             } else {
