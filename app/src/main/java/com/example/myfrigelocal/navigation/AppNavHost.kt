@@ -25,6 +25,7 @@ import com.example.myfrigelocal.ui.screens.OnboardingSetupScreen
 import com.example.myfrigelocal.ui.screens.LoginScreen
 import com.example.myfrigelocal.ui.screens.ProfileScreen
 import com.example.myfrigelocal.ui.screens.SearchScreen
+import com.example.myfrigelocal.ui.screens.ManualAddScreen
 import com.example.myfrigelocal.ui.screens.SettingsScreen
 
 @Composable
@@ -163,6 +164,14 @@ fun AppNavHost(
                 onNavigateToProfile = { navController.navigate("profile") },
                 onNavigateToSearch = { navController.navigate("search") },
                 onNavigateToSettings = { navController.navigate("settings") }
+            )
+        }
+
+        // 수동 식재료 추가 화면
+        composable("manual_add") {
+            ManualAddScreen(
+                onBackClick = { navController.popBackStack() },
+                onAddSuccess = { navController.popBackStack() }
             )
         }
 
