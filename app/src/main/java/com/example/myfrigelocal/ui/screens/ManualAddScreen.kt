@@ -17,9 +17,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -110,22 +114,18 @@ fun ManualAddScreen(
                 OutlinedTextField(
                     value = uiState.expiryDate,
                     onValueChange = { input ->
-                        // 숫자만 받아서 YYYY-MM-DD 자동 포맷
-                        val digits = input.filter { it.isDigit() }.take(8)
-                        viewModel.onExpiryDateChange(formatDateInput(digits))
+                        // 숫자만 최대 8자리 저장 (표시는 VisualTransformation이 처리)
+                        viewModel.onExpiryDateChange(input.filter { it.isDigit() }.take(8))
                     },
                     placeholder = { Text("YYYY-MM-DD", color = Color.LightGray) },
                     singleLine = true,
+                    visualTransformation = DateVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next
                     ),
                     trailingIcon = {
-                        Icon(
-                            Icons.Outlined.CalendarMonth,
-                            contentDescription = null,
-                            tint = Color.Gray
-                        )
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = Color.Gray)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -141,21 +141,17 @@ fun ManualAddScreen(
                 OutlinedTextField(
                     value = uiState.purchaseDate,
                     onValueChange = { input ->
-                        val digits = input.filter { it.isDigit() }.take(8)
-                        viewModel.onPurchaseDateChange(formatDateInput(digits))
+                        viewModel.onPurchaseDateChange(input.filter { it.isDigit() }.take(8))
                     },
                     placeholder = { Text("YYYY-MM-DD", color = Color.LightGray) },
                     singleLine = true,
+                    visualTransformation = DateVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next
                     ),
                     trailingIcon = {
-                        Icon(
-                            Icons.Outlined.CalendarMonth,
-                            contentDescription = null,
-                            tint = Color.Gray
-                        )
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = Color.Gray)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -302,13 +298,34 @@ private fun FormSection(
 }
 
 // ───────────────────────────────────────────
-// 날짜 자동 포맷: 숫자 8자리 → YYYY-MM-DD
+// 날짜 VisualTransformation: 숫자 8자리 입력 → YYYY-MM-DD 표시
+// 실제 저장값은 숫자만, 커서 위치 버그 없음
 // ───────────────────────────────────────────
-private fun formatDateInput(digits: String): String {
-    return buildString {
-        digits.forEachIndexed { i, c ->
-            if (i == 4 || i == 6) append('-')
-            append(c)
+class DateVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text.take(8)
+        val formatted = buildString {
+            digits.forEachIndexed { i, c ->
+                if (i == 4 || i == 6) append('-')
+                append(c)
+            }
         }
+
+        val offsetMapping = object : OffsetMapping {
+            // 원본(숫자) 커서 → 변환(YYYY-MM-DD) 커서
+            override fun originalToTransformed(offset: Int): Int = when {
+                offset <= 4 -> offset
+                offset <= 6 -> offset + 1   // dash 1개 추가됨
+                else        -> offset + 2   // dash 2개 추가됨
+            }
+            // 변환 커서 → 원본 커서
+            override fun transformedToOriginal(offset: Int): Int = when {
+                offset <= 4 -> offset
+                offset <= 7 -> offset - 1
+                else        -> offset - 2
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
     }
 }
