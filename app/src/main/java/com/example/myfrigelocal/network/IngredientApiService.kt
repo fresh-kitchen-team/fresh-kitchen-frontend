@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.network
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -30,5 +31,17 @@ interface IngredientApiService {
     suspend fun updateItem(
         @Path("id") id: Long,
         @Body request: ItemUpdateRequest
+    ): ApiResponse<Void>
+
+    // DELETE /api/v1/items/{itemId} — 식재료 폐기 (유통기한 경과)
+    @DELETE("api/v1/items/{itemId}")
+    suspend fun deleteItem(
+        @Path("itemId") itemId: Long
+    ): ApiResponse<Void>
+
+    // PATCH /api/v1/items/{itemId}/consume — 식재료 소비 (유통기한 전)
+    @PATCH("api/v1/items/{itemId}/consume")
+    suspend fun consumeItem(
+        @Path("itemId") itemId: Long
     ): ApiResponse<Void>
 }

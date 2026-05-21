@@ -50,4 +50,28 @@ class IngredientRepository(
             false
         }
     }
+
+    // 폐기 — DELETE /api/v1/items/{id}
+    suspend fun deleteItem(id: Long): Boolean {
+        return try {
+            val response = api.deleteItem(id)
+            Log.d("IngredientRepo", "deleteItem 응답: ${response.code}, id=$id")
+            response.code == "COMMON-200"
+        } catch (e: Exception) {
+            Log.e("IngredientRepo", "deleteItem 예외: ${e.message}, id=$id")
+            false
+        }
+    }
+
+    // 소비 — POST /api/v1/items/{id}/consume
+    suspend fun consumeItem(id: Long): Boolean {
+        return try {
+            val response = api.consumeItem(id)
+            Log.d("IngredientRepo", "consumeItem 응답: ${response.code}, id=$id")
+            response.code == "COMMON-200"
+        } catch (e: Exception) {
+            Log.e("IngredientRepo", "consumeItem 예외: ${e.message}, id=$id")
+            false
+        }
+    }
 }

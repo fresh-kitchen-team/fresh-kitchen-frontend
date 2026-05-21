@@ -62,7 +62,11 @@ data class InventoryListUiState(
     val nearExpiryCount: Int = 0,
     val expiredCount: Int = 0,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // ── 선택 모드 ──
+    val isSelectMode: Boolean = false,
+    val selectedItemIds: Set<Int> = emptySet(),
+    val isProcessing: Boolean = false,
 )
 
 // ───────────────────────────────────────────
@@ -86,6 +90,59 @@ class InventoryListViewModel(
 
     fun onFilterSelected(filter: InventoryFilter) {
         updateState(filter)
+    }
+
+    // ───────────────────────────────────────────
+    // 선택 모드 토글
+    // ───────────────────────────────────────────
+    fun toggleSelectMode() {
+        _uiState.value = _uiState.value.copy(
+            isSelectMode = !_uiState.value.isSelectMode,
+            selectedItemIds = emptySet()
+        )
+    }
+
+    // 개별 아이템 선택/해제
+    fun toggleItemSelection(id: Int) {
+        val current = _uiState.value.selectedItemIds
+        _uiState.value = _uiState.value.copy(
+            selectedItemIds = if (id in current) current - id else current + id
+        )
+    }
+
+    // ───────────────────────────────────────────
+    // 폐기 — DELETE /api/v1/items/{id} (유통기한 경과 아이템)
+    // ───────────────────────────────────────────
+    fun deleteSelected(onComplete: () -> Unit = {}) {
+        val ids = _uiState.value.selectedItemIds.toSet()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessing = true)
+            ids.forEach { id ->
+                repository.deleteItem(id.toLong())
+            }
+            allItems = allItems.filter { it.id !in ids }.toMutableList()
+            updateState(_uiState.value.selectedFilter)
+            // updateState resets isSelectMode/selectedItemIds to default (false/empty) — correct
+            onComplete()
+        }
+    }
+
+    // ───────────────────────────────────────────
+    // 소비 — POST /api/v1/items/{id}/consume (유통기한 전 소비)
+    // ───────────────────────────────────────────
+    fun consumeSelected(onComplete: () -> Unit = {}) {
+        val ids = _uiState.value.selectedItemIds.toSet()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessing = true)
+            ids.forEach { id ->
+                repository.consumeItem(id.toLong())
+            }
+            allItems = allItems.filter { it.id !in ids }.toMutableList()
+            updateState(_uiState.value.selectedFilter)
+            onComplete()
+        }
     }
 
     fun updateItem(updatedItem: FoodItem) {
