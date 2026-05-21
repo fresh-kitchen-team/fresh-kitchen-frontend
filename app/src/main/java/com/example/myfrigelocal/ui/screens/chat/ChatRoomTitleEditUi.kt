@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -42,9 +45,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.myfrigelocal.ui.theme.BottomNavSelected
 
 @Composable
 fun ChatRoomMoreMenu(
@@ -55,10 +59,15 @@ fun ChatRoomMoreMenu(
     onDeleteChatRoom: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val menuMaxWidth = 148.dp
+    val menuAnchorSize = 40.dp
+    // Anchor default is top-start; shift left so the menu opens toward the sidebar interior.
+    val menuOffsetX = -(menuMaxWidth - menuAnchorSize)
+
     Box(modifier = modifier) {
         IconButton(
             onClick = onExpandRequest,
-            modifier = Modifier.size(40.dp),
+            modifier = Modifier.size(menuAnchorSize),
         ) {
             Icon(
                 imageVector = Icons.Outlined.MoreVert,
@@ -69,20 +78,36 @@ fun ChatRoomMoreMenu(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = onDismissRequest,
+            offset = DpOffset(x = menuOffsetX, y = 0.dp),
             modifier = Modifier
-                .widthIn(min = 188.dp)
+                .widthIn(max = menuMaxWidth)
                 .shadow(8.dp, RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.White),
         ) {
+            val menuItemPadding = PaddingValues(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+            val menuTextStyle = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
+
             DropdownMenuItem(
                 text = {
                     Text(
                         text = "제목 수정",
-                        color = Color(0xFF111827),
-                        style = MaterialTheme.typography.bodyLarge,
+                        color = ChatDesign.TextPrimary,
+                        style = menuTextStyle,
                     )
                 },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        tint = ChatDesign.TextSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                contentPadding = menuItemPadding,
                 onClick = {
                     onDismissRequest()
                     onEditChatTitle()
@@ -92,10 +117,19 @@ fun ChatRoomMoreMenu(
                 text = {
                     Text(
                         text = "채팅방 삭제",
-                        color = Color(0xFF111827),
-                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color(0xFFDC2626),
+                        style = menuTextStyle,
                     )
                 },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                contentPadding = menuItemPadding,
                 onClick = {
                     onDismissRequest()
                     onDeleteChatRoom()
@@ -204,7 +238,7 @@ fun EditChatTitleDialog(
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color(0xFFF9FAFB),
                     unfocusedContainerColor = Color(0xFFF9FAFB),
-                    focusedIndicatorColor = BottomNavSelected,
+                    focusedIndicatorColor = ChatDesign.ChatPrimary,
                     unfocusedIndicatorColor = Color(0xFFE5E7EB),
                 ),
             )
@@ -218,7 +252,7 @@ fun EditChatTitleDialog(
                     }
                 },
             ) {
-                Text("저장", color = BottomNavSelected, fontWeight = FontWeight.SemiBold)
+                Text("저장", color = ChatDesign.ChatPrimary, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,9 +33,9 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -62,7 +64,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myfrigelocal.R
-import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.BottomNavUnselected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 import java.util.UUID
@@ -187,7 +188,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF6F8F7))
+                .background(ChatDesign.ScreenBg)
                 .zIndex(0f),
         ) {
             ChatTopBar(
@@ -200,7 +201,7 @@ fun ChatScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.dp),
-                    color = BottomNavSelected,
+                    color = ChatDesign.ChatPrimary,
                 )
             }
 
@@ -208,31 +209,36 @@ fun ChatScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    color = Color(0xFFFFF1F2),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = ChatDesign.ErrorBg,
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.ErrorBorder),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            tint = ChatDesign.ErrorText,
+                            modifier = Modifier.size(20.dp),
+                        )
                         Text(
                             text = err,
                             modifier = Modifier.weight(1f),
-                            color = Color(0xFF991B1B),
-                            style = MaterialTheme.typography.bodySmall,
+                            color = ChatDesign.ErrorText,
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
                         )
-                        Text(
-                            text = "닫기",
-                            color = Color(0xFF991B1B),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onDismissError() }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
+                        IconButton(onClick = onDismissError) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "닫기",
+                                tint = ChatDesign.ErrorText,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -245,10 +251,10 @@ fun ChatScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = 12.dp,
-                    bottom = 16.dp,
+                    top = 8.dp,
+                    bottom = 20.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 items(messages, key = { it.id }) { message ->
                     ChatMessageItem(message = message)
@@ -569,7 +575,7 @@ private fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF2EEA92),
+                checkedTrackColor = ChatDesign.ChatPrimary,
                 uncheckedThumbColor = Color.White,
                 uncheckedTrackColor = Color(0xFFD1D5DB),
             ),
@@ -619,7 +625,7 @@ private fun SegmentOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (selected) BottomNavSelected else Color.Transparent
+    val bg = if (selected) ChatDesign.ChatPrimary else Color.Transparent
     val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
 
     Box(
@@ -648,48 +654,55 @@ fun ChatTopBar(
     modifier: Modifier = Modifier,
     onMenuClick: () -> Unit = {},
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = ChatDesign.SurfaceWhite,
+        shadowElevation = 2.dp,
+        tonalElevation = 0.dp,
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxWidth()
+                .height(56.dp),
         ) {
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.size(40.dp),
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Menu,
-                    contentDescription = "Menu",
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Menu,
+                        contentDescription = "메뉴",
+                        tint = ChatDesign.TextPrimary,
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Image(
+                    painter = painterResource(id = R.drawable.ic_fresh_kitchen),
+                    contentDescription = "FreshKitchen",
+                    modifier = Modifier.size(40.dp),
+                    contentScale = ContentScale.Fit,
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Image(
-                painter = painterResource(id = R.drawable.ic_fresh_kitchen),
-                contentDescription = "FreshKitchen",
-                modifier = Modifier
-                    .padding(start = 4.dp)
-                    .size(48.dp),
-                contentScale = ContentScale.Fit,
+            Text(
+                text = title,
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                ),
+                color = ChatDesign.TextPrimary,
+                textAlign = TextAlign.Center,
             )
         }
-
-        Text(
-            text = title,
-            modifier = Modifier
-                .align(Alignment.Center),
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-            ),
-            textAlign = TextAlign.Center,
-        )
     }
 }
 
@@ -706,15 +719,15 @@ fun ChatMessageItem(
             verticalAlignment = Alignment.Top,
         ) {
             Surface(
-                modifier = Modifier.size(28.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFDFF7ED),
+                modifier = Modifier.size(32.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = ChatDesign.AiAvatarBg,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.SmartToy,
                         contentDescription = "AI",
-                        tint = Color(0xFF37C18A),
+                        tint = ChatDesign.AiAvatarTint,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -728,9 +741,9 @@ fun ChatMessageItem(
                     .fillMaxWidth(),
             ) {
                 Text(
-                    text = "AI Assistant",
-                    color = Color(0xFF9CA3AF),
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "AI 주방 비서",
+                    color = ChatDesign.TextMuted,
+                    style = MaterialTheme.typography.labelSmall,
                 )
 
                 Spacer(modifier = Modifier.size(6.dp))
@@ -738,22 +751,26 @@ fun ChatMessageItem(
                 if (message.isLoading) {
                     AiTypingBubble(text = message.text)
                 } else if (message.responseType == AI_RESPONSE_TYPE_RECIPE && message.recipe != null) {
-                    val recipePayload = message.recipe
                     RecipeResponseCard(
-                        recipe = recipePayload,
+                        recipe = message.recipe,
                         expandStateKey = message.id,
                     )
                 } else {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        modifier = Modifier.fillMaxWidth(ChatDesign.BubbleMaxWidthFraction),
+                        shape = ChatDesign.BubbleAiShape,
+                        color = ChatDesign.SurfaceWhite,
+                        shadowElevation = 2.dp,
+                        tonalElevation = 0.dp,
                     ) {
                         Text(
                             text = message.text,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            color = Color(0xFF111827),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            color = ChatDesign.TextPrimary,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                            ),
                         )
                     }
                 }
@@ -766,26 +783,31 @@ fun ChatMessageItem(
             verticalAlignment = Alignment.Top,
         ) {
             Column(
-                modifier = Modifier.widthIn(max = 280.dp),
+                modifier = Modifier.fillMaxWidth(ChatDesign.BubbleMaxWidthFraction),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
                     text = "나",
-                    color = Color(0xFF9CA3AF),
-                    style = MaterialTheme.typography.labelMedium,
+                    color = ChatDesign.TextMuted,
+                    style = MaterialTheme.typography.labelSmall,
                 )
 
                 Spacer(modifier = Modifier.size(6.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = BottomNavSelected,
+                    shape = ChatDesign.BubbleUserShape,
+                    color = ChatDesign.UserBubble,
+                    shadowElevation = 1.dp,
+                    tonalElevation = 0.dp,
                 ) {
                     Text(
                         text = message.text,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        color = ChatDesign.UserBubbleText,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                        ),
                     )
                 }
             }
@@ -793,49 +815,19 @@ fun ChatMessageItem(
             Spacer(modifier = Modifier.size(10.dp))
 
             Surface(
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = Color(0xFFE5E7EB),
+                color = Color(0xFFE8ECE9),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.AccountCircle,
                         contentDescription = "User avatar",
-                        tint = Color(0xFF6B7280),
+                        tint = ChatDesign.TextSecondary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AiTypingBubble(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = BottomNavSelected,
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = text,
-                color = Color(0xFF6B7280),
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-            )
         }
     }
 }
@@ -851,16 +843,19 @@ fun ChatInputBar(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val interactionSource = remember { MutableInteractionSource() }
+    val sendButtonAlpha = if (sendEnabled) 1f else 0.45f
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        shape = RoundedCornerShape(30.dp),
-        color = Color.White,
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        shape = ChatDesign.InputBarShape,
+        color = ChatDesign.SurfaceWhite,
         tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        shadowElevation = 6.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
     ) {
         Row(
             modifier = Modifier
@@ -868,63 +863,68 @@ fun ChatInputBar(
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
+                    enabled = sendEnabled,
                 ) {
                     focusRequester.requestFocus()
                     keyboardController?.show()
                 }
-                .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextField(
-                    value = inputValue,
-                    onValueChange = { if (sendEnabled) onInputChange(it) },
-                    enabled = sendEnabled,
-                    placeholder = {
-                        Text(
-                            text = "메시지를 입력하세요...",
-                            color = Color(0xFF9CA3AF),
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { state ->
-                            if (state.isFocused) keyboardController?.show()
-                        },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Send,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSend = { onSend(inputValue) },
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
-                )
-
-                IconButton(
-                    onClick = { if (sendEnabled) onSend(inputValue) },
-                    enabled = sendEnabled,
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(BottomNavSelected, CircleShape),
-                ) {
-                    Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "Send",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
+                value = inputValue,
+                onValueChange = { if (sendEnabled) onInputChange(it) },
+                enabled = sendEnabled,
+                placeholder = {
+                    Text(
+                        text = "메시지를 입력하세요...",
+                        color = ChatDesign.TextMuted,
                     )
-                }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused) keyboardController?.show()
+                    },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = ChatDesign.TextPrimary),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Send,
+                ),
+                keyboardActions = KeyboardActions(
+                    onSend = { if (sendEnabled) onSend(inputValue) },
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    disabledTextColor = ChatDesign.TextSecondary,
+                ),
+            )
+
+            IconButton(
+                onClick = { if (sendEnabled) onSend(inputValue) },
+                enabled = sendEnabled,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        ChatDesign.UserBubble.copy(alpha = sendButtonAlpha),
+                        CircleShape,
+                    ),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.Send,
+                    contentDescription = "전송",
+                    tint = Color.White.copy(alpha = sendButtonAlpha.coerceAtLeast(0.7f)),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

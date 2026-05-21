@@ -49,7 +49,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.myfrigelocal.ui.theme.BottomNavSelected
 
 data class SideMenuItem(
     val threadId: String,
@@ -201,22 +200,23 @@ private fun SideMenuContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFFF3F4F6),
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFF6F8F7),
+            border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
+                    .height(42.dp)
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Search,
-                    contentDescription = "Search",
-                    tint = Color(0xFF94A3B8),
+                    contentDescription = "검색",
+                    tint = ChatDesign.TextMuted,
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.size(8.dp))
@@ -224,13 +224,13 @@ private fun SideMenuContent(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF111827)),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = ChatDesign.TextPrimary),
                     modifier = Modifier.weight(1f),
                     decorationBox = { inner ->
                         if (searchQuery.isEmpty()) {
                             Text(
                                 text = "채팅 검색",
-                                color = Color(0xFF94A3B8),
+                                color = ChatDesign.TextMuted,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
@@ -264,19 +264,24 @@ private fun SideMenuContent(
                     lastSection = item.section
                     Text(
                         text = item.section,
-                        modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp),
-                        color = Color(0xFF94A3B8),
-                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp),
+                        color = ChatDesign.TextMuted,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        ),
                     )
                 }
 
-                val bg = if (item.selected) Color(0xFFDFF7ED) else Color.Transparent
-                val iconTint = if (item.selected) BottomNavSelected else Color(0xFF94A3B8)
+                val bg = if (item.selected) ChatDesign.DrawerSelectedBg else Color.Transparent
+                val iconTint = if (item.selected) ChatDesign.DrawerSelectedAccent else ChatDesign.TextMuted
+                val titleColor = if (item.selected) ChatDesign.TextPrimary else ChatDesign.TextSecondary
 
                 ChatRoomListItemRow(
                     item = item,
                     rowBackground = bg,
                     iconTint = iconTint,
+                    titleColor = titleColor,
+                    selected = item.selected,
                     menuExpanded = openedMenuThreadId == item.threadId,
                     onSelectRow = { onSelectThread(item.threadId) },
                     onToggleMenu = { onToggleChatMenu(item.threadId) },
@@ -292,12 +297,12 @@ private fun SideMenuContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .height(52.dp)
-                .clip(RoundedCornerShape(26.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .clickable { onNewChat() },
-            color = BottomNavSelected,
+            color = ChatDesign.ChatPrimary,
             tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
+            shadowElevation = 2.dp,
         ) {
             Row(
                 modifier = Modifier.fillMaxSize(),
@@ -306,29 +311,31 @@ private fun SideMenuContent(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
-                    contentDescription = "New chat",
-                    tint = Color.Black.copy(alpha = 0.85f),
+                    contentDescription = "새 채팅",
+                    tint = Color(0xFF065F46),
                     modifier = Modifier.size(20.dp),
                 )
-                Spacer(modifier = Modifier.size(10.dp))
+                Spacer(modifier = Modifier.size(8.dp))
                 Text(
                     text = "새 채팅",
-                    color = Color.Black.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    color = Color(0xFF065F46),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    ),
                 )
             }
         }
 
         DrawerFooterRow(
             icon = Icons.Outlined.Settings,
-            text = "Settings",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            text = "AI 설정",
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
             onClick = onSettingsClick,
         )
         DrawerFooterRow(
             icon = Icons.Outlined.HelpOutline,
-            text = "Help & Feedback",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            text = "도움말 및 피드백",
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
             onClick = onHelpClick,
         )
 
@@ -341,6 +348,8 @@ private fun ChatRoomListItemRow(
     item: SideMenuItem,
     rowBackground: Color,
     iconTint: Color,
+    titleColor: Color,
+    selected: Boolean,
     menuExpanded: Boolean,
     onSelectRow: () -> Unit,
     onToggleMenu: () -> Unit,
@@ -351,31 +360,42 @@ private fun ChatRoomListItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(rowBackground)
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .padding(start = if (selected) 0.dp else 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(36.dp)
+                    .background(ChatDesign.DrawerSelectedAccent, RoundedCornerShape(2.dp)),
+            )
+        }
         Row(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(10.dp))
                 .clickable { onSelectRow() }
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Outlined.ChatBubbleOutline,
-                contentDescription = "Chat",
+                contentDescription = "채팅",
                 tint = iconTint,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.size(10.dp))
             Text(
                 text = item.title,
-                color = Color(0xFF111827),
-                style = MaterialTheme.typography.bodyLarge,
+                color = titleColor,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.SemiBold
+                    else androidx.compose.ui.text.font.FontWeight.Normal,
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -413,14 +433,14 @@ private fun DrawerFooterRow(
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = Color(0xFF111827),
+            tint = ChatDesign.TextSecondary,
             modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.size(10.dp))
         Text(
             text = text,
-            color = Color(0xFF111827),
-            style = MaterialTheme.typography.bodyLarge,
+            color = ChatDesign.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
