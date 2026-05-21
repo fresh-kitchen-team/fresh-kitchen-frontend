@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.network
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 
@@ -44,4 +45,8 @@ interface UserApiService {
     suspend fun updateProfile(
         @Body request: UserProfileUpdateRequest
     ): ApiResponse<Void>
+
+    // DELETE /api/v1/users/me — 회원 탈퇴 (소프트 삭제)
+    @DELETE("api/v1/users/me")
+    suspend fun deleteAccount(): ApiResponse<Void>
 }

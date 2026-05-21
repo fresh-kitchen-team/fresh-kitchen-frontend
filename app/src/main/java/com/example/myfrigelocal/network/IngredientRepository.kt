@@ -31,6 +31,17 @@ class IngredientRepository(
         }
     }
 
+    suspend fun getStorages(): List<StorageDto> {
+        return try {
+            val response = api.getStorages()
+            if (response.code == "COMMON-200") response.data ?: emptyList()
+            else emptyList()
+        } catch (e: Exception) {
+            Log.e("IngredientRepo", "getStorages 예외: ${e.message}")
+            emptyList()
+        }
+    }
+
     suspend fun updateItem(id: Long, request: ItemUpdateRequest): Boolean {
         return try {
             val response = api.updateItem(id, request)

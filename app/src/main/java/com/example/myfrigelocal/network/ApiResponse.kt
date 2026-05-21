@@ -28,6 +28,15 @@ data class ItemDto(
 )
 
 // ───────────────────────────────────────────
+// GET /api/v1/items/storages 응답 데이터
+// ───────────────────────────────────────────
+data class StorageDto(
+    val storageId: Long,
+    val storageType: String?,  // "FRIDGE" | "FREEZER" | "PANTRY"
+    val name: String
+)
+
+// ───────────────────────────────────────────
 // POST /api/v1/items 요청 데이터
 // ───────────────────────────────────────────
 data class ItemCreateRequest(
@@ -66,6 +75,7 @@ data class ItemConsumeResponse(
 // ───────────────────────────────────────────
 // GET /api/v1/home/summary 응답 데이터
 // ───────────────────────────────────────────
+// home/summary 와 analytics/summary 가 동일한 SummaryResponse 스키마 사용
 data class HomeSummaryData(
     val totalCount: Int,
     val freshCount: Int,
@@ -136,11 +146,11 @@ data class AnalyticsSummaryData(
 )
 
 data class AnalyticsCategoryStatDto(
-    val category: String,           // "VEGETABLE_FRUIT" | "DAIRY_DRINK" | "MEAT_SEAFOOD" | "ETC"
+    val category: String,
     val displayName: String,
     val activeCount: Int,
     val urgentCount: Int,
-    val discardRate: Double,        // 0..100, 소수 가능 (예: 66.7)
+    val discardRate: Double,
 )
 
 data class AnalyticsUrgentItemDto(

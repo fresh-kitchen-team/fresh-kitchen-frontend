@@ -71,7 +71,7 @@ class HomeViewModel(
                             emoji = storage.emoji,
                             name = storage.name,
                             itemCount = storage.itemCount,
-                            filterKey = storage.filterKey
+                            filterKey = storage.filterKey,
                         )
                     },
                     recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji, name = it.name) },
