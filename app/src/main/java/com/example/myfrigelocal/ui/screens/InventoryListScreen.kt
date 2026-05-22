@@ -47,9 +47,15 @@ fun InventoryListScreen(
     onNavigateToProfile: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onSelectModeChange: (Boolean) -> Unit = {},
     viewModel: InventoryListViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // 선택 모드 변경 시 상위(MainScaffold)에 알림 → FAB 숨김/표시 제어
+    LaunchedEffect(uiState.isSelectMode) {
+        onSelectModeChange(uiState.isSelectMode)
+    }
 
     LaunchedEffect(initialFilter) {
         val filter = when (initialFilter) {

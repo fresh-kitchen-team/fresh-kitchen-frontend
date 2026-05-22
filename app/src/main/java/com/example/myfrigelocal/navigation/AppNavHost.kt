@@ -33,6 +33,7 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     isLoggedIn: Boolean = false,
+    onInventorySelectModeChange: (Boolean) -> Unit = {},
 ) {
     // 로그인 상태면 바로 홈으로, 아니면 온보딩부터
     val startDestination = if (isLoggedIn) "home" else "onboarding"
@@ -163,7 +164,8 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToProfile = { navController.navigate("profile") },
                 onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToSettings = { navController.navigate("settings") }
+                onNavigateToSettings = { navController.navigate("settings") },
+                onSelectModeChange = onInventorySelectModeChange,
             )
         }
 
