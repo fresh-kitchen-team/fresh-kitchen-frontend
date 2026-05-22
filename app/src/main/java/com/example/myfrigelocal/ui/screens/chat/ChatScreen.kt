@@ -34,10 +34,13 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -64,6 +67,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myfrigelocal.R
+import com.example.myfrigelocal.data.remote.dto.AiSettingDto
 import com.example.myfrigelocal.ui.theme.BottomNavUnselected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
 import java.util.UUID
@@ -139,6 +143,7 @@ fun ChatScreen(
     onDismissSupportError: () -> Unit = {},
     onSubmitInquiry: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
     onSubmitReport: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
+    onSaveAiSettings: (AiSettingDto) -> Unit = {},
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -345,6 +350,10 @@ fun ChatScreen(
             BackHandler { isAiSettingsOpen = false }
             AiSettingsScreen(
                 onClose = { isAiSettingsOpen = false },
+                onSave = { settings ->
+                    onSaveAiSettings(settings)
+                    isAiSettingsOpen = false
+                },
                 modifier = Modifier.zIndex(2f),
             )
         }
@@ -396,132 +405,177 @@ private enum class AiResponseStyle { Friendly, Simple }
 @Composable
 private fun AiSettingsScreen(
     onClose: () -> Unit,
+    onSave: (AiSettingDto) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Defaults match the reference image (green = on, gray = off)
     var extraInfo by rememberSaveable { mutableStateOf(true) }
     var recommendExpiryFirst by rememberSaveable { mutableStateOf(true) }
     var recommendNutritionBalanced by rememberSaveable { mutableStateOf(false) }
     var recommendFavoriteIngredients by rememberSaveable { mutableStateOf(true) }
-    var notifyRecipeDone by rememberSaveable { mutableStateOf(true) }
-    var notifyAiRecommend by rememberSaveable { mutableStateOf(false) }
     var responseStyle by rememberSaveable { mutableStateOf(AiResponseStyle.Friendly) }
-    var includeImages by rememberSaveable { mutableStateOf(true) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF3F4F6)),
     ) {
-        val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 18.dp),
-        ) {
-            Spacer(modifier = Modifier.size(10.dp))
-            Row(
+        Column(modifier = Modifier.fillMaxSize()) {
+            val scrollState = rememberScrollState()
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 18.dp),
             ) {
-                Text(
-                    text = "AI 설정",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF111827),
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF111827),
+                Spacer(modifier = Modifier.size(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "AI 설정",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color(0xFF111827),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "닫기",
+                            tint = Color(0xFF111827),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.size(8.dp))
+
+                SettingsCard {
+                    SettingsSectionTitle("AI 기능")
+                    SettingsToggleRow(
+                        label = "추가 정보 제공 (영양, 팁 등)",
+                        checked = extraInfo,
+                        onCheckedChange = { extraInfo = it },
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            SettingsCard {
-                SettingsSectionTitle("AI 기능")
-                SettingsToggleRow(
-                    label = "추가 정보 제공 (영양, 팁 등)",
-                    checked = extraInfo,
-                    onCheckedChange = { extraInfo = it },
-                )
-            }
-
-            Spacer(modifier = Modifier.size(14.dp))
-
-            SettingsCard {
-                SettingsSectionTitle("추천 기준")
-                Text(
-                    text = "(여러 개 선택 가능)",
-                    color = Color(0xFF9CA3AF),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
-                )
-                SettingsToggleRow(
-                    label = "유통기한 우선 추천",
-                    checked = recommendExpiryFirst,
-                    onCheckedChange = { recommendExpiryFirst = it },
-                )
-                SettingsToggleRow(
-                    label = "영양 균형 기반 추천",
-                    checked = recommendNutritionBalanced,
-                    onCheckedChange = { recommendNutritionBalanced = it },
-                )
-                SettingsToggleRow(
-                    label = "자주 사용하는 재료 우선",
-                    checked = recommendFavoriteIngredients,
-                    onCheckedChange = { recommendFavoriteIngredients = it },
-                )
-            }
-
-            Spacer(modifier = Modifier.size(14.dp))
-
-            SettingsCard {
-                SettingsSectionTitle("알림 설정")
-                SettingsToggleRow(
-                    label = "레시피 생성 완료 알림",
-                    checked = notifyRecipeDone,
-                    onCheckedChange = { notifyRecipeDone = it },
-                )
-                SettingsToggleRow(
-                    label = "AI 추천 알림",
-                    checked = notifyAiRecommend,
-                    onCheckedChange = { notifyAiRecommend = it },
-                )
-            }
-
-            Spacer(modifier = Modifier.size(14.dp))
-
-            SettingsCard {
-                SettingsSectionTitle("AI 응답 설정")
-                Text(
-                    text = "응답 스타일",
-                    color = Color(0xFF6B7280),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
-                )
-
-                ResponseStyleSegment(
-                    selected = responseStyle,
-                    onSelect = { responseStyle = it },
-                )
 
                 Spacer(modifier = Modifier.size(14.dp))
 
-                SettingsToggleRow(
-                    label = "이미지 포함 응답",
-                    checked = includeImages,
-                    onCheckedChange = { includeImages = it },
-                )
+                SettingsCard {
+                    SettingsSectionTitle("추천 기준")
+                    Text(
+                        text = "(여러 개 선택 가능)",
+                        color = Color(0xFF9CA3AF),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                    )
+                    SettingsToggleRow(
+                        label = "유통기한 우선 추천",
+                        checked = recommendExpiryFirst,
+                        onCheckedChange = { recommendExpiryFirst = it },
+                    )
+                    SettingsToggleRow(
+                        label = "영양 균형 기반 추천",
+                        checked = recommendNutritionBalanced,
+                        onCheckedChange = { recommendNutritionBalanced = it },
+                    )
+                    SettingsToggleRow(
+                        label = "자주 사용하는 재료 우선",
+                        checked = recommendFavoriteIngredients,
+                        onCheckedChange = { recommendFavoriteIngredients = it },
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(14.dp))
+
+                SettingsCard {
+                    SettingsSectionTitle("AI 응답 설정")
+                    Text(
+                        text = "응답 스타일",
+                        color = Color(0xFF6B7280),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
+                    )
+
+                    ResponseStyleSegment(
+                        selected = responseStyle,
+                        onSelect = { responseStyle = it },
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(22.dp))
             }
 
-            Spacer(modifier = Modifier.size(22.dp))
+            AiSettingsBottomActions(
+                onCancel = onClose,
+                onSave = {
+                    onSave(
+                        AiSettingDto(
+                            responseStyle = responseStyle == AiResponseStyle.Friendly,
+                            priorityExpiration = recommendExpiryFirst,
+                            priorityNutrition = recommendNutritionBalanced,
+                            priorityFrequent = recommendFavoriteIngredients,
+                            provideExtraInfo = extraInfo,
+                        ),
+                    )
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiSettingsBottomActions(
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = Color(0xFFF3F4F6),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF111827),
+                ),
+            ) {
+                Text(
+                    text = "취소",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                )
+            }
+            Button(
+                onClick = onSave,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ChatDesign.ChatPrimary,
+                    contentColor = Color.White,
+                ),
+            ) {
+                Text(
+                    text = "저장",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
         }
     }
 }

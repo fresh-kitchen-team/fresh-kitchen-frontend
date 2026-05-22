@@ -70,5 +70,6 @@ fun AiChatScreen(
         onSubmitReport = { category, content, imageUri ->
             viewModel.submitReport(category, content, imageUri)
         },
+        onSaveAiSettings = viewModel::updateAiSetting,
     )
 }

@@ -74,7 +74,7 @@ data class UserPreferencesDto(
     @SerializedName("cookingTool") val cookingTool: List<String> = emptyList(),
 )
 
-/** POST /ai/v1/chat/room/{roomId} — `aisetting` block. */
+/** AI setting flags — sent via dedicated setting API (not with chat messages). */
 data class AiSettingDto(
     @SerializedName("responseStyle") val responseStyle: Boolean = true,
     @SerializedName("priorityExpiration") val priorityExpiration: Boolean = true,
@@ -83,10 +83,14 @@ data class AiSettingDto(
     @SerializedName("provideExtraInfo") val provideExtraInfo: Boolean = true,
 )
 
-/** POST /ai/v1/chat/room/{roomId} — request body. */
+/** Dedicated AI setting API request body (endpoint TBD). */
+data class UpdateAiSettingRequest(
+    @SerializedName("aiSetting") val aiSetting: AiSettingDto,
+)
+
+/** POST /ai/v1/chat/room/{roomId} — request body (`message` only). */
 data class SendMessageRequest(
     @SerializedName("message") val message: String,
-    @SerializedName("aisetting") val aiSetting: AiSettingDto = AiSettingDto(),
 )
 
 /** POST /ai/v1/chat/room/{roomId} — `data` payload. */
