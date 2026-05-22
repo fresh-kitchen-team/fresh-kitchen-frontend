@@ -9,6 +9,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +34,16 @@ fun MainScaffold(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // 인벤토리 선택 모드 상태를 MainScaffold 레벨에서 관리
+    var isInventorySelectMode by remember { mutableStateOf(false) }
+
+    // 화면 이동 시 선택 모드 초기화
+    androidx.compose.runtime.LaunchedEffect(currentRoute) {
+        if (currentRoute?.startsWith("inventory_list") != true) {
+            isInventorySelectMode = false
+        }
+    }
+
     // 하단 바 / FAB 숨길 화면
     val noNavBarRoutes = setOf(
         "onboarding",
@@ -45,9 +58,10 @@ fun MainScaffold(
 
     val showBottomBar = currentRoute !in noNavBarRoutes
 
-    // FAB는 홈 / 인벤토리 리스트에서만 표시
-    val showFab = currentRoute == "home" ||
-            currentRoute?.startsWith("inventory_list") == true
+    // FAB는 홈 / 인벤토리 리스트에서만 표시, 선택 모드일 때는 숨김
+    val showFab = (currentRoute == "home" ||
+            currentRoute?.startsWith("inventory_list") == true) &&
+            !isInventorySelectMode
 
     Scaffold(
         bottomBar = {
@@ -75,6 +89,7 @@ fun MainScaffold(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
             isLoggedIn = isLoggedIn,
+            onInventorySelectModeChange = { isInventorySelectMode = it },
         )
     }
 }
