@@ -1,14 +1,17 @@
 package com.example.myfrigelocal.data.repository
 
+import com.example.myfrigelocal.data.remote.AiChatApiConfig
 import com.example.myfrigelocal.data.remote.ApiResponse
 import com.example.myfrigelocal.data.remote.ChatApiService
 import com.example.myfrigelocal.data.remote.isBusinessSuccess
+import com.example.myfrigelocal.data.remote.dto.AiSettingDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomDetailDto
 import com.example.myfrigelocal.data.remote.dto.ChatRoomSectionsDto
 import com.example.myfrigelocal.data.remote.dto.CreateChatRoomResponseDto
 import com.example.myfrigelocal.data.remote.dto.EmptyApiDataDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
+import com.example.myfrigelocal.data.remote.dto.UpdateAiSettingRequest
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleRequest
 import com.example.myfrigelocal.data.remote.dto.UpdateRoomTitleResponseDto
 import retrofit2.HttpException
@@ -31,6 +34,21 @@ class ChatRepository(
 
     suspend fun sendMessage(roomId: Long, body: SendMessageRequest): Result<SendMessageResponseDto> =
         unwrapSingle(api.sendMessage(roomId, body))
+
+    suspend fun updateAiSetting(aiSetting: AiSettingDto): Result<Unit> {
+        val path = AiChatApiConfig.AI_SETTING_UPDATE_PATH.trim()
+        if (path.isEmpty()) {
+            return Result.failure(
+                IllegalStateException("AI setting API path is not configured yet"),
+            )
+        }
+        return unwrapSuccess(
+            api.updateAiSetting(
+                endpoint = path,
+                body = UpdateAiSettingRequest(aiSetting = aiSetting),
+            ),
+        )
+    }
 
     suspend fun updateRoomTitle(roomId: Long, title: String): Result<UpdateRoomTitleResponseDto> =
         unwrapSingle(api.updateRoomTitle(roomId, UpdateRoomTitleRequest(title)))

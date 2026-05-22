@@ -341,9 +341,8 @@ class AiChatViewModel(
     }
 
     /**
-     * Swagger `POST /ai/v1/chat/room/{roomId}` 본문과 동일한 키를 보냅니다.
-     *
-     * - [AiSettingDto]는 설정 API가 없어 기본값(전부 `true`)으로 전송합니다.
+     * Swagger `POST /ai/v1/chat/room/{roomId}` — sends `message` only.
+     * AI settings are updated separately via [updateAiSetting].
      */
     fun sendMessage(text: String) {
         val trimmed = text.trim()
@@ -401,10 +400,7 @@ class AiChatViewModel(
                 )
             }
 
-            val request = SendMessageRequest(
-                message = trimmed,
-                aiSetting = AiSettingDto(),
-            )
+            val request = SendMessageRequest(message = trimmed)
 
             logTokenPresence("sendMessage")
             repository.sendMessage(effectiveRoomId, request)
@@ -436,6 +432,24 @@ class AiChatViewModel(
                             error = SEND_AI_ERROR_MESSAGE,
                         )
                     }
+                }
+        }
+    }
+
+    /**
+     * Dedicated AI setting API — body `{ "aiSetting": { ... } }`.
+     * No-op until [com.example.myfrigelocal.data.remote.AiChatApiConfig.AI_SETTING_UPDATE_PATH] is set.
+     */
+    fun updateAiSetting(aiSetting: AiSettingDto) {
+        viewModelScope.launch {
+            logTokenPresence("updateAiSetting")
+            repository.updateAiSetting(aiSetting)
+                .onSuccess {
+                    Log.i(LOG_TAG, "[updateAiSetting] success")
+                }
+                .onFailure { e ->
+                    logFailure("updateAiSetting", e)
+                    _uiState.update { it.copy(error = e.toUserMessage()) }
                 }
         }
     }
