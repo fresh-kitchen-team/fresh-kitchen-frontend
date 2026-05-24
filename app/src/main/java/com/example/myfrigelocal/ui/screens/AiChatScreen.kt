@@ -71,5 +71,7 @@ fun AiChatScreen(
             viewModel.submitReport(category, content, imageUri)
         },
         onSaveAiSettings = viewModel::updateAiSetting,
+        onEnrichRecipeMatchedItems = viewModel::enrichRecipeMatchedItems,
+        onConsumeRecipeMatchedItems = viewModel::consumeRecipeMatchedItems,
     )
 }

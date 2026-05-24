@@ -2,10 +2,12 @@ package com.example.myfrigelocal.data.repository
 
 import com.example.myfrigelocal.data.remote.dto.AiPayloadDto
 import com.example.myfrigelocal.data.remote.dto.ChatMessageDto
+import com.example.myfrigelocal.data.remote.dto.MatchedItemDto
 import com.example.myfrigelocal.data.remote.dto.RecipeDto
 import com.example.myfrigelocal.ui.screens.chat.AI_RESPONSE_TYPE_RECIPE
 import com.example.myfrigelocal.ui.screens.chat.AI_RESPONSE_TYPE_TEXT
 import com.example.myfrigelocal.ui.screens.chat.ChatMessage
+import com.example.myfrigelocal.ui.screens.chat.RecipeMatchedItemUi
 import com.example.myfrigelocal.ui.screens.chat.RecipeUiModel
 import com.example.myfrigelocal.ui.screens.chat.Sender
 
@@ -41,15 +43,27 @@ fun ChatMessageDto.toChatMessage(): ChatMessage {
 
 private fun AiPayloadDto.toPrimaryRecipeUiModel(): RecipeUiModel? {
     val first = recipes?.firstOrNull() ?: return null
+    val matched = matchedItems.orEmpty().toMatchedItemUiList()
     return first.toRecipeUiModel(
         tips = tips.orEmpty(),
         missingFromPayload = missingIngredients.orEmpty(),
+        matchedItems = matched,
     )
 }
+
+private fun List<MatchedItemDto>.toMatchedItemUiList(): List<RecipeMatchedItemUi> =
+    mapIndexed { index, dto ->
+        RecipeMatchedItemUi(
+            itemId = dto.itemId,
+            name = dto.name.trim(),
+            rowKey = "matched_${dto.itemId}_$index",
+        )
+    }
 
 private fun RecipeDto.toRecipeUiModel(
     tips: List<String>,
     missingFromPayload: List<String>,
+    matchedItems: List<RecipeMatchedItemUi>,
 ): RecipeUiModel {
     val tipJoined = tips.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n").ifBlank { null }
     return RecipeUiModel(
@@ -60,5 +74,6 @@ private fun RecipeDto.toRecipeUiModel(
         tip = tipJoined,
         missingIngredients = missingFromPayload,
         imageUrl = "",
+        matchedItems = matchedItems,
     )
 }

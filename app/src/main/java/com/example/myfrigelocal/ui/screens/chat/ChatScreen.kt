@@ -144,6 +144,10 @@ fun ChatScreen(
     onSubmitInquiry: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
     onSubmitReport: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
     onSaveAiSettings: (AiSettingDto) -> Unit = {},
+    onEnrichRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> List<RecipeMatchedItemUi> = { it },
+    onConsumeRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> Result<Int> = {
+        Result.failure(UnsupportedOperationException())
+    },
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -262,7 +266,11 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 items(messages, key = { it.id }) { message ->
-                    ChatMessageItem(message = message)
+                    ChatMessageItem(
+                        message = message,
+                        onEnrichRecipeMatchedItems = onEnrichRecipeMatchedItems,
+                        onConsumeRecipeMatchedItems = onConsumeRecipeMatchedItems,
+                    )
                 }
             }
 
@@ -764,6 +772,10 @@ fun ChatTopBar(
 fun ChatMessageItem(
     message: ChatMessage,
     modifier: Modifier = Modifier,
+    onEnrichRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> List<RecipeMatchedItemUi> = { it },
+    onConsumeRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> Result<Int> = {
+        Result.failure(UnsupportedOperationException())
+    },
 ) {
     val isAi = message.sender == Sender.Ai
 
@@ -808,6 +820,12 @@ fun ChatMessageItem(
                     RecipeResponseCard(
                         recipe = message.recipe,
                         expandStateKey = message.id,
+                    )
+                    RecipeConsumeSection(
+                        recipe = message.recipe,
+                        stateKey = "${message.id}-consume",
+                        onEnrichItems = onEnrichRecipeMatchedItems,
+                        onConsume = onConsumeRecipeMatchedItems,
                     )
                 } else {
                     Surface(
