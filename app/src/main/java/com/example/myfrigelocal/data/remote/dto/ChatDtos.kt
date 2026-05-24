@@ -32,10 +32,17 @@ data class RecipeDto(
     @SerializedName("time") val time: String? = null,
 )
 
+/** aiPayload.matchedItems — inventory rows matched to the recipe. */
+data class MatchedItemDto(
+    @SerializedName("itemId") val itemId: Long,
+    @SerializedName("name") val name: String,
+)
+
 data class AiPayloadDto(
     @SerializedName("recipes") val recipes: List<RecipeDto>? = null,
     @SerializedName("tips") val tips: List<String>? = null,
     @SerializedName("missingIngredients") val missingIngredients: List<String>? = null,
+    @SerializedName("matchedItems") val matchedItems: List<MatchedItemDto>? = null,
 )
 
 /** GET /ai/v1/chat/room/{roomId} — one message. */

@@ -34,8 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.ui.geometry.Offset
@@ -206,6 +206,7 @@ fun ScanScreen(
                         when (currentTab) {
                             ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
                             ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                            ScanTab.Fridge -> Triple(1024, 1365, "resized_fridge")
                         }
                     val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
                     val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
@@ -234,12 +235,19 @@ fun ScanScreen(
                 }
             lastBarcodeRawValue = null
             scope.launch {
-                scanState = ScanState.LOADING
                 when (currentTab) {
-                    ScanTab.Ingredient ->
+                    ScanTab.Fridge -> {
+                        scanState = ScanState.IDLE
+                        context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
+                    }
+                    ScanTab.Ingredient -> {
+                        scanState = ScanState.LOADING
                         scanViewModel.requestIngredientScan(Uri.parse(imageUriStr), imageUriStr)
-                    ScanTab.Receipt ->
+                    }
+                    ScanTab.Receipt -> {
+                        scanState = ScanState.LOADING
                         scanViewModel.requestReceiptScan(Uri.parse(imageUriStr), imageUriStr)
+                    }
                 }
             }
         }
@@ -317,6 +325,7 @@ fun ScanScreen(
                             when (selectedTab) {
                                 ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
                                 ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+                                ScanTab.Fridge -> Triple(1024, 1365, "resized_fridge")
                             }
                         val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
                         val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
@@ -342,12 +351,19 @@ fun ScanScreen(
                     }
                 lastBarcodeRawValue = null
                 scope.launch {
-                    scanState = ScanState.LOADING
                     when (selectedTab) {
-                        ScanTab.Ingredient ->
+                        ScanTab.Fridge -> {
+                            scanState = ScanState.IDLE
+                            context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
+                        }
+                        ScanTab.Ingredient -> {
+                            scanState = ScanState.LOADING
                             scanViewModel.requestIngredientScan(Uri.parse(imageUriStr), imageUriStr)
-                        ScanTab.Receipt ->
+                        }
+                        ScanTab.Receipt -> {
+                            scanState = ScanState.LOADING
                             scanViewModel.requestReceiptScan(Uri.parse(imageUriStr), imageUriStr)
+                        }
                     }
                 }
             },
@@ -369,7 +385,12 @@ fun ScanScreen(
 
             val guideText = when (selectedTab) {
                 ScanTab.Ingredient -> "식재료를 프레임 안에 맞춰주세요"
+                ScanTab.Fridge -> "냉장고 내부 전체가 보이게 촬영해주세요"
                 ScanTab.Receipt -> "영수증을 프레임 안에 맞춰주세요"
+            }
+            val guideSubtext = when (selectedTab) {
+                ScanTab.Fridge -> "문을 열고 선반 전체가 프레임 안에 들어오게 맞춰주세요"
+                else -> null
             }
 
             // Middle section (frame ONLY, centered, on top of camera preview)
@@ -391,6 +412,14 @@ fun ScanScreen(
                             onFrameBoundsInWindow = { rect -> frameBounds = rect },
                         )
 
+                        ScanTab.Fridge -> ScanFrameBox(
+                            frameStyle = FrameStyle.FridgeInterior,
+                            widthFraction = 0.88f,
+                            aspectRatio = 0.72f,
+                            maxHeightFraction = 0.94f,
+                            onFrameBoundsInWindow = { rect -> frameBounds = rect },
+                        )
+
                         ScanTab.Receipt -> ScanFrameBox(
                             frameStyle = FrameStyle.RoundedRect,
                             widthFraction = 0.86f,
@@ -402,7 +431,7 @@ fun ScanScreen(
                 }
             }
 
-            // Bottom section: white surface with guide text + shutter + gallery.
+            // Bottom section: fixed height so camera preview area is identical across all tabs.
             Surface(
                 color = Color.White,
                 shadowElevation = 6.dp,
@@ -411,19 +440,40 @@ fun ScanScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 10.dp, bottom = 6.dp),
+                        .height(118.dp)
+                        .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    Text(
-                        text = guideText,
-                        color = Color(0xFF0F172A),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.widthIn(max = 520.dp),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = guideText,
+                            color = Color(0xFF0F172A),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier.widthIn(max = 520.dp),
+                        )
+                        if (guideSubtext != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = guideSubtext,
+                                color = Color(0xFF64748B),
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                modifier = Modifier.widthIn(max = 520.dp),
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     ScanBottomSection(
                         modifier = Modifier.fillMaxWidth(),
                         selectedTab = selectedTab,
@@ -435,6 +485,9 @@ fun ScanScreen(
                                     lastBarcodeRawValue = null
                                     receiptItems = emptyList()
                                     captureRequestToken = System.currentTimeMillis()
+                                }
+                                ScanTab.Fridge -> {
+                                    context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
                                 }
                                 ScanTab.Receipt -> {
                                     lastSelectedImageUri = null
@@ -472,7 +525,7 @@ enum class ScanState {
 
 private val PrimaryGreen = Color(0xFF00C853)
 
-private enum class ScanTab { Ingredient, Receipt }
+private enum class ScanTab { Ingredient, Fridge, Receipt }
 
 private fun Context.showShortToast(message: String) {
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
@@ -492,7 +545,7 @@ private fun ScanTopBar(
         ScanTabSegmented(
             selectedTab = selectedTab,
             onSelect = onSelect,
-            modifier = Modifier.widthIn(max = 480.dp),
+            modifier = Modifier.widthIn(max = 560.dp),
         )
     }
 }
@@ -503,26 +556,39 @@ private fun ScanTabSegmented(
     onSelect: (ScanTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        shape = CircleShape,
-        color = Color(0xFFF1F5F9),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(modifier = Modifier.padding(4.dp)) {
-            SegmentChip(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == ScanTab.Ingredient,
-                icon = Icons.Outlined.PhotoCamera,
-                label = "식재료",
-                onClick = { onSelect(ScanTab.Ingredient) },
-            )
-            SegmentChip(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == ScanTab.Receipt,
-                icon = Icons.Filled.Receipt,
-                label = "영수증",
-                onClick = { onSelect(ScanTab.Receipt) },
-            )
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val compact = maxWidth < 340.dp
+        Surface(
+            shape = CircleShape,
+            color = Color(0xFFF1F5F9),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(modifier = Modifier.padding(3.dp)) {
+                SegmentChip(
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == ScanTab.Ingredient,
+                    icon = Icons.Outlined.PhotoCamera,
+                    label = "식재료",
+                    compact = compact,
+                    onClick = { onSelect(ScanTab.Ingredient) },
+                )
+                SegmentChip(
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == ScanTab.Fridge,
+                    icon = Icons.Outlined.Kitchen,
+                    label = "냉장고",
+                    compact = compact,
+                    onClick = { onSelect(ScanTab.Fridge) },
+                )
+                SegmentChip(
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == ScanTab.Receipt,
+                    icon = Icons.Filled.Receipt,
+                    label = "영수증",
+                    compact = compact,
+                    onClick = { onSelect(ScanTab.Receipt) },
+                )
+            }
         }
     }
 }
@@ -533,6 +599,7 @@ private fun SegmentChip(
     selected: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    compact: Boolean,
     onClick: () -> Unit,
 ) {
     val bg = if (selected) PrimaryGreen else Color.Transparent
@@ -541,11 +608,11 @@ private fun SegmentChip(
         shape = CircleShape,
         color = bg,
         modifier = modifier
-            .height(36.dp)
+            .height(if (compact) 34.dp else 36.dp)
             .clickable(onClick = onClick),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp),
+            modifier = Modifier.padding(horizontal = if (compact) 6.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -553,20 +620,23 @@ private fun SegmentChip(
                 imageVector = icon,
                 contentDescription = label,
                 tint = fg,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(if (compact) 14.dp else 15.dp),
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = label,
-                color = fg,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+            if (!compact) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    color = fg,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
 
-private enum class FrameStyle { Corners, RoundedRect }
+private enum class FrameStyle { Corners, FridgeInterior, RoundedRect }
 
 @Composable
 private fun ScanFrameBox(
@@ -580,7 +650,7 @@ private fun ScanFrameBox(
     // We start from a width fraction, but clamp the resulting height to the available maxHeight
     // so the frame never visually collides with the bottom section on smaller screens.
     BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         val maxW: Dp = maxWidth
@@ -606,6 +676,7 @@ private fun ScanFrameBox(
 
         when (frameStyle) {
             FrameStyle.Corners -> CornerFrame(modifier = frameModifier)
+            FrameStyle.FridgeInterior -> FridgeInteriorFrame(modifier = frameModifier)
             FrameStyle.RoundedRect -> RoundedRectFrame(modifier = frameModifier)
         }
     }
@@ -653,6 +724,38 @@ private fun DrawScope.drawCornerL(
         strokeWidth = strokeWidth,
         cap = StrokeCap.Round,
     )
+}
+
+@Composable
+private fun FridgeInteriorFrame(modifier: Modifier = Modifier) {
+    // Tall rounded frame for full fridge interior — shelf guide lines for alignment.
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16.dp))
+                .border(width = 2.dp, color = PrimaryGreen, shape = RoundedCornerShape(16.dp)),
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = 1.dp.toPx()
+            val guideColor = PrimaryGreen.copy(alpha = 0.35f)
+            val thirdH = size.height / 3f
+            drawLine(
+                color = guideColor,
+                start = Offset(12.dp.toPx(), thirdH),
+                end = Offset(size.width - 12.dp.toPx(), thirdH),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = guideColor,
+                start = Offset(12.dp.toPx(), thirdH * 2f),
+                end = Offset(size.width - 12.dp.toPx(), thirdH * 2f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
 }
 
 @Composable
@@ -746,6 +849,7 @@ private fun ScanBottomSection(
 ) {
     val innerIcon = when (selectedTab) {
         ScanTab.Ingredient -> Icons.Outlined.PhotoCamera
+        ScanTab.Fridge -> Icons.Outlined.Kitchen
         ScanTab.Receipt -> Icons.Outlined.QrCodeScanner
     }
 

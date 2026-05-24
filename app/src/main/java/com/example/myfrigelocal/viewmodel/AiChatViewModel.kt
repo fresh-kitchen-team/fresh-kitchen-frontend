@@ -17,11 +17,14 @@ import com.example.myfrigelocal.data.remote.dto.AiSettingDto
 import com.example.myfrigelocal.data.remote.dto.SendMessageRequest
 import com.example.myfrigelocal.data.remote.dto.SendMessageResponseDto
 import com.example.myfrigelocal.data.repository.ChatRepository
+import com.example.myfrigelocal.data.repository.RecipeConsumeResolver
 import com.example.myfrigelocal.data.repository.toChatMessage
 import com.example.myfrigelocal.logging.ApiLog
 import com.example.myfrigelocal.network.InquiryApiType
 import com.example.myfrigelocal.network.InquiryRepository
+import com.example.myfrigelocal.network.IngredientRepository
 import com.example.myfrigelocal.ui.screens.chat.ChatMessage
+import com.example.myfrigelocal.ui.screens.chat.RecipeMatchedItemUi
 import com.example.myfrigelocal.ui.screens.chat.Sender
 import com.example.myfrigelocal.ui.screens.chat.SideMenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +70,8 @@ class AiChatViewModel(
     )
 
     private val inquiryRepository = InquiryRepository()
+
+    private val ingredientRepository = IngredientRepository()
 
 
     private val debugGson: Gson = ChatRetrofitProvider.gson()
@@ -433,6 +438,41 @@ class AiChatViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /** Refresh inventory and map aiPayload matched rows to consumable UI rows. */
+    suspend fun enrichRecipeMatchedItems(items: List<RecipeMatchedItemUi>): List<RecipeMatchedItemUi> {
+        if (items.isEmpty()) return emptyList()
+        val inventory = ingredientRepository.getIngredients()
+        return RecipeConsumeResolver.enrichMatchedItems(items, inventory)
+    }
+
+    /**
+     * Consumes selected recipe rows.
+     * Re-fetches inventory and picks item id by name (earliest expiry, then lowest id).
+     */
+    suspend fun consumeRecipeMatchedItems(
+        selectedRows: List<RecipeMatchedItemUi>,
+    ): Result<Int> {
+        if (selectedRows.isEmpty()) {
+            return Result.failure(IllegalArgumentException("선택된 재료가 없습니다."))
+        }
+        val inventory = ingredientRepository.getIngredients()
+        val ids = RecipeConsumeResolver.resolveConsumeIdsForRows(selectedRows, inventory)
+        if (ids.isEmpty()) {
+            return Result.failure(IllegalStateException("저장소에서 선택한 재료를 찾을 수 없습니다."))
+        }
+        var successCount = 0
+        for (id in ids) {
+            if (ingredientRepository.consumeItem(id)) {
+                successCount++
+            }
+        }
+        return if (successCount > 0) {
+            Result.success(successCount)
+        } else {
+            Result.failure(IOException("재료 소비 처리에 실패했습니다."))
         }
     }
 
