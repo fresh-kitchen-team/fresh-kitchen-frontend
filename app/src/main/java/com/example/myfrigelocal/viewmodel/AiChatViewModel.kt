@@ -470,6 +470,14 @@ class AiChatViewModel(
             }
         }
         return if (successCount > 0) {
+            _uiState.value.currentRoomId?.let { roomId ->
+                repository.getChatRoomDetail(roomId)
+                    .onSuccess { detail ->
+                        val mapped = detail.messages.orEmpty().map { it.toChatMessage() }
+                        _uiState.update { it.copy(messages = mapped) }
+                    }
+                    .onFailure { e -> logFailure("getChatRoomDetail(afterConsume)", e) }
+            }
             Result.success(successCount)
         } else {
             Result.failure(IOException("재료 소비 처리에 실패했습니다."))
