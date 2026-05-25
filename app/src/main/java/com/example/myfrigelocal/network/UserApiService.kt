@@ -4,6 +4,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 
 // ───────────────────────────────────────────
 // 프로필 응답 DTO
@@ -49,4 +50,16 @@ interface UserApiService {
     // DELETE /api/v1/users/me — 회원 탈퇴 (소프트 삭제)
     @DELETE("api/v1/users/me")
     suspend fun deleteAccount(): ApiResponse<Void>
+
+    // POST /api/v1/users/me/fcm-tokens — FCM 디바이스 토큰 등록/갱신
+    @POST("api/v1/users/me/fcm-tokens")
+    suspend fun registerFcmToken(
+        @Body request: FcmTokenRequest
+    ): ApiResponse<Void>
 }
+
+// FCM 토큰 등록 요청 DTO
+data class FcmTokenRequest(
+    val tokenValue: String,
+    val deviceType: String = "ANDROID"
+)

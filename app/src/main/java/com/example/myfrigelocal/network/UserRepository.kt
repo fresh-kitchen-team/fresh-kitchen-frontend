@@ -12,4 +12,8 @@ class UserRepository(
         api.updateProfile(request)
 
     suspend fun deleteAccount(): ApiResponse<Void> = api.deleteAccount()
+
+    suspend fun registerFcmToken(token: String): Result<Unit> = runCatching {
+        api.registerFcmToken(FcmTokenRequest(tokenValue = token))
+    }
 }
