@@ -9,6 +9,7 @@ import com.example.myfrigelocal.data.auth.TokenDataStore
 import com.example.myfrigelocal.network.AuthRepository
 import com.example.myfrigelocal.network.UserProfileUpdateRequest
 import com.example.myfrigelocal.network.UserRepository
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -57,6 +58,7 @@ class LoginViewModel(
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "GOOGLE")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "로그인 성공 - newUser: ${data.newUser}")
+                    registerFcmTokenAfterLogin()
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
                     Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
                     Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
@@ -114,6 +116,7 @@ class LoginViewModel(
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "KAKAO")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     Log.d("LoginViewModel", "카카오 로그인 성공 - newUser: ${data.newUser}")
+                    registerFcmTokenAfterLogin()
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
                     Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
                     Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
@@ -148,5 +151,22 @@ class LoginViewModel(
 
     fun resetState() {
         _loginState.value = LoginState.Idle
+    }
+
+    // ───────────────────────────────────────────
+    // 로그인 성공 직후 FCM 토큰 서버 등록
+    // 이 시점엔 AuthTokenStore에 토큰이 있으므로 401 없이 성공
+    // ───────────────────────────────────────────
+    private fun registerFcmTokenAfterLogin() {
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            viewModelScope.launch {
+                try {
+                    userRepository.registerFcmToken(token)
+                    Log.d("LoginViewModel", "로그인 후 FCM 토큰 등록 완료")
+                } catch (e: Exception) {
+                    Log.w("LoginViewModel", "로그인 후 FCM 토큰 등록 실패: ${e.message}")
+                }
+            }
+        }
     }
 }

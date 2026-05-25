@@ -134,7 +134,7 @@ fun AppNavHost(
                     }
                 },
                 onWithdraw = {
-                    navController.navigate("login") {
+                    navController.navigate("onboarding") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
