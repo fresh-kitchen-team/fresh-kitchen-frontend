@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.data.auth.AuthTokenStore
 import com.example.myfrigelocal.data.auth.TokenDataStore
 import com.example.myfrigelocal.network.AuthRepository
+import com.example.myfrigelocal.network.RetrofitClient
 import com.example.myfrigelocal.network.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
 // 설정 UI 상태
 // ───────────────────────────────────────────
 data class SettingsUiState(
-    val expiryAlarmEnabled: Boolean = true,   // 유통기한 알림
+    val expiryAlarmEnabled: Boolean = true,   // 유통기한 알림 (FCM 서버 관리)
     val photoAlarmEnabled: Boolean = false,   // 사진 등록 알림
     val isWithdrawing: Boolean = false,       // 탈퇴 처리 중
     val withdrawError: String? = null,        // 탈퇴 오류 메시지
@@ -42,11 +43,11 @@ class SettingsViewModel(
     // ───────────────────────────────────────────
     fun loadAccountInfo(context: Context) {
         viewModelScope.launch {
-            // provider (DataStore)
+            // 로그인 provider (DataStore)
             val provider = TokenDataStore.getLoginProvider(context).first()
             _uiState.value = _uiState.value.copy(loginProvider = provider)
 
-            // nickname (서버 프로필)
+            // 닉네임 (서버 프로필)
             try {
                 val response = userRepository.getProfile()
                 if (response.code == "COMMON-200" && response.data != null) {
@@ -59,6 +60,7 @@ class SettingsViewModel(
     }
 
     fun toggleExpiryAlarm(enabled: Boolean) {
+        // FCM 알림은 서버에서 관리 → UI 상태만 반영
         _uiState.value = _uiState.value.copy(expiryAlarmEnabled = enabled)
     }
 
@@ -72,7 +74,7 @@ class SettingsViewModel(
     fun logout(context: Context, onLogoutComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                authRepository.logout()  // 서버 블랙리스트 처리 (실패해도 로컬은 삭제)
+                authRepository.logout()
                 Log.d("SettingsVM", "서버 로그아웃 완료")
             } catch (e: Exception) {
                 Log.w("SettingsVM", "서버 로그아웃 실패 (로컬 토큰은 삭제): ${e.message}")
@@ -93,7 +95,6 @@ class SettingsViewModel(
                 val response = userRepository.deleteAccount()
                 Log.d("SettingsVM", "회원 탈퇴 응답: ${response.code}")
                 if (response.code == "COMMON-200") {
-                    // 탈퇴 성공 → 토큰 삭제 후 로그인 화면으로
                     TokenDataStore.clearTokens(context)
                     AuthTokenStore.clear()
                     _uiState.value = _uiState.value.copy(isWithdrawing = false)
@@ -116,5 +117,20 @@ class SettingsViewModel(
 
     fun clearWithdrawError() {
         _uiState.value = _uiState.value.copy(withdrawError = null)
+    }
+
+    // ───────────────────────────────────────────
+    // [DEBUG] 알림 즉시 테스트 — 배포 전 제거
+    // POST /api/v1/dev/notifications/expiring 호출
+    // ───────────────────────────────────────────
+    fun testAlarmNow() {
+        viewModelScope.launch {
+            try {
+                RetrofitClient.devApi.triggerExpiryNotification()
+                Log.d("SettingsVM", "[DEBUG] 유통기한 알림 즉시 트리거 완료")
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "[DEBUG] 알림 트리거 실패: ${e.message}")
+            }
+        }
     }
 }

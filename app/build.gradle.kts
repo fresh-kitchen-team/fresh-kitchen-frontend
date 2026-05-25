@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    id("com.google.gms.google-services")
 }
 
 val localProperties = Properties()
@@ -121,6 +122,10 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Firebase (FCM 푸시 알림)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // Kakao SDK v2
     implementation("com.kakao.sdk:v2-user:2.20.6")
