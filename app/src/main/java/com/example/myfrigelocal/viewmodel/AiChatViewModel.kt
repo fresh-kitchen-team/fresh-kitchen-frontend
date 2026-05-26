@@ -90,6 +90,8 @@ class AiChatViewModel(
      * AI 채팅 탭 재진입 시 호출.
      * Activity-scoped VM이라 예전 401 메시지가 남거나, [AuthTokenStore]만 비어 있는 경우가 있어
      * DataStore에서 토큰을 다시 올린 뒤 필요 시 방 목록을 재요청합니다.
+     * 열려 있는 채팅방이 있으면 GET `/ai/v1/chat/room/{roomId}` 로 메시지를 다시 받아
+     * 재고 변경(missingIngredients 등)이 반영되게 합니다.
      */
     fun onAiChatScreenVisible() {
         viewModelScope.launch {
@@ -97,6 +99,9 @@ class AiChatViewModel(
             val s = _uiState.value
             if (s.error != null || s.sideMenuItems.isEmpty()) {
                 refreshRooms(selectFirstAfterLoad = s.currentRoomId == null && s.sideMenuItems.isEmpty())
+            }
+            s.currentRoomId?.let { roomId ->
+                fetchAndApplyRoomDetail(roomId, showLoadingIndicator = false)
             }
         }
     }
@@ -240,45 +245,63 @@ class AiChatViewModel(
             _uiState.update {
                 it.copy(
                     currentRoomId = roomId,
-                    isLoadingMessages = true,
                     error = null,
                     sideMenuItems = markSelected(buildSideMenuItems(roomId), roomId),
                     topBarTitle = roomTitleFromCache(roomId) ?: it.topBarTitle,
                 )
             }
-            logTokenPresence("getChatRoomDetail")
-            repository.getChatRoomDetail(roomId)
-                .onSuccess { detail ->
-                    val mapped = detail.messages.orEmpty().map { it.toChatMessage() }
-                    _uiState.update { current ->
-                        if (current.isSending && current.currentRoomId == roomId) {
-                            current.copy(
-                                isLoadingMessages = false,
-                                topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
-                                    ?: roomTitleFromCache(roomId)
-                                    ?: current.topBarTitle,
-                            )
-                        } else {
-                            current.copy(
-                                isLoadingMessages = false,
-                                messages = mapped,
-                                topBarTitle = detail.title?.takeIf { t -> t.isNotBlank() }
-                                    ?: roomTitleFromCache(roomId)
-                                    ?: current.topBarTitle,
-                            )
-                        }
+            fetchAndApplyRoomDetail(roomId, showLoadingIndicator = true)
+        }
+    }
+
+    /**
+     * GET `/ai/v1/chat/room/{roomId}` — 서버가 ACTIVE 재고 기준으로 aiPayload(missingIngredients 등)를 다시 계산.
+     */
+    private suspend fun fetchAndApplyRoomDetail(
+        roomId: Long,
+        showLoadingIndicator: Boolean,
+    ) {
+        if (_uiState.value.isSending && _uiState.value.currentRoomId == roomId) return
+
+        if (showLoadingIndicator) {
+            _uiState.update { it.copy(isLoadingMessages = true, error = null) }
+        }
+        logTokenPresence("getChatRoomDetail")
+        repository.getChatRoomDetail(roomId)
+            .onSuccess { detail ->
+                val mapped = detail.messages.orEmpty().map { it.toChatMessage() }
+                _uiState.update { current ->
+                    if (current.currentRoomId != roomId) return@update current
+                    val resolvedTitle = detail.title?.takeIf { t -> t.isNotBlank() }
+                        ?: roomTitleFromCache(roomId)
+                        ?: current.topBarTitle
+                    if (current.isSending) {
+                        current.copy(
+                            isLoadingMessages = false,
+                            topBarTitle = resolvedTitle,
+                        )
+                    } else {
+                        current.copy(
+                            isLoadingMessages = false,
+                            messages = mapped,
+                            topBarTitle = resolvedTitle,
+                        )
                     }
                 }
-                .onFailure { e ->
-                    logFailure("getChatRoomDetail", e)
-                    _uiState.update {
-                        it.copy(
+            }
+            .onFailure { e ->
+                logFailure("getChatRoomDetail", e)
+                _uiState.update { current ->
+                    if (current.currentRoomId != roomId) {
+                        current
+                    } else {
+                        current.copy(
                             isLoadingMessages = false,
                             error = e.toUserMessage(),
                         )
                     }
                 }
-        }
+            }
     }
 
     /**
@@ -470,6 +493,9 @@ class AiChatViewModel(
             }
         }
         return if (successCount > 0) {
+            _uiState.value.currentRoomId?.let { roomId ->
+                fetchAndApplyRoomDetail(roomId, showLoadingIndicator = false)
+            }
             Result.success(successCount)
         } else {
             Result.failure(IOException("재료 소비 처리에 실패했습니다."))

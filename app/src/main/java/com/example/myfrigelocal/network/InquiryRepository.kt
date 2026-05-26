@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.network
 
 import android.content.Context
+import com.example.myfrigelocal.data.ChatRoomSectionMapper
 import com.example.myfrigelocal.logging.ApiLog
 import okhttp3.MultipartBody
 import retrofit2.HttpException
@@ -21,6 +22,64 @@ enum class InquiryApiCategory(val apiValue: String) {
 class InquiryRepository(
     private val api: InquiryApiService = RetrofitClient.inquiriesApi,
 ) {
+
+    /** GET `/api/v1/inquiries` — 로그인 사용자 문의·신고 내역 (최신순). */
+    suspend fun getInquiries(): Result<List<InquirySummaryDto>> {
+        val sub = "Inquiry:List"
+        ApiLog.i(sub, "GET /api/v1/inquiries START")
+        return try {
+            val response = api.getInquiries()
+            ApiLog.i(
+                sub,
+                "envelope status=${response.status} code=${response.code} count=${response.data?.size ?: 0}",
+            )
+            if (!isBusinessSuccess(response)) {
+                val msg = response.message?.takeIf { it.isNotBlank() }
+                    ?: "목록을 불러오지 못했습니다. (${response.code})"
+                ApiLog.w(sub, "business failure: $msg")
+                return Result.failure(IllegalStateException(msg))
+            }
+            val sorted = response.data.orEmpty().sortedByDescending { dto ->
+                ChatRoomSectionMapper.parseInstant(dto.createdAt)?.toEpochMilli() ?: 0L
+            }
+            Result.success(sorted)
+        } catch (e: HttpException) {
+            ApiLog.e(sub, "HTTP ${e.code()}: ${e.message()}", e)
+            Result.failure(e)
+        } catch (e: Exception) {
+            ApiLog.e(sub, "exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /** GET `/api/v1/inquiries/{inquiryId}` — 문의 본문 + 관리자 답변. */
+    suspend fun getInquiryDetail(inquiryId: Long): Result<InquiryDetailDto> {
+        val sub = "Inquiry:Detail"
+        ApiLog.i(sub, "GET /api/v1/inquiries/$inquiryId START")
+        return try {
+            val response = api.getInquiryDetail(inquiryId)
+            ApiLog.i(
+                sub,
+                "envelope status=${response.status} code=${response.code} " +
+                    "hasReply=${!response.data?.adminReply.isNullOrBlank()}",
+            )
+            if (!isBusinessSuccess(response)) {
+                val msg = response.message?.takeIf { it.isNotBlank() }
+                    ?: "상세를 불러오지 못했습니다. (${response.code})"
+                ApiLog.w(sub, "business failure: $msg")
+                return Result.failure(IllegalStateException(msg))
+            }
+            val detail = response.data
+                ?: return Result.failure(IllegalStateException("문의를 찾을 수 없습니다."))
+            Result.success(detail)
+        } catch (e: HttpException) {
+            ApiLog.e(sub, "HTTP ${e.code()}: ${e.message()}", e)
+            Result.failure(e)
+        } catch (e: Exception) {
+            ApiLog.e(sub, "exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 
     /**
      * @param imageUri optional content Uri string; null이면 이미지 파트 없이 전송
@@ -85,7 +144,7 @@ class InquiryRepository(
             else -> InquiryApiCategory.OTHER
         }
 
-    private fun isBusinessSuccess(response: ApiResponse<Unit?>): Boolean {
+    private fun isBusinessSuccess(response: ApiResponse<*>): Boolean {
         if (response.message.equals("Success", ignoreCase = true)) return true
         if (response.code == "COMMON-200") return true
         if (response.status == 0 || response.status in 200..299) return true

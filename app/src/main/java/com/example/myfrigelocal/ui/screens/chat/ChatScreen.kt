@@ -85,6 +85,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.example.myfrigelocal.ui.screens.help.HelpFeedbackScreen
 import com.example.myfrigelocal.ui.screens.help.ContactSupportScreen
+import com.example.myfrigelocal.ui.screens.help.InquiryDetailScreen
+import com.example.myfrigelocal.ui.screens.help.InquiryListScreen
 import com.example.myfrigelocal.ui.screens.help.ReportIssueScreen
 
 data class ChatMessage(
@@ -153,6 +155,8 @@ fun ChatScreen(
     var isSideMenuOpen by rememberSaveable { mutableStateOf(false) }
     var isAiSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var isHelpFeedbackOpen by rememberSaveable { mutableStateOf(false) }
+    var isInquiryListOpen by rememberSaveable { mutableStateOf(false) }
+    var selectedInquiryId by rememberSaveable { mutableStateOf<Long?>(null) }
     var isContactSupportOpen by rememberSaveable { mutableStateOf(false) }
     var isReportIssueOpen by rememberSaveable { mutableStateOf(false) }
     var openedMenuThreadId by remember { mutableStateOf<String?>(null) }
@@ -171,6 +175,8 @@ fun ChatScreen(
         if (supportSubmitSuccessToken > 0L) {
             isContactSupportOpen = false
             isReportIssueOpen = false
+            isInquiryListOpen = false
+            selectedInquiryId = null
             isHelpFeedbackOpen = false
         }
     }
@@ -181,6 +187,8 @@ fun ChatScreen(
         isSideMenuOpen = false
         isAiSettingsOpen = false
         isHelpFeedbackOpen = false
+        isInquiryListOpen = false
+        selectedInquiryId = null
         isContactSupportOpen = false
         isReportIssueOpen = false
         openedMenuThreadId = null
@@ -367,10 +375,17 @@ fun ChatScreen(
         }
 
         if (isHelpFeedbackOpen) {
-            BackHandler { isHelpFeedbackOpen = false }
+            BackHandler {
+                when {
+                    selectedInquiryId != null -> selectedInquiryId = null
+                    isInquiryListOpen -> isInquiryListOpen = false
+                    else -> isHelpFeedbackOpen = false
+                }
+            }
             HelpFeedbackScreen(
                 onClose = { isHelpFeedbackOpen = false },
                 modifier = Modifier.zIndex(3f),
+                onInquiryListClick = { isInquiryListOpen = true },
                 onContactSupportClick = {
                     isContactSupportOpen = true
                 },
@@ -380,11 +395,30 @@ fun ChatScreen(
             )
         }
 
+        if (isInquiryListOpen) {
+            InquiryListScreen(
+                onClose = {
+                    isInquiryListOpen = false
+                    selectedInquiryId = null
+                },
+                onAnsweredItemClick = { selectedInquiryId = it },
+                modifier = Modifier.zIndex(4f),
+            )
+        }
+
+        selectedInquiryId?.let { inquiryId ->
+            InquiryDetailScreen(
+                inquiryId = inquiryId,
+                onClose = { selectedInquiryId = null },
+                modifier = Modifier.zIndex(5f),
+            )
+        }
+
         if (isContactSupportOpen) {
             BackHandler { isContactSupportOpen = false }
             ContactSupportScreen(
                 onClose = { isContactSupportOpen = false },
-                modifier = Modifier.zIndex(4f),
+                modifier = Modifier.zIndex(6f),
                 isSubmitting = isSubmittingSupport,
                 errorMessage = supportError,
                 successMessage = supportSuccessMessage,
@@ -397,7 +431,7 @@ fun ChatScreen(
             BackHandler { isReportIssueOpen = false }
             ReportIssueScreen(
                 onClose = { isReportIssueOpen = false },
-                modifier = Modifier.zIndex(4f),
+                modifier = Modifier.zIndex(6f),
                 isSubmitting = isSubmittingSupport,
                 errorMessage = supportError,
                 successMessage = supportSuccessMessage,
