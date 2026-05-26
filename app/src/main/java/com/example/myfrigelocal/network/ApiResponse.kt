@@ -178,3 +178,32 @@ data class ExpiringItemDto(
     val dday: Int,
     val storageType: String                // "FRIDGE" | "FREEZER" | "PANTRY"
 )
+
+// ───────────────────────────────────────────
+// GET /api/v1/app/version 응답 데이터
+// ───────────────────────────────────────────
+data class AppVersionDto(
+    val latestVersion: String,
+    val minimumVersion: String,
+    val forceUpdate: Boolean,
+    val updateUrl: String?
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/legal 응답 데이터
+// ───────────────────────────────────────────
+data class LegalDto(
+    val termsUrl: String,
+    val privacyUrl: String
+)
+
+// ───────────────────────────────────────────
+// GET /api/v1/legal/agreement 응답 데이터
+// POST /api/v1/legal/agreement 응답 데이터
+// ───────────────────────────────────────────
+data class LegalAgreementDto(
+    val termsAgreed: Boolean? = null,
+    val privacyAgreed: Boolean? = null,
+    val termsAgreedAt: String? = null,
+    val privacyAgreedAt: String? = null
+)
