@@ -1,9 +1,11 @@
 package com.example.myfrigelocal.network
 
 import okhttp3.MultipartBody
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -13,6 +15,16 @@ import retrofit2.http.Query
  * 이미지 없을 때는 빈 [image] 파트로 전송합니다.
  */
 interface InquiryApiService {
+
+    /** 내 문의·신고 목록 (최신순). */
+    @GET("api/v1/inquiries")
+    suspend fun getInquiries(): ApiResponse<List<InquirySummaryDto>?>
+
+    /** 문의 상세 + 관리자 답변. */
+    @GET("api/v1/inquiries/{inquiryId}")
+    suspend fun getInquiryDetail(
+        @Path("inquiryId") inquiryId: Long,
+    ): ApiResponse<InquiryDetailDto?>
 
     @Multipart
     @POST("api/v1/inquiries")
