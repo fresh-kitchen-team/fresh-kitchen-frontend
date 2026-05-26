@@ -24,7 +24,12 @@ data class SettingsUiState(
     val isWithdrawing: Boolean = false,       // 탈퇴 처리 중
     val withdrawError: String? = null,        // 탈퇴 오류 메시지
     val loginProvider: String? = null,        // "GOOGLE" | "KAKAO"
-    val nickname: String? = null              // 프로필 닉네임
+    val nickname: String? = null,             // 프로필 닉네임
+    val appVersion: String? = null,           // 앱 최신 버전 (예: "1.0.0")
+    val termsUrl: String? = null,             // 이용약관 URL
+    val privacyUrl: String? = null,           // 개인정보처리방침 URL
+    val termsAgreedAt: String? = null,        // 이용약관 동의 일시
+    val privacyAgreedAt: String? = null       // 개인정보처리방침 동의 일시
 )
 
 // ───────────────────────────────────────────
@@ -55,6 +60,60 @@ class SettingsViewModel(
                 }
             } catch (e: Exception) {
                 Log.w("SettingsVM", "프로필 조회 실패: ${e.message}")
+            }
+        }
+    }
+
+    // ───────────────────────────────────────────
+    // 앱 버전 불러오기 — GET /api/v1/app/version
+    // ───────────────────────────────────────────
+    fun loadAppVersion() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.appVersionApi.getAppVersion()
+                if (response.data != null) {
+                    _uiState.value = _uiState.value.copy(appVersion = response.data.latestVersion)
+                }
+            } catch (e: Exception) {
+                Log.w("SettingsVM", "앱 버전 조회 실패: ${e.message}")
+            }
+        }
+    }
+
+    // ───────────────────────────────────────────
+    // 약관 URL 불러오기 — GET /api/v1/legal
+    // ───────────────────────────────────────────
+    fun loadLegalUrls() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.legalApi.getLegal()
+                response.data?.let { data ->
+                    _uiState.value = _uiState.value.copy(
+                        termsUrl = data.termsUrl,
+                        privacyUrl = data.privacyUrl
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("SettingsVM", "약관 URL 조회 실패: ${e.message}")
+            }
+        }
+    }
+
+    // ───────────────────────────────────────────
+    // 동의 상태 불러오기 — GET /api/v1/legal/agreement
+    // ───────────────────────────────────────────
+    fun loadAgreementStatus() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.legalApi.getAgreement()
+                response.data?.let { data ->
+                    _uiState.value = _uiState.value.copy(
+                        termsAgreedAt = data.termsAgreedAt,
+                        privacyAgreedAt = data.privacyAgreedAt
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("SettingsVM", "동의 상태 조회 실패: ${e.message}")
             }
         }
     }

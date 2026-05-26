@@ -1,5 +1,7 @@
 package com.example.myfrigelocal.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +68,11 @@ fun LoginScreen(
     var showSheet by remember { mutableStateOf(false) }
     var isNewUser by remember { mutableStateOf(false) }
 
+    // 약관 동의 바텀시트 상태 (신규 유저 로그인 성공 시 표시)
+    val legalSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showLegalSheet by remember { mutableStateOf(false) }
+    var legalAgreeLoading by remember { mutableStateOf(false) }
+
     // ── Google Sign-In 설정 ──
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -104,8 +111,40 @@ fun LoginScreen(
         if (loginState is LoginState.Success) {
             val newUser = (loginState as LoginState.Success).isNewUser
             viewModel.resetState()
-            if (newUser) onNewUser() else onExistingUser()
+            if (newUser) {
+                // 신규 유저 → 약관 동의 바텀시트 표시 후 이동
+                showLegalSheet = true
+            } else {
+                onExistingUser()
+            }
         }
+    }
+
+    // 약관 동의 바텀시트 (신규 유저)
+    if (showLegalSheet) {
+        LegalAgreementBottomSheet(
+            sheetState = legalSheetState,
+            isLoading = legalAgreeLoading,
+            onDismiss = {
+                scope.launch { legalSheetState.hide() }.invokeOnCompletion {
+                    showLegalSheet = false
+                }
+            },
+            onAgree = {
+                legalAgreeLoading = true
+                viewModel.postLegalAgreement {
+                    legalAgreeLoading = false
+                    showLegalSheet = false
+                    onNewUser()
+                }
+            },
+            onTermsClick = { url ->
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            },
+            onPrivacyClick = { url ->
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }
+        )
     }
 
     // 바텀시트
@@ -423,6 +462,112 @@ fun SocialLoginBottomSheet(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────────────────────
+// 약관 동의 바텀시트 (신규 유저 전용)
+// ───────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LegalAgreementBottomSheet(
+    sheetState: SheetState,
+    isLoading: Boolean = false,
+    onDismiss: () -> Unit,
+    onAgree: () -> Unit,
+    onTermsClick: (String) -> Unit,
+    onPrivacyClick: (String) -> Unit
+) {
+    val termsUrl = "https://www.notion.so/freshkitchen-terms"
+    val privacyUrl = "https://www.notion.so/freshkitchen-privacy"
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "서비스 이용 동의",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Fresh Kitchen을 이용하려면 아래 약관에 동의해주세요",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 이용약관 행
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✓  이용약관 (필수)",
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { onTermsClick(termsUrl) }) {
+                    Text("보기", fontSize = 13.sp, color = FreshGreen)
+                }
+            }
+
+            // 개인정보처리방침 행
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✓  개인정보처리방침 (필수)",
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { onPrivacyClick(privacyUrl) }) {
+                    Text("보기", fontSize = 13.sp, color = FreshGreen)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 동의하고 시작하기 버튼
+            Button(
+                onClick = onAgree,
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = FreshGreen)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("동의하고 시작하기", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

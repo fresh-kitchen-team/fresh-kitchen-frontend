@@ -68,4 +68,12 @@ object RetrofitClient {
     val devApi: DevApiService by lazy {
         retrofit.create(DevApiService::class.java)
     }
+
+    val appVersionApi: AppVersionApiService by lazy {
+        retrofit.create(AppVersionApiService::class.java)
+    }
+
+    val legalApi: LegalApiService by lazy {
+        retrofit.create(LegalApiService::class.java)
+    }
 }
