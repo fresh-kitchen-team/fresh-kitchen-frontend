@@ -1,6 +1,7 @@
 package com.example.myfrigelocal.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,6 +48,9 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadAccountInfo(context)
+        viewModel.loadAppVersion()
+        viewModel.loadLegalUrls()
+        viewModel.loadAgreementStatus()
     }
 
     // 탈퇴 확인 다이얼로그
@@ -267,11 +271,30 @@ fun SettingsScreen(
             // ── 앱 정보 ──
             SettingsSectionTitle("앱 정보")
             SettingsCard {
-                SettingsNavigationRow(title = "버전 정보", value = "v1.0.0")
+                SettingsNavigationRow(
+                    title = "버전 정보",
+                    value = uiState.appVersion?.let { "v$it" } ?: "-"
+                )
                 SettingsDivider()
-                SettingsNavigationRow(title = "이용약관", onClick = { /* TODO */ })
+                SettingsNavigationRow(
+                    title = "이용약관",
+                    value = uiState.termsAgreedAt?.take(10)?.let { "동의 $it" },
+                    onClick = {
+                        uiState.termsUrl?.let { url ->
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    }
+                )
                 SettingsDivider()
-                SettingsNavigationRow(title = "개인정보처리방침", onClick = { /* TODO */ })
+                SettingsNavigationRow(
+                    title = "개인정보처리방침",
+                    value = uiState.privacyAgreedAt?.take(10)?.let { "동의 $it" },
+                    onClick = {
+                        uiState.privacyUrl?.let { url ->
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))

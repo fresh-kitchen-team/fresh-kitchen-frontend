@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.data.auth.AuthTokenStore
 import com.example.myfrigelocal.data.auth.TokenDataStore
 import com.example.myfrigelocal.network.AuthRepository
+import com.example.myfrigelocal.network.RetrofitClient
 import com.example.myfrigelocal.network.UserProfileUpdateRequest
 import com.example.myfrigelocal.network.UserRepository
 import com.google.firebase.messaging.FirebaseMessaging
@@ -151,6 +152,23 @@ class LoginViewModel(
 
     fun resetState() {
         _loginState.value = LoginState.Idle
+    }
+
+    // ───────────────────────────────────────────
+    // 약관 동의 처리 — POST /api/v1/legal/agreement
+    // 신규 유저 약관 바텀시트에서 "동의하고 시작하기" 클릭 시 호출
+    // ───────────────────────────────────────────
+    fun postLegalAgreement(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                RetrofitClient.legalApi.postAgreement()
+                Log.d("LoginViewModel", "약관 동의 처리 완료")
+            } catch (e: Exception) {
+                Log.w("LoginViewModel", "약관 동의 처리 실패 (무시): ${e.message}")
+            } finally {
+                onComplete()
+            }
+        }
     }
 
     // ───────────────────────────────────────────

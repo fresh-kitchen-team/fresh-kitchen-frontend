@@ -11,7 +11,7 @@ object ApiLog {
 
     fun d(sub: String, message: String) {
         if (BuildConfig.DEBUG) Log.d(TAG, "[$sub] $message")
-    }
+     }
 
     fun i(sub: String, message: String) {
         if (BuildConfig.DEBUG) Log.i(TAG, "[$sub] $message")
