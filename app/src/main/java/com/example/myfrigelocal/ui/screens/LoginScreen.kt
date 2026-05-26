@@ -481,8 +481,8 @@ fun LegalAgreementBottomSheet(
     onTermsClick: (String) -> Unit,
     onPrivacyClick: (String) -> Unit
 ) {
-    val termsUrl = "https://www.notion.so/freshkitchen-terms"
-    val privacyUrl = "https://www.notion.so/freshkitchen-privacy"
+    val termsUrl = "https://fresh-kitchen-team.github.io/terms.html"
+    val privacyUrl = "https://fresh-kitchen-team.github.io/privacy.html"
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
