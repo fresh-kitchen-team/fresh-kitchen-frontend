@@ -37,19 +37,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.myfrigelocal.ui.screens.chat.ChatDesign
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
 import com.example.myfrigelocal.ui.theme.MyFrigeLocalTheme
@@ -153,9 +152,9 @@ private fun InquiryDetailContent(
     detail: InquiryDetailUi,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val typeBg = if (detail.isReport) Color(0xFFFDECEC) else Color(0xFFDFF7ED)
     val typeTint = if (detail.isReport) Color(0xFFE24A4A) else BottomNavSelected
+    var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -227,18 +226,9 @@ private fun InquiryDetailContent(
                 )
                 detail.imageUrl?.let { url ->
                     Spacer(modifier = Modifier.height(14.dp))
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(url)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "첨부 이미지",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, ChatDesign.BorderSoft, RoundedCornerShape(14.dp)),
-                        contentScale = ContentScale.Crop,
+                    InquiryAttachmentImage(
+                        imageUrl = url,
+                        onClick = { fullscreenImageUrl = url },
                     )
                 }
             }
@@ -346,6 +336,13 @@ private fun InquiryDetailContent(
         item(key = "bottom_spacer") {
             Spacer(modifier = Modifier.height(28.dp))
         }
+    }
+
+    fullscreenImageUrl?.let { url ->
+        InquiryFullscreenImageDialog(
+            imageUrl = url,
+            onDismiss = { fullscreenImageUrl = null },
+        )
     }
 }
 

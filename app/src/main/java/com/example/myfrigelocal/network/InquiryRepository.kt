@@ -2,6 +2,7 @@ package com.example.myfrigelocal.network
 
 import android.content.Context
 import com.example.myfrigelocal.data.ChatRoomSectionMapper
+import com.example.myfrigelocal.data.auth.AuthTokenStore
 import com.example.myfrigelocal.logging.ApiLog
 import okhttp3.MultipartBody
 import retrofit2.HttpException
@@ -54,31 +55,63 @@ class InquiryRepository(
 
     /** GET `/api/v1/inquiries/{inquiryId}` — 문의 본문 + 관리자 답변. */
     suspend fun getInquiryDetail(inquiryId: Long): Result<InquiryDetailDto> {
-        val sub = "Inquiry:Detail"
-        ApiLog.i(sub, "GET /api/v1/inquiries/$inquiryId START")
+        val sub = "api/InquiryDetail"
+        val path = "/api/v1/inquiries/$inquiryId"
+        val hasToken = !AuthTokenStore.getAccessToken().isNullOrBlank()
+        ApiLog.i(sub, "GET $path START tokenPresent=$hasToken")
         return try {
             val response = api.getInquiryDetail(inquiryId)
+            val detail = response.data
             ApiLog.i(
                 sub,
-                "envelope status=${response.status} code=${response.code} " +
-                    "hasReply=${!response.data?.adminReply.isNullOrBlank()}",
+                "GET $path RESPONSE http=200 envelopeStatus=${response.status} " +
+                    "envelopeCode=${response.code} envelopeMessage=${response.message} " +
+                    "hasData=${detail != null} inquiryStatus=${detail?.status} " +
+                    "hasImageUrl=${!detail?.imageUrl.isNullOrBlank()} " +
+                    "imageUrl=${detail?.imageUrl.orEmpty().take(120)}",
             )
             if (!isBusinessSuccess(response)) {
                 val msg = response.message?.takeIf { it.isNotBlank() }
                     ?: "상세를 불러오지 못했습니다. (${response.code})"
-                ApiLog.w(sub, "business failure: $msg")
+                ApiLog.w(
+                    sub,
+                    "GET $path BUSINESS_FAIL envelopeStatus=${response.status} " +
+                        "envelopeCode=${response.code} message=$msg",
+                )
                 return Result.failure(IllegalStateException(msg))
             }
-            val detail = response.data
-                ?: return Result.failure(IllegalStateException("문의를 찾을 수 없습니다."))
+            if (detail == null) {
+                ApiLog.w(sub, "GET $path FAIL data=null (문의 없음)")
+                return Result.failure(IllegalStateException("문의를 찾을 수 없습니다."))
+            }
+            ApiLog.i(
+                sub,
+                "GET $path OK id=${detail.id} type=${detail.type} category=${detail.category} " +
+                    "contentLen=${detail.content.length} adminReplyLen=${detail.adminReply?.length ?: 0}",
+            )
             Result.success(detail)
         } catch (e: HttpException) {
-            ApiLog.e(sub, "HTTP ${e.code()}: ${e.message()}", e)
+            val httpCode = e.code()
+            ApiLog.e(
+                sub,
+                "GET $path HTTP_FAIL http=$httpCode (${httpStatusLabel(httpCode)}) " +
+                    "message=${e.message()}",
+                e,
+            )
             Result.failure(e)
         } catch (e: Exception) {
-            ApiLog.e(sub, "exception: ${e.message}", e)
+            ApiLog.e(sub, "GET $path EXCEPTION ${e.javaClass.simpleName}: ${e.message}", e)
             Result.failure(e)
         }
+    }
+
+    private fun httpStatusLabel(code: Int): String = when (code) {
+        401 -> "Unauthorized"
+        403 -> "Forbidden"
+        404 -> "Not Found"
+        503 -> "Service Unavailable"
+        in 500..599 -> "Server Error"
+        else -> "HTTP $code"
     }
 
     /**
