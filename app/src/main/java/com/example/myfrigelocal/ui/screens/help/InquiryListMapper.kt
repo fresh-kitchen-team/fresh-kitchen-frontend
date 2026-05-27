@@ -65,7 +65,7 @@ object InquiryListMapper {
             typeLabel = typeLabel(type),
             categoryLabel = categoryLabel(category),
             content = dto.content.trim(),
-            imageUrl = dto.imageUrl?.takeIf { it.isNotBlank() },
+            imageUrl = dto.imageUrl?.trim()?.takeIf { it.isNotBlank() },
             statusLabel = statusLabel(status),
             isAnswered = status == "ANSWERED",
             isReport = type == "REPORT",

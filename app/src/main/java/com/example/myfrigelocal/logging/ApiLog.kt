@@ -4,7 +4,8 @@ import android.util.Log
 import com.example.myfrigelocal.BuildConfig
 
 /**
- * Logcat 필터: `tag:MyFridgeApi` 또는 `MyFridgeApi`
+ * Logcat 필터: `MyFridgeApi` 또는 메시지 검색 `api`
+ * (예: 문의 상세 `api/InquiryDetail`, 첨부 이미지 `api/InquiryImage`)
  */
 object ApiLog {
     const val TAG = "MyFridgeApi"
