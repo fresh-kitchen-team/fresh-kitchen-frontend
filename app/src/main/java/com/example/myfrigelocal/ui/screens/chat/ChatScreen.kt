@@ -164,6 +164,7 @@ fun ChatScreen(
     var editingTitleSeed by remember { mutableStateOf("") }
     var deletingThreadId by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(currentThreadId, messages.size) {
         if (messages.isNotEmpty()) {
@@ -281,6 +282,15 @@ fun ChatScreen(
                     )
                 }
             }
+
+            ChatQuickRepliesRow(
+                enabled = !isSending,
+                onQuickReplyClick = { message ->
+                    keyboardController?.hide()
+                    onSendMessage(message)
+                    input = ""
+                },
+            )
 
             ChatInputBar(
                 inputValue = input,
