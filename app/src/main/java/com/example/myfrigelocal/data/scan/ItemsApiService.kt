@@ -19,7 +19,7 @@ data class StorageListItemDto(
     val name: String,
 )
 
-/** POST /api/v1/items 요청 본문 (imageAssetId 없으면 null). */
+/** POST /api/v1/items 요청 본문 (imageAssetId·category 없으면 null). */
 data class CreateItemRequest(
     val name: String,
     val storageId: Long,
@@ -27,6 +27,7 @@ data class CreateItemRequest(
     val purchaseDate: String?,
     val memo: String?,
     val imageAssetId: Long?,
+    val category: String? = null,
 )
 
 data class CreateItemEnvelope(

@@ -14,7 +14,7 @@ data class ApiResponse<T>(
     val data: T? = null,
 )
 
-/** POST /api/v1/scan/ingredient-image — Gson용 구체 래퍼 (형태는 [ApiResponse]와 동일). */
+/** POST /api/v1/scan/ingredient-image */
 data class IngredientImageScanApiResponse(
     val status: Int,
     val code: String? = null,
@@ -22,7 +22,7 @@ data class IngredientImageScanApiResponse(
     val data: IngredientImageScanData? = null,
 )
 
-/** POST /api/v1/scan/receipt-image — Gson용 구체 래퍼. */
+/** POST /api/v1/scan/receipt-image */
 data class ReceiptImageScanApiResponse(
     val status: Int,
     val code: String? = null,
@@ -46,26 +46,22 @@ data class ScanImageAsset(
 
 data class IngredientRecognizedItem(
     val name: String? = null,
+    val category: String? = null,
     val confidence: Double? = null,
 )
 
 data class ReceiptImageScanData(
     val scanType: String? = null,
-    val storeName: String? = null,
+    val imageAsset: ScanImageAsset? = null,
     val purchasedAt: String? = null,
     @SerializedName(value = "purchasedAtSourceType", alternate = ["PurchasedAtSourceType"])
     val purchasedAtSourceType: String? = null,
-    @SerializedName(value = "sourceType", alternate = ["SourceType"])
-    val sourceType: String? = null,
     val recognizedItems: List<ReceiptRecognizedItem>? = null,
-    val ocrText: String? = null,
     val createdAt: String? = null,
 )
 
 data class ReceiptRecognizedItem(
     val name: String? = null,
+    val category: String? = null,
     val registeredAt: String? = null,
-    val confidence: Double? = null,
-    val estimatedExpiresAt: String? = null,
-    val expirySourceType: String? = null,
 )

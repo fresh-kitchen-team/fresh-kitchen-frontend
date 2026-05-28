@@ -9,6 +9,7 @@ import java.util.UUID
 data class ReceiptResultItemUiState(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
+    val category: String = ScanResultItemUiModel.DEFAULT_CATEGORY,
     val storageType: String,
     val expiresAt: String,
     val registeredAt: String?,
@@ -19,6 +20,7 @@ internal fun todayIsoDate(): String = LocalDate.now().toString()
 internal fun ScanResultItemUiModel.toReceiptResultItemUiState(): ReceiptResultItemUiState =
     ReceiptResultItemUiState(
         name = name,
+        category = category.ifBlank { ScanResultItemUiModel.DEFAULT_CATEGORY },
         storageType = storageType.ifBlank { ScanResultItemUiModel.DEFAULT_STORAGE },
         expiresAt = expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: todayIsoDate(),
         registeredAt = registeredAt,
@@ -32,6 +34,7 @@ internal fun buildReceiptListFromLegacyNames(names: List<String>): List<ReceiptR
     return names.map { n ->
         ReceiptResultItemUiState(
             name = n,
+            category = ScanResultItemUiModel.DEFAULT_CATEGORY,
             storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
             expiresAt = today,
             registeredAt = today,

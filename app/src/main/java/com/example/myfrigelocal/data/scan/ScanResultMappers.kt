@@ -13,6 +13,10 @@ private fun firstDateOnly(isoDateTime: String?): String? {
     return runCatching { LocalDate.parse(s.take(10)).toString() }.getOrNull()
 }
 
+/** 스캔 API category null/blank → 저장·UI용 "기타" */
+internal fun normalizeScanCategory(raw: String?): String =
+    raw?.trim()?.takeIf { it.isNotEmpty() } ?: ScanResultItemUiModel.DEFAULT_CATEGORY
+
 fun mapIngredientScanToUiModel(
     data: IngredientImageScanData,
     localCapturedImageUri: String?,
@@ -24,7 +28,7 @@ fun mapIngredientScanToUiModel(
             val n = row.name?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             ScanResultItemUiModel(
                 name = n,
-                category = ScanResultItemUiModel.DEFAULT_CATEGORY,
+                category = normalizeScanCategory(row.category),
                 storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
                 registeredAt = createdDay,
                 expiresAt = null,
@@ -48,6 +52,7 @@ fun mapReceiptScanToUiModel(
 ): ScanResultUiModel {
     val purchased = data.purchasedAt?.trim()?.takeIf { it.isNotEmpty() }
     val purchasedDay = firstDateOnly(purchased) ?: purchased
+    val remoteUrl = data.imageAsset?.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
     val items =
         data.recognizedItems.orEmpty().mapNotNull { row ->
             val n = row.name?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
@@ -58,11 +63,11 @@ fun mapReceiptScanToUiModel(
                     ?: todayIsoDate()
             ScanResultItemUiModel(
                 name = n,
-                category = ScanResultItemUiModel.DEFAULT_CATEGORY,
+                category = normalizeScanCategory(row.category),
                 storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
                 registeredAt = reg,
-                expiresAt = row.estimatedExpiresAt?.trim()?.takeIf { it.isNotEmpty() },
-                confidence = row.confidence,
+                expiresAt = null,
+                confidence = null,
             )
         }
     val effectiveItems =
@@ -81,13 +86,11 @@ fun mapReceiptScanToUiModel(
     return ScanResultUiModel(
         sourceType = "RECEIPT",
         localPreviewImageUri = localCapturedImageUri,
-        remotePreviewImageUrl = null,
+        remotePreviewImageUrl = remoteUrl,
         items = effectiveItems,
         purchasedAt = purchased,
-        purchasedAtSourceType =
-            data.purchasedAtSourceType?.trim()?.takeIf { it.isNotEmpty() }
-                ?: data.sourceType?.trim()?.takeIf { it.isNotEmpty() },
-        imageAssetId = null,
+        purchasedAtSourceType = data.purchasedAtSourceType?.trim()?.takeIf { it.isNotEmpty() },
+        imageAssetId = data.imageAsset?.imageAssetId,
     )
 }
 

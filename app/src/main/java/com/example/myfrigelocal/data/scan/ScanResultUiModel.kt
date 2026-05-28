@@ -28,7 +28,8 @@ data class ScanResultItemUiModel(
     val confidence: Double?,
 ) {
     companion object {
-        const val DEFAULT_CATEGORY = "ETC"
+        /** API category null 시 UI·저장용 기본값 */
+        const val DEFAULT_CATEGORY = "기타"
         const val DEFAULT_STORAGE = "FRIDGE"
     }
 }

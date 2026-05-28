@@ -11,7 +11,6 @@ import java.lang.reflect.Type
 /**
  * 실서버 `data` 안에 인식 목록이 `recognizedItems` 외 키/중첩으로 올 수 있어
  * 기본 Gson 데이터 클래스 매핑만으로는 빈 배열로 떨어지는 경우가 있음.
- * 이 디시리얼라이저는 알려진 키 → 없으면 객체 트리에서 "이름" 필드를 가진 객체 배열을 찾아 복구한다.
  */
 class ReceiptImageScanApiResponseDeserializer : JsonDeserializer<ReceiptImageScanApiResponse> {
 
@@ -49,15 +48,24 @@ class ReceiptImageScanApiResponseDeserializer : JsonDeserializer<ReceiptImageSca
                 ?: emptyList()
         return ReceiptImageScanData(
             scanType = obj.stringOrNull("scanType"),
-            storeName = obj.stringOrNull("storeName"),
+            imageAsset = parseImageAsset(obj.get("imageAsset")),
             purchasedAt = obj.stringOrNull("purchasedAt"),
             purchasedAtSourceType =
                 obj.stringOrNull("purchasedAtSourceType")
                     ?: obj.stringOrNull("PurchasedAtSourceType"),
-            sourceType = obj.stringOrNull("sourceType") ?: obj.stringOrNull("SourceType"),
             recognizedItems = recognized,
-            ocrText = obj.stringOrNull("ocrText"),
             createdAt = obj.stringOrNull("createdAt"),
+        )
+    }
+
+    private fun parseImageAsset(el: JsonElement?): ScanImageAsset? {
+        if (el == null || el.isJsonNull || !el.isJsonObject) return null
+        val o = el.asJsonObject
+        return ScanImageAsset(
+            imageAssetId = o.longOrNull("imageAssetId"),
+            kind = o.stringOrNull("kind"),
+            storageProvider = o.stringOrNull("storageProvider"),
+            imageUrl = o.stringOrNull("imageUrl"),
         )
     }
 
@@ -68,10 +76,6 @@ class ReceiptImageScanApiResponseDeserializer : JsonDeserializer<ReceiptImageSca
                 "recognized_items",
                 "RecognizedItems",
                 "items",
-                "ingredients",
-                "detectedItems",
-                "ingredientLines",
-                "lineItems",
             )
         for (k in keys) {
             val el = obj.get(k) ?: continue
@@ -120,14 +124,8 @@ class ReceiptImageScanApiResponseDeserializer : JsonDeserializer<ReceiptImageSca
             out.add(
                 ReceiptRecognizedItem(
                     name = name,
+                    category = row.stringOrNull("category"),
                     registeredAt = row.stringOrNull("registeredAt") ?: row.stringOrNull("registered_at"),
-                    confidence = row.doubleOrNull("confidence"),
-                    estimatedExpiresAt =
-                        row.stringOrNull("estimatedExpiresAt")
-                            ?: row.stringOrNull("estimated_expires_at"),
-                    expirySourceType =
-                        row.stringOrNull("expirySourceType")
-                            ?: row.stringOrNull("expiry_source_type"),
                 ),
             )
         }
@@ -150,6 +148,6 @@ class ReceiptImageScanApiResponseDeserializer : JsonDeserializer<ReceiptImageSca
     private fun JsonObject.stringOrNull(key: String): String? =
         get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asString
 
-    private fun JsonObject.doubleOrNull(key: String): Double? =
-        get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asDouble
+    private fun JsonObject.longOrNull(key: String): Long? =
+        get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
 }

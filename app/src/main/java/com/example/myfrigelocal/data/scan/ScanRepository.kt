@@ -99,11 +99,9 @@ class ScanRepository(context: Context) {
                 val part = imageUri.toImagePart()
                 ApiLog.d("Scan", "ingredient-image multipart ready (OkHttp 로그로 요청/응답 헤더 확인)")
                 val envelope = api.scanIngredientImage(file = part)
-                ApiLog.i(
-                    "Scan",
-                    "ingredient-image envelope status=${envelope.status} code=${envelope.code} message=${envelope.message}",
-                )
+                logScanApiResponse("ingredient-image", envelope)
                 val data = envelope.unwrapIngredientPayload()
+                logScanDataPayload("ingredient-image", data)
                 if (data.recognizedItems.isNullOrEmpty()) {
                     throw ScanApiException(RECOGNITION_EMPTY_MESSAGE)
                 }
@@ -128,16 +126,11 @@ class ScanRepository(context: Context) {
                 val part = imageUri.toImagePart()
                 ApiLog.d("Scan", "receipt-image multipart ready (OkHttp 로그로 요청/응답 헤더 확인)")
                 val envelope = api.scanReceiptImage(file = part)
-                ApiLog.i(
-                    "Scan",
-                    "receipt-image envelope status=${envelope.status} code=${envelope.code} message=${envelope.message}",
-                )
+                logScanApiResponse("receipt-image", envelope)
                 val data = envelope.unwrapReceiptPayload()
+                logScanDataPayload("receipt-image", data)
                 if (data.recognizedItems.isNullOrEmpty()) {
-                    ApiLog.w(
-                        "Scan",
-                        "receipt-image: recognizedItems 비어 있음 (OCR 결과 없음 또는 응답 스키마 확인). storeName=${data.storeName} ocrLen=${data.ocrText?.length ?: 0}",
-                    )
+                    ApiLog.w("Scan", "receipt-image: recognizedItems 비어 있음")
                 }
                 val model = mapReceiptScanToUiModel(data, localPreviewUriString)
                 ApiLog.i(
@@ -198,6 +191,44 @@ class ScanRepository(context: Context) {
             )
         }
         return data ?: throw ScanApiException("응답 데이터가 없습니다.")
+    }
+
+    private fun logScanApiResponse(endpoint: String, envelope: Any) {
+        if (!BuildConfig.DEBUG) return
+        runCatching {
+            ApiLog.i("Scan", "$endpoint API response:\n${gson.toJson(envelope)}")
+        }.onFailure { e ->
+            ApiLog.w("Scan", "$endpoint API response (JSON 직렬화 실패): $envelope | ${e.message}")
+        }
+    }
+
+    private fun logScanDataPayload(endpoint: String, data: Any) {
+        if (!BuildConfig.DEBUG) return
+        when (data) {
+            is IngredientImageScanData -> {
+                val items = data.recognizedItems.orEmpty()
+                ApiLog.i(
+                    "Scan",
+                    "$endpoint data: scanType=${data.scanType} imageAssetId=${data.imageAsset?.imageAssetId} " +
+                        "itemCount=${items.size} items=" +
+                        items.joinToString(prefix = "[", postfix = "]") {
+                            "{name=${it.name}, category=${it.category}, confidence=${it.confidence}}"
+                        },
+                )
+            }
+            is ReceiptImageScanData -> {
+                val items = data.recognizedItems.orEmpty()
+                ApiLog.i(
+                    "Scan",
+                    "$endpoint data: scanType=${data.scanType} purchasedAt=${data.purchasedAt} " +
+                        "purchasedAtSourceType=${data.purchasedAtSourceType} " +
+                        "imageAssetId=${data.imageAsset?.imageAssetId} itemCount=${items.size} items=" +
+                        items.joinToString(prefix = "[", postfix = "]") {
+                            "{name=${it.name}, category=${it.category}, registeredAt=${it.registeredAt}}"
+                        },
+                )
+            }
+        }
     }
 
     private fun Uri.toImagePart(): MultipartBody.Part {
