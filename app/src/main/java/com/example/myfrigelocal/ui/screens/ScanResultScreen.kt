@@ -15,6 +15,7 @@ import androidx.navigation.NavController
 import com.example.myfrigelocal.data.scan.CreateItemRequest
 import com.example.myfrigelocal.data.scan.ScanRepository
 import com.example.myfrigelocal.data.scan.ScanResultItemUiModel
+import com.example.myfrigelocal.data.scan.normalizeScanCategory
 import com.example.myfrigelocal.data.scan.ScanResultUiModel
 import com.example.myfrigelocal.data.scan.parseScanResultUiModel
 import com.example.myfrigelocal.data.scan.resolveStorageIdForSave
@@ -186,7 +187,8 @@ private fun ReceiptResultRoute(
                             purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: defaultPurchaseDate,
                             memo = null,
-                            imageAssetId = null,
+                            imageAssetId = parsedScan?.imageAssetId,
+                            category = normalizeScanCategory(item.category),
                         )
                         scanRepo.createItem(body).getOrElse { err ->
                             Toast.makeText(
@@ -238,6 +240,7 @@ private fun IngredientResultRoute(
                 if (row != null) {
                     ReceiptResultItemUiState(
                         name = row.name,
+                        category = row.category.ifBlank { ScanResultItemUiModel.DEFAULT_CATEGORY },
                         storageType = row.storageType.ifBlank { ScanResultItemUiModel.DEFAULT_STORAGE },
                         expiresAt = row.expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: today,
                         registeredAt = row.registeredAt,
@@ -341,6 +344,7 @@ private fun IngredientResultRoute(
                         purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() },
                         memo = null,
                         imageAssetId = imageAssetId,
+                        category = normalizeScanCategory(item.category),
                     )
                     scanRepo.createItem(body).fold(
                         onSuccess = { onNavigateHome() },
