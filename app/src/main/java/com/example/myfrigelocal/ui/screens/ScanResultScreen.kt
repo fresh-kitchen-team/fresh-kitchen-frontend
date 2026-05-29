@@ -83,6 +83,7 @@ fun ScanResultScreen(
         ReceiptResultRoute(
             parsedScan = parsedScan,
             receiptItems = receiptItems,
+            imageUriString = imageUriString,
             scanRepo = scanRepo,
             saving = saving,
             onSavingChange = { saving = it },
@@ -112,6 +113,7 @@ fun ScanResultScreen(
 private fun ReceiptResultRoute(
     parsedScan: ScanResultUiModel?,
     receiptItems: ArrayList<String>?,
+    imageUriString: String?,
     scanRepo: ScanRepository,
     saving: Boolean,
     onSavingChange: (Boolean) -> Unit,
@@ -134,9 +136,19 @@ private fun ReceiptResultRoute(
         }
     }
 
+    val previewModel: Any? = remember(parsedScan, imageUriString) {
+        when {
+            parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
+            !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
+            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
+            else -> null
+        }
+    }
+
     ReceiptScanResultContent(
         items = receiptList,
         onItemsChange = { receiptList = it },
+        previewModel = previewModel,
         saving = saving,
         onCancel = onCancel,
         onSave = {
@@ -238,11 +250,13 @@ private fun IngredientResultRoute(
                 val row = parsedScan.items.getOrNull(candidateIndex)
                     ?: parsedScan.items.firstOrNull()
                 if (row != null) {
+                    val expiry = row.expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: today
                     ReceiptResultItemUiState(
                         name = row.name,
                         category = row.category.ifBlank { ScanResultItemUiModel.DEFAULT_CATEGORY },
                         storageType = row.storageType.ifBlank { ScanResultItemUiModel.DEFAULT_STORAGE },
-                        expiresAt = row.expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: today,
+                        expiresAt = expiry,
+                        initialExpiresAt = expiry,
                         registeredAt = row.registeredAt,
                     )
                 } else {
@@ -250,6 +264,7 @@ private fun IngredientResultRoute(
                         name = suggestedIngredientName.takeIf { it.isNotBlank() } ?: "",
                         storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
                         expiresAt = today,
+                        initialExpiresAt = today,
                         registeredAt = null,
                     )
                 }
@@ -258,6 +273,7 @@ private fun IngredientResultRoute(
                 name = suggestedIngredientName.takeIf { it.isNotBlank() } ?: "",
                 storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
                 expiresAt = today,
+                initialExpiresAt = today,
                 registeredAt = null,
             )
         }
@@ -270,11 +286,12 @@ private fun IngredientResultRoute(
 
     val item = itemState ?: return
 
+    // API 업로드와 동일한 로컬 파일을 우선 표시 (S3 URL은 서버 가공본일 수 있음).
     val previewModel: Any? = remember(parsedScan, imageUriString) {
         when {
-            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
             parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
             !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
+            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
             else -> null
         }
     }
@@ -293,6 +310,10 @@ private fun IngredientResultRoute(
             itemState = item.copy(
                 expiresAt = LocalDate.now().plusDays(newOffset.toLong()).toString(),
             )
+        },
+        onResetExpiry = {
+            quickOffsetDays = 0
+            itemState = item.copy(expiresAt = item.initialExpiresAt)
         },
         saving = saving,
         onCancel = onCancel,

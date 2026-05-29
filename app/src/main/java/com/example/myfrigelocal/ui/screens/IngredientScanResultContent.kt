@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -23,8 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -34,7 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +61,7 @@ fun IngredientScanResultContent(
     onSelectCandidate: (Int) -> Unit,
     quickOffsetDays: Int,
     onQuickAdd: (Int) -> Unit,
+    onResetExpiry: () -> Unit,
     saving: Boolean,
     onCancel: () -> Unit,
     onSave: () -> Unit,
@@ -72,8 +69,7 @@ fun IngredientScanResultContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScanScreenBg)
-            .navigationBarsPadding(),
+            .background(ScanScreenBg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(
@@ -135,60 +131,20 @@ fun IngredientScanResultContent(
                 offsetDays = quickOffsetDays.takeIf { it > 0 },
                 previewModel = previewModel,
                 onUpdate = onItemChange,
+                onResetExpiry = onResetExpiry,
                 enabled = !saving,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        Surface(
-            color = ScanCardBg,
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                TextButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(ScanChipBg),
-                    onClick = onCancel,
-                    enabled = !saving,
-                ) {
-                    Text(
-                        text = "취소",
-                        color = ScanTextSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                    )
-                }
-                Button(
-                    modifier = Modifier
-                        .weight(2f)
-                        .height(50.dp),
-                    enabled = !saving && item.name.trim().isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ScanPrimary,
-                        disabledContainerColor = Color(0xFFCBD5E1),
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    onClick = onSave,
-                ) {
-                    Text(
-                        text = if (saving) "저장 중…" else "저장하기",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                    )
-                }
-            }
-        }
+        ScanResultBottomBar(
+            cancelEnabled = !saving,
+            onCancel = onCancel,
+            saveLabel = if (saving) "저장 중…" else "저장하기",
+            saveEnabled = !saving && item.name.trim().isNotEmpty(),
+            onSave = onSave,
+        )
     }
 }
 
@@ -255,6 +211,7 @@ private fun IngredientCard(
     offsetDays: Int?,
     previewModel: Any?,
     onUpdate: (ReceiptResultItemUiState) -> Unit,
+    onResetExpiry: () -> Unit,
     enabled: Boolean,
 ) {
     Surface(
@@ -286,7 +243,7 @@ private fun IngredientCard(
                         Image(
                             painter = rememberAsyncImagePainter(model = previewModel),
                             contentDescription = null,
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -313,9 +270,12 @@ private fun IngredientCard(
                     onChange = { onUpdate(item.copy(storageType = it)) },
                     enabled = enabled,
                 )
-                ExpiryChip(
+                ExpiryChipRow(
                     expiresAt = item.expiresAt,
                     offsetDays = offsetDays,
+                    initialExpiresAt = item.initialExpiresAt,
+                    onResetExpiry = onResetExpiry,
+                    enabled = enabled,
                 )
             }
         }

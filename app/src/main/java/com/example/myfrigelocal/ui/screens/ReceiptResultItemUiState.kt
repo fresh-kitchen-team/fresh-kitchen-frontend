@@ -12,19 +12,24 @@ data class ReceiptResultItemUiState(
     val category: String = ScanResultItemUiModel.DEFAULT_CATEGORY,
     val storageType: String,
     val expiresAt: String,
+    /** 빠른 설정 적용 전 유통기한 — 카드별 초기화에 사용 */
+    val initialExpiresAt: String,
     val registeredAt: String?,
 )
 
 internal fun todayIsoDate(): String = LocalDate.now().toString()
 
-internal fun ScanResultItemUiModel.toReceiptResultItemUiState(): ReceiptResultItemUiState =
-    ReceiptResultItemUiState(
+internal fun ScanResultItemUiModel.toReceiptResultItemUiState(): ReceiptResultItemUiState {
+    val expiry = expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: todayIsoDate()
+    return ReceiptResultItemUiState(
         name = name,
         category = category.ifBlank { ScanResultItemUiModel.DEFAULT_CATEGORY },
         storageType = storageType.ifBlank { ScanResultItemUiModel.DEFAULT_STORAGE },
-        expiresAt = expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: todayIsoDate(),
+        expiresAt = expiry,
+        initialExpiresAt = expiry,
         registeredAt = registeredAt,
     )
+}
 
 internal fun buildReceiptListFromScan(model: ScanResultUiModel): List<ReceiptResultItemUiState> =
     model.items.map { it.toReceiptResultItemUiState() }
@@ -37,6 +42,7 @@ internal fun buildReceiptListFromLegacyNames(names: List<String>): List<ReceiptR
             category = ScanResultItemUiModel.DEFAULT_CATEGORY,
             storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
             expiresAt = today,
+            initialExpiresAt = today,
             registeredAt = today,
         )
     }

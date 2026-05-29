@@ -70,24 +70,11 @@ fun mapReceiptScanToUiModel(
                 confidence = null,
             )
         }
-    val effectiveItems =
-        items.ifEmpty {
-            listOf(
-                ScanResultItemUiModel(
-                    name = "인식된 품목이 없습니다. 이름을 직접 입력해 주세요.",
-                    category = ScanResultItemUiModel.DEFAULT_CATEGORY,
-                    storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
-                    registeredAt = purchasedDay ?: firstDateOnly(data.createdAt) ?: todayIsoDate(),
-                    expiresAt = null,
-                    confidence = null,
-                ),
-            )
-        }
     return ScanResultUiModel(
         sourceType = "RECEIPT",
         localPreviewImageUri = localCapturedImageUri,
         remotePreviewImageUrl = remoteUrl,
-        items = effectiveItems,
+        items = items,
         purchasedAt = purchased,
         purchasedAtSourceType = data.purchasedAtSourceType?.trim()?.takeIf { it.isNotEmpty() },
         imageAssetId = data.imageAsset?.imageAssetId,

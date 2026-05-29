@@ -1,19 +1,32 @@
 package com.example.myfrigelocal.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.ZoomIn
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -22,6 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,9 +45,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -173,6 +192,36 @@ internal fun StorageDropdownChip(
 }
 
 @Composable
+internal fun ExpiryChipRow(
+    expiresAt: String,
+    offsetDays: Int?,
+    initialExpiresAt: String,
+    onResetExpiry: () -> Unit,
+    enabled: Boolean,
+) {
+    val canReset =
+        expiresAt != initialExpiresAt || (offsetDays != null && offsetDays > 0)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        ExpiryChip(expiresAt = expiresAt, offsetDays = offsetDays)
+        IconButton(
+            onClick = onResetExpiry,
+            enabled = enabled && canReset,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = "유통기한 초기화",
+                tint = if (canReset && enabled) ScanPrimaryDark else ScanTextTertiary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
 internal fun ExpiryChip(
     expiresAt: String,
     offsetDays: Int?,
@@ -246,4 +295,181 @@ internal fun storageTypeEmoji(code: String): String = when (code.uppercase()) {
     "FREEZER" -> "❄️"
     "PANTRY" -> "🌡️"
     else -> "📦"
+}
+
+/** 스캔 프레임·크롭 후 업로드(640×1024)와 동일한 가로:세로 비율 */
+private const val RECEIPT_PREVIEW_ASPECT_RATIO = 640f / 1024f
+
+/** 영수증 스캔 결과 — 작은 썸네일 카드 (탭 시 [ReceiptFullscreenImageDialog]) */
+@Composable
+internal fun ReceiptScanPreviewThumbnail(
+    previewModel: Any,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = ScanCardBg,
+        border = BorderStroke(1.dp, ScanDivider),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = ScanChipBg,
+                border = BorderStroke(1.dp, ScanDivider),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .aspectRatio(RECEIPT_PREVIEW_ASPECT_RATIO)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = previewModel),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(2.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "영수증 이미지",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ScanTextPrimary,
+                )
+                Text(
+                    text = "탭하여 크게 보기",
+                    fontSize = 12.sp,
+                    color = ScanTextTertiary,
+                )
+            }
+            Icon(
+                imageVector = Icons.Outlined.ZoomIn,
+                contentDescription = null,
+                tint = ScanTextTertiary,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/** 영수증 전체 화면 미리보기 */
+@Composable
+internal fun ReceiptFullscreenImageDialog(
+    previewModel: Any,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(model = previewModel),
+                contentDescription = "영수증 이미지 확대",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 48.dp),
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(14.dp)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(Color(0x99000000)),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "닫기",
+                    tint = Color.White,
+                )
+            }
+        }
+    }
+}
+
+/** 스캔 결과 화면 공통 하단 취소/저장 바 (Scaffold innerPadding이 시스템 바 inset 처리) */
+@Composable
+internal fun ScanResultBottomBar(
+    cancelEnabled: Boolean,
+    onCancel: () -> Unit,
+    saveLabel: String,
+    saveEnabled: Boolean,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = ScanCardBg,
+        shadowElevation = 8.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 640.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TextButton(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ScanChipBg),
+                    onClick = onCancel,
+                    enabled = cancelEnabled,
+                ) {
+                    Text(
+                        text = "취소",
+                        color = ScanTextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                    )
+                }
+                Button(
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(46.dp),
+                    enabled = saveEnabled,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ScanPrimary,
+                        disabledContainerColor = Color(0xFFCBD5E1),
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    onClick = onSave,
+                ) {
+                    Text(
+                        text = saveLabel,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                    )
+                }
+            }
+        }
+    }
 }
