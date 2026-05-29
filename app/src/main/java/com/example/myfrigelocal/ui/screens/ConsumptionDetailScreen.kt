@@ -55,6 +55,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.myfrigelocal.ui.theme.BottomNavSelected
+import com.example.myfrigelocal.navigation.BottomNavRoute
+import com.example.myfrigelocal.navigation.ScanNav
 import com.example.myfrigelocal.viewmodel.ConsumptionDdayTone
 import com.example.myfrigelocal.viewmodel.ConsumptionItemUi
 import com.example.myfrigelocal.viewmodel.ConsumptionStorageFilter
@@ -152,7 +154,14 @@ fun ConsumptionDetailScreen(
                                 item = item,
                                 accent = accent,
                                 isConsuming = item.id in uiState.consumingIds,
-                                onConsumeComplete = { viewModel.consumeItem(item.id) },
+                                onConsumeComplete = {
+                    viewModel.consumeItem(item.id) {
+                        // 소비 성공 → 홈 화면 품목 수 갱신
+                        navController.getBackStackEntry(BottomNavRoute.Home.route)
+                            .savedStateHandle
+                            .set(ScanNav.keyRefreshHome, System.currentTimeMillis())
+                    }
+                },
                             )
                         }
                     }

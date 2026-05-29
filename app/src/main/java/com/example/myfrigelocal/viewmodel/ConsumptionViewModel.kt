@@ -114,7 +114,7 @@ class ConsumptionViewModel(
      *  - 실패: 리스트는 유지하고 error 메시지 노출 (Snackbar 등에서 표시)
      *  - 동일 id 재호출은 무시 (중복 클릭 방지)
      */
-    fun consumeItem(id: Long) {
+    fun consumeItem(id: Long, onSuccess: () -> Unit = {}) {
         if (id in _uiState.value.consumingIds) {
             ApiLog.d(TAG, "consumeItem() ignore duplicate id=$id (already in-flight)")
             return
@@ -139,6 +139,7 @@ class ConsumptionViewModel(
                     items = newItems,
                     consumingIds = current.consumingIds - id,
                 )
+                onSuccess()
             } else {
                 ApiLog.w(TAG, "consumeItem() FAILED id=$id")
                 _uiState.value = current.copy(

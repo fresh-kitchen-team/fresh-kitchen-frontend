@@ -106,14 +106,24 @@ fun FoodItemEditDialog(
                     EditField(label = "유통기한", modifier = Modifier.weight(1f)) {
                         EditTextField(
                             value = expiryDate,
-                            onValueChange = { expiryDate = it },
+                            onValueChange = { input ->
+                                val digits = input.filter { it.isDigit() }
+                                expiryDate = if (digits.length == 8)
+                                    "${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}"
+                                else input
+                            },
                             placeholder = "YYYY-MM-DD"
                         )
                     }
                     EditField(label = "구매일 (선택)", modifier = Modifier.weight(1f)) {
                         EditTextField(
                             value = purchaseDate,
-                            onValueChange = { purchaseDate = it },
+                            onValueChange = { input ->
+                                val digits = input.filter { it.isDigit() }
+                                purchaseDate = if (digits.length == 8)
+                                    "${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}"
+                                else input
+                            },
                             placeholder = "YYYY-MM-DD"
                         )
                     }
