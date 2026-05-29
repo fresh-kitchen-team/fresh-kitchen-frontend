@@ -164,20 +164,6 @@ fun SettingsScreen(
                 )
             }
 
-            // ── [DEBUG] 알림 즉시 테스트 버튼 ──
-            if (BuildConfig.DEBUG) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = { viewModel.testAlarmNow() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35))
-                ) {
-                    Text("🔔 알림 지금 테스트 (DEBUG)", color = Color.White)
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── 계정 ──

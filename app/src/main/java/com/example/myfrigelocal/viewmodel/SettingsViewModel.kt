@@ -178,18 +178,4 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(withdrawError = null)
     }
 
-    // ───────────────────────────────────────────
-    // [DEBUG] 알림 즉시 테스트 — 배포 전 제거
-    // POST /api/v1/dev/notifications/expiring 호출
-    // ───────────────────────────────────────────
-    fun testAlarmNow() {
-        viewModelScope.launch {
-            try {
-                RetrofitClient.devApi.triggerExpiryNotification()
-                Log.d("SettingsVM", "[DEBUG] 유통기한 알림 즉시 트리거 완료")
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "[DEBUG] 알림 트리거 실패: ${e.message}")
-            }
-        }
-    }
 }
