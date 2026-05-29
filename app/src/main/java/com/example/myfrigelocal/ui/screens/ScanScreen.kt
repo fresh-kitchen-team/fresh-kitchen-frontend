@@ -2,6 +2,7 @@ package com.example.myfrigelocal.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
@@ -41,11 +42,14 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
@@ -102,6 +107,7 @@ fun ScanScreen(
     var lastBarcodeRawValue by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptItems by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
+    var showEmptyReceiptDialog by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
     val currentTab by rememberUpdatedState(selectedTab)
     var captureRequestToken by rememberSaveable { mutableStateOf(0L) }
@@ -162,6 +168,23 @@ fun ScanScreen(
     LaunchedEffect(operationState) {
         when (val s = operationState) {
             is ScanOperationState.Success -> {
+                val isEmptyReceiptResult =
+                    currentTab == ScanTab.Receipt &&
+                        s.result.sourceType == "RECEIPT" &&
+                        s.result.items.isEmpty()
+                if (isEmptyReceiptResult) {
+                    scanState = ScanState.SCANNING
+                    hasNavigatedToResult = false
+                    lastSelectedImageUri = null
+                    receiptItems = emptyList()
+                    navController.currentBackStackEntry?.savedStateHandle?.apply {
+                        remove<String>(ScanNav.keyScanResultJson)
+                        remove<String>(ScanNav.keyImageUri)
+                    }
+                    showEmptyReceiptDialog = true
+                    scanViewModel.acknowledgeSuccess()
+                    return@LaunchedEffect
+                }
                 lastSelectedImageUri = s.result.localPreviewImageUri
                 receiptItems = emptyList()
                 navController.currentBackStackEntry?.savedStateHandle?.set(
@@ -193,46 +216,13 @@ fun ScanScreen(
             if (uri == null) return@rememberLauncherForActivityResult
             val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, uri)
             val imageUriStr =
-                if (originalBitmap != null && previewBounds != null && frameBounds != null) {
-                    val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
-                        frameBoundsInWindowPx = frameBounds!!,
-                        previewBoundsInWindowPx = previewBounds!!,
-                        bitmapW = originalBitmap.width,
-                        bitmapH = originalBitmap.height,
-                    )
-                    val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
-                    val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
-                    val (targetW, targetH, prefix) =
-                        when (currentTab) {
-                            ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
-                            ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
-                            ScanTab.Fridge -> Triple(1024, 1365, "resized_fridge")
-                        }
-                    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
-                    val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
-                    ScanImageCropper.logDebug(
-                        ScanImageCropper.CropDebug(
-                            bitmapW = originalBitmap.width,
-                            bitmapH = originalBitmap.height,
-                            frame = frameBounds!!,
-                            preview = previewBounds!!,
-                            crop = cropRect,
-                            croppedW = cropped.width,
-                            croppedH = cropped.height,
-                            resizedW = resized.width,
-                            resizedH = resized.height,
-                            croppedSavedPath = croppedUri.path,
-                            resizedSavedPath = resizedUri.path,
-                        ),
-                    )
-                    resizedUri.toString()
-                } else {
-                    Log.d(
-                        "ScanCrop",
-                        "Bounds missing; skipping crop. preview=$previewBounds frame=$frameBounds bmp=${originalBitmap?.width}x${originalBitmap?.height}",
-                    )
-                    uri.toString()
-                }
+                context.prepareImageForScanUpload(
+                    originalBitmap = originalBitmap,
+                    fallbackUri = uri,
+                    tab = currentTab,
+                    previewBounds = previewBounds,
+                    frameBounds = frameBounds,
+                )
             lastBarcodeRawValue = null
             scope.launch {
                 when (currentTab) {
@@ -312,43 +302,13 @@ fun ScanScreen(
                 val originalUri = Uri.parse(photoUriString)
                 val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, originalUri)
                 val imageUriStr =
-                    if (originalBitmap != null && previewBounds != null && frameBounds != null) {
-                        val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
-                            frameBoundsInWindowPx = frameBounds!!,
-                            previewBoundsInWindowPx = previewBounds!!,
-                            bitmapW = originalBitmap.width,
-                            bitmapH = originalBitmap.height,
-                        )
-                        val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
-                        val croppedUri = ScanImageCropper.saveJpegToInternal(context, cropped, prefix = "cropped")
-                        val (targetW, targetH, prefix) =
-                            when (selectedTab) {
-                                ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
-                                ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
-                                ScanTab.Fridge -> Triple(1024, 1365, "resized_fridge")
-                            }
-                        val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
-                        val resizedUri = ScanImageCropper.saveJpegToInternal(context, resized, prefix = prefix)
-                        ScanImageCropper.logDebug(
-                            ScanImageCropper.CropDebug(
-                                bitmapW = originalBitmap.width,
-                                bitmapH = originalBitmap.height,
-                                frame = frameBounds!!,
-                                preview = previewBounds!!,
-                                crop = cropRect,
-                                croppedW = cropped.width,
-                                croppedH = cropped.height,
-                                resizedW = resized.width,
-                                resizedH = resized.height,
-                                croppedSavedPath = croppedUri.path,
-                                resizedSavedPath = resizedUri.path,
-                            ),
-                        )
-                        resizedUri.toString()
-                    } else {
-                        Log.d("ScanCrop", "Bounds missing; skipping crop on capture.")
-                        photoUriString
-                    }
+                    context.prepareImageForScanUpload(
+                        originalBitmap = originalBitmap,
+                        fallbackUri = originalUri,
+                        tab = selectedTab,
+                        previewBounds = previewBounds,
+                        frameBounds = frameBounds,
+                    )
                 lastBarcodeRawValue = null
                 scope.launch {
                     when (selectedTab) {
@@ -512,6 +472,10 @@ fun ScanScreen(
             )
         }
     }
+
+    if (showEmptyReceiptDialog) {
+        EmptyReceiptScanDialog(onDismiss = { showEmptyReceiptDialog = false })
+    }
 }
 
 enum class ScanState {
@@ -526,6 +490,136 @@ enum class ScanState {
 private val PrimaryGreen = Color(0xFF00C853)
 
 private enum class ScanTab { Ingredient, Fridge, Receipt }
+
+/**
+ * 식재료: 프레임 크롭 없이 원본 비율 유지 + 긴 변 최대 1024 리사이즈 (API·미리보기 동일 파일).
+ * 영수증/냉장고: 프레임 영역 크롭 후 지정 해상도로 리사이즈.
+ */
+private fun Context.prepareImageForScanUpload(
+    originalBitmap: Bitmap?,
+    fallbackUri: Uri,
+    tab: ScanTab,
+    previewBounds: RectF?,
+    frameBounds: RectF?,
+): String {
+    if (originalBitmap == null) {
+        Log.d("ScanCrop", "Bitmap load failed; using fallback uri=$fallbackUri")
+        return fallbackUri.toString()
+    }
+    if (tab == ScanTab.Ingredient) {
+        val resized = ScanImageCropper.resizeFitWithinMax(originalBitmap, maxSize = 1024)
+        val uri = ScanImageCropper.saveJpegToInternal(this, resized, prefix = "ingredient_fit")
+        Log.d(
+            "ScanCrop",
+            "ingredient fit-resize ${originalBitmap.width}x${originalBitmap.height} -> ${resized.width}x${resized.height}",
+        )
+        return uri.toString()
+    }
+    if (previewBounds == null || frameBounds == null) {
+        Log.d("ScanCrop", "Bounds missing; skipping crop. tab=$tab")
+        return fallbackUri.toString()
+    }
+    val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
+        frameBoundsInWindowPx = frameBounds,
+        previewBoundsInWindowPx = previewBounds,
+        bitmapW = originalBitmap.width,
+        bitmapH = originalBitmap.height,
+    )
+    val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
+    val croppedUri = ScanImageCropper.saveJpegToInternal(this, cropped, prefix = "cropped")
+    val (targetW, targetH, prefix) =
+        when (tab) {
+            ScanTab.Receipt -> Triple(640, 1024, "resized_640x1024")
+            ScanTab.Fridge -> Triple(1024, 1365, "resized_fridge")
+            ScanTab.Ingredient -> Triple(1024, 1024, "resized_1024")
+        }
+    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
+    val resizedUri = ScanImageCropper.saveJpegToInternal(this, resized, prefix = prefix)
+    ScanImageCropper.logDebug(
+        ScanImageCropper.CropDebug(
+            bitmapW = originalBitmap.width,
+            bitmapH = originalBitmap.height,
+            frame = frameBounds,
+            preview = previewBounds,
+            crop = cropRect,
+            croppedW = cropped.width,
+            croppedH = cropped.height,
+            resizedW = resized.width,
+            resizedH = resized.height,
+            croppedSavedPath = croppedUri.path,
+            resizedSavedPath = resizedUri.path,
+        ),
+    )
+    return resizedUri.toString()
+}
+
+@Composable
+private fun EmptyReceiptScanDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            tonalElevation = 0.dp,
+            shadowElevation = 12.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(min = 280.dp, max = 320.dp)
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFDCFCE7)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Receipt,
+                        contentDescription = null,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = "인식된 품목이 없습니다",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A),
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "다시 영수증 스캔해주세요",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF64748B),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryGreen,
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Text(
+                        text = "확인",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
 
 private fun Context.showShortToast(message: String) {
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

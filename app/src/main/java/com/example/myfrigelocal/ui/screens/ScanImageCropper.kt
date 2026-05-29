@@ -94,6 +94,20 @@ object ScanImageCropper {
         return Bitmap.createScaledBitmap(source, targetW, targetH, true)
     }
 
+    /** 긴 변이 [maxSize] 이하가 되도록 비율 유지 리사이즈 (크롭 없음). */
+    fun resizeFitWithinMax(
+        source: Bitmap,
+        maxSize: Int = 1024,
+    ): Bitmap {
+        val w = source.width
+        val h = source.height
+        if (w <= maxSize && h <= maxSize) return source
+        val scale = minOf(maxSize.toFloat() / w, maxSize.toFloat() / h)
+        val nw = (w * scale).roundToInt().coerceAtLeast(1)
+        val nh = (h * scale).roundToInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(source, nw, nh, true)
+    }
+
     fun saveJpegToInternal(
         context: Context,
         bitmap: Bitmap,

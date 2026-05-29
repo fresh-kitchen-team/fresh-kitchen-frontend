@@ -1,5 +1,8 @@
 package com.example.myfrigelocal.ui
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -85,9 +90,22 @@ fun MainScaffold(
             }
         },
     ) { innerPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+        // 스캔 결과: 하단 바 숨김 + innerPadding bottom이 커서 버튼이 위로 떠 보임 → 최소 여백만
+        val contentPadding =
+            if (currentRoute == ScanNav.routeResult) {
+                PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    start = innerPadding.calculateStartPadding(layoutDirection),
+                    end = innerPadding.calculateEndPadding(layoutDirection),
+                    bottom = 12.dp,
+                )
+            } else {
+                innerPadding
+            }
         AppNavHost(
             navController = navController,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(contentPadding),
             isLoggedIn = isLoggedIn,
             onInventorySelectModeChange = { isInventorySelectMode = it },
         )

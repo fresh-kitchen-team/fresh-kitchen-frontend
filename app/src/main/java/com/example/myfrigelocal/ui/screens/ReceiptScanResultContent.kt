@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -26,8 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,140 +49,162 @@ import java.time.LocalDate
 fun ReceiptScanResultContent(
     items: List<ReceiptResultItemUiState>,
     onItemsChange: (List<ReceiptResultItemUiState>) -> Unit,
+    previewModel: Any? = null,
     saving: Boolean,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     var quickDaysOffsetByItem by remember { mutableStateOf(mapOf<String, Int>()) }
+    var showReceiptFullscreen by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScanScreenBg)
-            .navigationBarsPadding(),
+            .background(ScanScreenBg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .widthIn(max = 640.dp)
-                .padding(horizontal = 20.dp),
+                .widthIn(max = 640.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 6.dp)
-                    .size(width = 40.dp, height = 4.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(ScanDivider),
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "스캔 결과 확인",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = ScanTextPrimary,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "인식된 품목을 확인하고 유통기한을 설정해주세요.",
-                style = MaterialTheme.typography.bodySmall,
-                color = ScanTextSecondary,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            QuickExpirySection(
-                selectedCount = selectedIds.size,
-                totalCount = items.size,
-                enabledAll = items.isNotEmpty() && !saving,
-                onSelectAllToggle = {
-                    selectedIds = if (selectedIds.size == items.size && items.isNotEmpty()) {
-                        emptySet()
-                    } else {
-                        items.map { it.id }.toSet()
-                    }
-                },
-                onQuickAdd = { days ->
-                    if (selectedIds.isEmpty()) return@QuickExpirySection
-                    val updatedOffsets = quickDaysOffsetByItem.toMutableMap()
-                    selectedIds.forEach { id ->
-                        updatedOffsets[id] = (updatedOffsets[id] ?: 0) + days
-                    }
-                    quickDaysOffsetByItem = updatedOffsets
-                    val today = LocalDate.now()
-                    onItemsChange(
-                        items.map { item ->
-                            val offset = updatedOffsets[item.id]
-                            if (offset != null && item.id in selectedIds) {
-                                item.copy(expiresAt = today.plusDays(offset.toLong()).toString())
-                            } else {
-                                item
-                            }
-                        },
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 6.dp)
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(100.dp))
+                            .background(ScanDivider),
                     )
-                },
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "인식된 품목",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    text = "스캔 결과 확인",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
                     color = ScanTextPrimary,
                 )
-                Spacer(modifier = Modifier.size(6.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(ScanPrimarySoft)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "${items.size}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ScanPrimaryDark,
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "인식된 품목을 확인하고 유통기한을 설정해주세요.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ScanTextSecondary,
+                )
+            }
+
+            if (previewModel != null) {
+                item {
+                    ReceiptScanPreviewThumbnail(
+                        previewModel = previewModel,
+                        onClick = { showReceiptFullscreen = true },
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
 
-        if (items.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "인식된 품목이 없습니다.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ScanTextTertiary,
+            item {
+                QuickExpirySection(
+                    selectedCount = selectedIds.size,
+                    totalCount = items.size,
+                    enabledAll = items.isNotEmpty() && !saving,
+                    onSelectAllToggle = {
+                        selectedIds = if (selectedIds.size == items.size && items.isNotEmpty()) {
+                            emptySet()
+                        } else {
+                            items.map { it.id }.toSet()
+                        }
+                    },
+                    onQuickAdd = { days ->
+                        if (selectedIds.isEmpty()) return@QuickExpirySection
+                        val updatedOffsets = quickDaysOffsetByItem.toMutableMap()
+                        selectedIds.forEach { id ->
+                            updatedOffsets[id] = (updatedOffsets[id] ?: 0) + days
+                        }
+                        quickDaysOffsetByItem = updatedOffsets
+                        val today = LocalDate.now()
+                        onItemsChange(
+                            items.map { item ->
+                                val offset = updatedOffsets[item.id]
+                                if (offset != null && item.id in selectedIds) {
+                                    item.copy(expiresAt = today.plusDays(offset.toLong()).toString())
+                                } else {
+                                    item
+                                }
+                            },
+                        )
+                    },
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .widthIn(max = 640.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "인식된 품목",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ScanTextPrimary,
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(100.dp))
+                            .background(ScanPrimarySoft)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = "${items.size}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ScanPrimaryDark,
+                        )
+                    }
+                }
+            }
+
+            if (items.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "인식된 품목이 없습니다.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ScanTextTertiary,
+                        )
+                    }
+                }
+            } else {
                 items(items, key = { it.id }) { item ->
                     ReceiptItemCard(
                         item = item,
                         isSelected = item.id in selectedIds,
                         offsetDays = quickDaysOffsetByItem[item.id],
+                        onResetExpiry = {
+                            quickDaysOffsetByItem = quickDaysOffsetByItem - item.id
+                            onItemsChange(
+                                items.map {
+                                    if (it.id == item.id) {
+                                        it.copy(expiresAt = it.initialExpiresAt)
+                                    } else {
+                                        it
+                                    }
+                                },
+                            )
+                        },
                         onSelectToggle = {
                             selectedIds = if (item.id in selectedIds) {
                                 selectedIds - item.id
@@ -204,58 +223,25 @@ fun ReceiptScanResultContent(
                         enabled = !saving,
                     )
                 }
-                item { Spacer(modifier = Modifier.height(4.dp)) }
             }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
-        Surface(
-            color = ScanCardBg,
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                TextButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(ScanChipBg),
-                    onClick = onCancel,
-                    enabled = !saving,
-                ) {
-                    Text(
-                        text = "취소",
-                        color = ScanTextSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                    )
-                }
-                Button(
-                    modifier = Modifier
-                        .weight(2f)
-                        .height(50.dp),
-                    enabled = !saving && items.any { it.name.trim().isNotEmpty() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ScanPrimary,
-                        disabledContainerColor = Color(0xFFCBD5E1),
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    onClick = onSave,
-                ) {
-                    Text(
-                        text = if (saving) "저장 중…" else "${items.size}개 저장하기",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                    )
-                }
-            }
-        }
+        ScanResultBottomBar(
+            cancelEnabled = !saving,
+            onCancel = onCancel,
+            saveLabel = if (saving) "저장 중…" else "${items.size}개 저장하기",
+            saveEnabled = !saving && items.any { it.name.trim().isNotEmpty() },
+            onSave = onSave,
+        )
+    }
+
+    if (showReceiptFullscreen && previewModel != null) {
+        ReceiptFullscreenImageDialog(
+            previewModel = previewModel,
+            onDismiss = { showReceiptFullscreen = false },
+        )
     }
 }
 
@@ -343,6 +329,7 @@ private fun ReceiptItemCard(
     item: ReceiptResultItemUiState,
     isSelected: Boolean,
     offsetDays: Int?,
+    onResetExpiry: () -> Unit,
     onSelectToggle: () -> Unit,
     onUpdate: (ReceiptResultItemUiState) -> Unit,
     onRemove: () -> Unit,
@@ -390,9 +377,12 @@ private fun ReceiptItemCard(
                         onChange = { onUpdate(item.copy(storageType = it)) },
                         enabled = enabled,
                     )
-                    ExpiryChip(
+                    ExpiryChipRow(
                         expiresAt = item.expiresAt,
                         offsetDays = offsetDays,
+                        initialExpiresAt = item.initialExpiresAt,
+                        onResetExpiry = onResetExpiry,
+                        enabled = enabled,
                     )
                 }
             }
