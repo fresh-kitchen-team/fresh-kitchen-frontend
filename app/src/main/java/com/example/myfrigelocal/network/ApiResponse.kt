@@ -42,7 +42,7 @@ data class StorageDto(
 data class ItemCreateRequest(
     val name: String,
     val catalogId: Long? = null,   // 시연용 catalog seed ID (null 허용)
-    val storageId: Long,
+    val storageType: String,       // "FRIDGE" | "FREEZER" | "PANTRY"
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
     val memo: String? = null
@@ -61,7 +61,7 @@ data class ItemUpdateRequest(
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
     val memo: String? = null,
-    val storageId: Long? = null
+    val storageType: String? = null  // "FRIDGE" | "FREEZER" | "PANTRY"
 )
 
 // ───────────────────────────────────────────
