@@ -1,6 +1,5 @@
 package com.example.myfrigelocal.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myfrigelocal.network.IngredientRepository
@@ -19,9 +18,6 @@ data class ManualAddUiState(
     val expiryDate: String = "",
     val purchaseDate: String = "",
     val memo: String = "",
-    // 서버에서 받아온 storageType → storageId 매핑
-    val storageMap: Map<StorageType, Long> = emptyMap(),
-    val isLoadingStorages: Boolean = false,
     val isSubmitting: Boolean = false,
     val isSuccess: Boolean = false,
     val error: String? = null,
@@ -36,33 +32,6 @@ class ManualAddViewModel(
 
     private val _uiState = MutableStateFlow(ManualAddUiState())
     val uiState: StateFlow<ManualAddUiState> = _uiState.asStateFlow()
-
-    init {
-        loadStorages()
-    }
-
-    // ── 유저 스토리지 목록 로드 (storageId 매핑) ──
-    private fun loadStorages() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoadingStorages = true)
-            try {
-                val storages = repository.getStorages()
-                val map = mutableMapOf<StorageType, Long>()
-                storages.forEach { dto ->
-                    when (dto.storageType?.uppercase()) {
-                        "FRIDGE"  -> map[StorageType.FRIDGE]  = dto.storageId
-                        "FREEZER" -> map[StorageType.FREEZER] = dto.storageId
-                        "PANTRY"  -> map[StorageType.PANTRY]  = dto.storageId
-                    }
-                }
-                Log.d("ManualAddVM", "스토리지 로드 완료: $map")
-                _uiState.value = _uiState.value.copy(isLoadingStorages = false, storageMap = map)
-            } catch (e: Exception) {
-                Log.e("ManualAddVM", "스토리지 로드 실패: ${e.message}")
-                _uiState.value = _uiState.value.copy(isLoadingStorages = false)
-            }
-        }
-    }
 
     fun onNameChange(name: String)         { _uiState.value = _uiState.value.copy(name = name) }
     fun onStorageChange(s: StorageType)    { _uiState.value = _uiState.value.copy(selectedStorage = s) }
@@ -86,25 +55,18 @@ class ManualAddViewModel(
             return
         }
 
-        val storageId = s.storageMap[s.selectedStorage]
-        if (storageId == null) {
-            _uiState.value = s.copy(error = "저장 공간 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.")
-            return
-        }
-
         viewModelScope.launch {
             _uiState.value = s.copy(isSubmitting = true, error = null)
             val success = repository.addItem(
                 ItemCreateRequest(
                     name         = s.name.trim(),
-                    storageId    = storageId,
+                    storageType  = s.selectedStorage.name,  // "FRIDGE" | "FREEZER" | "PANTRY"
                     expiryDate   = formatDate(s.expiryDate),
                     purchaseDate = formatDate(s.purchaseDate),
                     memo         = s.memo.ifBlank { null }
                 )
             )
             if (success) {
-                Log.d("ManualAddVM", "식재료 추가 성공: ${s.name}")
                 _uiState.value = _uiState.value.copy(isSubmitting = false, isSuccess = true)
                 onSuccess()
             } else {

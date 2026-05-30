@@ -161,7 +161,7 @@ class InventoryListViewModel(
                     expiryDate = updatedItem.expiryDate.ifEmpty { null },
                     purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
                     memo = updatedItem.memo.ifEmpty { null },
-                    storageId = storageIdMap[updatedItem.storage]
+                    storageType = updatedItem.storage.name  // "FRIDGE" | "FREEZER" | "PANTRY"
                 )
             )
         }
@@ -210,10 +210,15 @@ class InventoryListViewModel(
             InventoryFilter.EXPIRED  -> allItems.filter { it.status == FoodStatus.EXPIRED }
         }
 
+        // 유통기한 오름차순 정렬 (임박순), 유통기한 없는 항목은 맨 뒤
+        val sorted = filtered.sortedWith(compareBy(nullsLast()) {
+            it.expiryDate.takeIf { d -> d.isNotBlank() }
+        })
+
         _uiState.value = InventoryListUiState(
             selectedFilter = filter,
             allItems = allItems,
-            filteredItems = filtered,
+            filteredItems = sorted,
             totalCount = filtered.size,
             freshCount = filtered.count { it.status == FoodStatus.FRESH },
             nearExpiryCount = filtered.count { it.status == FoodStatus.NEAR_EXPIRY },
