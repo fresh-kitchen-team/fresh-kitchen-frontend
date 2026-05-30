@@ -20,6 +20,17 @@ class IngredientRepository(
         }
     }
 
+    suspend fun searchItems(name: String): List<ItemDto> {
+        return try {
+            val response = api.searchIngredients(name)
+            if (response.code == "COMMON-200") response.data ?: emptyList()
+            else emptyList()
+        } catch (e: Exception) {
+            Log.e("IngredientRepo", "searchItems 예외: ${e.message}")
+            emptyList()
+        }
+    }
+
     suspend fun addItem(request: ItemCreateRequest): Boolean {
         return try {
             val response = api.addItem(request)
