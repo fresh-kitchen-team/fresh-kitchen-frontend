@@ -127,15 +127,14 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── 자동완성 드롭다운 ──
-            if (uiState.suggestions.isNotEmpty()) {
-                SuggestionDropdown(
-                    suggestions = uiState.suggestions,
-                    onSelect = { keyword ->
-                        viewModel.search(keyword)
-                        keyboardController?.hide()
-                    }
-                )
+            // ── 로딩 ──
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = FreshGreenDark)
+                }
             }
             // ── 검색 결과 ──
             else if (uiState.searchResults != null) {

@@ -231,7 +231,7 @@ class InventoryListViewModel(
 // ───────────────────────────────────────────
 // 확장 함수: ItemDto → FoodItem 변환
 // ───────────────────────────────────────────
-private fun ItemDto.toFoodItem(): FoodItem {
+internal fun ItemDto.toFoodItem(): FoodItem {
     val storageType = when (storage) {
         "FREEZER" -> StorageType.FREEZER
         "PANTRY"  -> StorageType.PANTRY
