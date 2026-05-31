@@ -185,7 +185,7 @@ fun ManualAddScreen(
             // ── 추가하기 버튼 ──
             Button(
                 onClick = { viewModel.submit(onAddSuccess) },
-                enabled = !uiState.isSubmitting && !uiState.isLoadingStorages,
+                enabled = !uiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),

@@ -41,11 +41,12 @@ data class StorageDto(
 // ───────────────────────────────────────────
 data class ItemCreateRequest(
     val name: String,
-    val catalogId: Long? = null,   // 시연용 catalog seed ID (null 허용)
-    val storageId: Long,
+    val storageType: String,
+    val catalogId: Long? = null,
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
-    val memo: String? = null
+    val memo: String? = null,
+    val imageAssetId: Long? = null,
 )
 
 data class ItemCreateResponse(

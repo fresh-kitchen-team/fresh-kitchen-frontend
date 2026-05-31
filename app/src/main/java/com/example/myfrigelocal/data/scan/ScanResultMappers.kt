@@ -81,6 +81,59 @@ fun mapReceiptScanToUiModel(
     )
 }
 
+fun mapFridgeScanToUiModel(
+    data: FridgeImageScanData,
+    localCapturedImageUri: String?,
+): ScanResultUiModel {
+    val remoteUrl = data.imageAsset?.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val createdDay = firstDateOnly(data.createdAt) ?: todayIsoDate()
+    val items =
+        data.detectedItems.orEmpty().mapNotNull { row ->
+            val n = row.name?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            ScanResultItemUiModel(
+                name = n,
+                category = normalizeScanCategory(row.category),
+                storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
+                registeredAt = createdDay,
+                expiresAt = todayIsoDate(),
+                confidence = null,
+            )
+        }
+    return ScanResultUiModel(
+        sourceType = "FRIDGE",
+        localPreviewImageUri = localCapturedImageUri,
+        remotePreviewImageUrl = remoteUrl,
+        items = items,
+        purchasedAt = null,
+        purchasedAtSourceType = null,
+        imageAssetId = data.imageAsset?.imageAssetId,
+    )
+}
+
+fun simulatedFridgeUiModel(localUri: String?): ScanResultUiModel {
+    val today = todayIsoDate()
+    val names = listOf("우유", "계란", "양파")
+    return ScanResultUiModel(
+        sourceType = "FRIDGE",
+        localPreviewImageUri = localUri,
+        remotePreviewImageUrl = null,
+        items =
+            names.map { n ->
+                ScanResultItemUiModel(
+                    name = n,
+                    category = ScanResultItemUiModel.DEFAULT_CATEGORY,
+                    storageType = ScanResultItemUiModel.DEFAULT_STORAGE,
+                    registeredAt = today,
+                    expiresAt = today,
+                    confidence = null,
+                )
+            },
+        purchasedAt = null,
+        purchasedAtSourceType = "SIMULATED",
+        imageAssetId = null,
+    )
+}
+
 fun simulatedReceiptUiModel(localUri: String?): ScanResultUiModel {
     val names = listOf("신선한 우유", "사과", "돼지고기")
     val today = todayIsoDate()

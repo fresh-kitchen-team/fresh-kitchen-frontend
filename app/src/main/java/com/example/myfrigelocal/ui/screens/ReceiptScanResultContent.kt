@@ -50,6 +50,8 @@ fun ReceiptScanResultContent(
     items: List<ReceiptResultItemUiState>,
     onItemsChange: (List<ReceiptResultItemUiState>) -> Unit,
     previewModel: Any? = null,
+    previewImageTitle: String = "영수증 이미지",
+    previewAspectRatio: Float = RECEIPT_PREVIEW_ASPECT_RATIO,
     saving: Boolean,
     onCancel: () -> Unit,
     onSave: () -> Unit,
@@ -106,6 +108,8 @@ fun ReceiptScanResultContent(
                     ReceiptScanPreviewThumbnail(
                         previewModel = previewModel,
                         onClick = { showReceiptFullscreen = true },
+                        imageTitle = previewImageTitle,
+                        previewAspectRatio = previewAspectRatio,
                     )
                 }
             }

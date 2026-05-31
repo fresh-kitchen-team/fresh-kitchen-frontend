@@ -12,6 +12,7 @@ import retrofit2.http.Part
 interface ScanApiService {
     companion object {
         const val INGREDIENT_IMAGE_PATH = "api/v1/scan/ingredient-image"
+        const val FRIDGE_IMAGE_PATH = "api/v1/scan/fridge-image"
         const val RECEIPT_IMAGE_PATH = "api/v1/scan/receipt-image"
     }
 
@@ -20,6 +21,12 @@ interface ScanApiService {
     suspend fun scanIngredientImage(
         @Part file: MultipartBody.Part,
     ): IngredientImageScanApiResponse
+
+    @Multipart
+    @POST(FRIDGE_IMAGE_PATH)
+    suspend fun scanFridgeImage(
+        @Part file: MultipartBody.Part,
+    ): FridgeImageScanApiResponse
 
     @Multipart
     @POST(RECEIPT_IMAGE_PATH)

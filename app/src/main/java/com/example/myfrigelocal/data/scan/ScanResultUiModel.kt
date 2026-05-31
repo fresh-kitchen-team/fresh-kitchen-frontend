@@ -6,7 +6,7 @@ import com.google.gson.GsonBuilder
 /**
  * 스캔 결과 화면용 UI 모델 (SavedStateHandle JSON 직렬화).
  *
- * @param sourceType `PHOTO` = 식재료 이미지 스캔, `RECEIPT` = 영수증 OCR.
+ * @param sourceType `PHOTO` = 식재료 이미지, `RECEIPT` = 영수증, `FRIDGE` = 냉장고 내부.
  */
 data class ScanResultUiModel(
     val sourceType: String,
