@@ -1,4 +1,4 @@
-﻿package com.example.myfrigelocal.viewmodel
+﻿package com.freshkitchen.app.viewmodel
 
 import android.app.Application
 import android.net.Uri

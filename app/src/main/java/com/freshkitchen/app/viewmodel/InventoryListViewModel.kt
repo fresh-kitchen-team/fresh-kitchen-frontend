@@ -161,7 +161,9 @@ class InventoryListViewModel(
                     expiryDate = updatedItem.expiryDate.ifEmpty { null },
                     purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
                     memo = updatedItem.memo.ifEmpty { null },
-                    storageType = updatedItem.storage.name  // "FRIDGE" | "FREEZER" | "PANTRY"
+                    storageId =
+                        updatedItem.storageId.takeIf { it > 0L }
+                            ?: storageIdMap[updatedItem.storage],
                 )
             )
         }

@@ -1,5 +1,6 @@
 ﻿package com.freshkitchen.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.IngredientRepository
