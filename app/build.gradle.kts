@@ -32,11 +32,11 @@ fun escapeForBuildConfig(value: String): String =
         .replace("\"", "\\\"")
 
 android {
-    namespace = "com.example.myfrigelocal"
+    namespace = "com.freshkitchen.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.myfrigelocal"
+        applicationId = "com.freshkitchen.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
