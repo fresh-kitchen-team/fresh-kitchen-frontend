@@ -34,7 +34,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -108,6 +110,7 @@ fun ScanScreen(
     var receiptItems by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var hasNavigatedToResult by rememberSaveable { mutableStateOf(false) }
     var showEmptyReceiptDialog by rememberSaveable { mutableStateOf(false) }
+    var showEmptyFridgeDialog by rememberSaveable { mutableStateOf(false) }
     var previewEnabled by rememberSaveable { mutableStateOf(true) }
     val currentTab by rememberUpdatedState(selectedTab)
     var captureRequestToken by rememberSaveable { mutableStateOf(0L) }
@@ -185,6 +188,22 @@ fun ScanScreen(
                     scanViewModel.acknowledgeSuccess()
                     return@LaunchedEffect
                 }
+                val isEmptyFridgeResult =
+                    currentTab == ScanTab.Fridge &&
+                        s.result.sourceType == "FRIDGE" &&
+                        s.result.items.isEmpty()
+                if (isEmptyFridgeResult) {
+                    scanState = ScanState.SCANNING
+                    hasNavigatedToResult = false
+                    lastSelectedImageUri = null
+                    navController.currentBackStackEntry?.savedStateHandle?.apply {
+                        remove<String>(ScanNav.keyScanResultJson)
+                        remove<String>(ScanNav.keyImageUri)
+                    }
+                    showEmptyFridgeDialog = true
+                    scanViewModel.acknowledgeSuccess()
+                    return@LaunchedEffect
+                }
                 lastSelectedImageUri = s.result.localPreviewImageUri
                 receiptItems = emptyList()
                 navController.currentBackStackEntry?.savedStateHandle?.set(
@@ -227,8 +246,8 @@ fun ScanScreen(
             scope.launch {
                 when (currentTab) {
                     ScanTab.Fridge -> {
-                        scanState = ScanState.IDLE
-                        context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
+                        scanState = ScanState.LOADING
+                        scanViewModel.requestFridgeScan(Uri.parse(imageUriStr), imageUriStr)
                     }
                     ScanTab.Ingredient -> {
                         scanState = ScanState.LOADING
@@ -313,8 +332,8 @@ fun ScanScreen(
                 scope.launch {
                     when (selectedTab) {
                         ScanTab.Fridge -> {
-                            scanState = ScanState.IDLE
-                            context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
+                            scanState = ScanState.LOADING
+                            scanViewModel.requestFridgeScan(Uri.parse(imageUriStr), imageUriStr)
                         }
                         ScanTab.Ingredient -> {
                             scanState = ScanState.LOADING
@@ -447,7 +466,10 @@ fun ScanScreen(
                                     captureRequestToken = System.currentTimeMillis()
                                 }
                                 ScanTab.Fridge -> {
-                                    context.showShortToast("냉장고 스캔 기능은 준비 중입니다.")
+                                    scanState = ScanState.SCANNING
+                                    lastBarcodeRawValue = null
+                                    receiptItems = emptyList()
+                                    captureRequestToken = System.currentTimeMillis()
                                 }
                                 ScanTab.Receipt -> {
                                     lastSelectedImageUri = null
@@ -474,7 +496,18 @@ fun ScanScreen(
     }
 
     if (showEmptyReceiptDialog) {
-        EmptyReceiptScanDialog(onDismiss = { showEmptyReceiptDialog = false })
+        EmptyScanResultDialog(
+            icon = Icons.Filled.Receipt,
+            subtitle = "다시 영수증 스캔해주세요",
+            onDismiss = { showEmptyReceiptDialog = false },
+        )
+    }
+    if (showEmptyFridgeDialog) {
+        EmptyScanResultDialog(
+            icon = Icons.Filled.Kitchen,
+            subtitle = "다시 냉장고 스캔해주세요",
+            onDismiss = { showEmptyFridgeDialog = false },
+        )
     }
 }
 
@@ -554,7 +587,11 @@ private fun Context.prepareImageForScanUpload(
 }
 
 @Composable
-private fun EmptyReceiptScanDialog(onDismiss: () -> Unit) {
+private fun EmptyScanResultDialog(
+    icon: ImageVector,
+    subtitle: String,
+    onDismiss: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -576,7 +613,7 @@ private fun EmptyReceiptScanDialog(onDismiss: () -> Unit) {
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Receipt,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = PrimaryGreen,
                         modifier = Modifier.size(32.dp),
@@ -592,7 +629,7 @@ private fun EmptyReceiptScanDialog(onDismiss: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "다시 영수증 스캔해주세요",
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B),
                     textAlign = TextAlign.Center,

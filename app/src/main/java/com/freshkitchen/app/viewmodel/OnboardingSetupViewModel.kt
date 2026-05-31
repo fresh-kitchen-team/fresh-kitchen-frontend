@@ -103,12 +103,14 @@ class OnboardingSetupViewModel(
             if (s.selectedQuickItems.isNotEmpty()) {
                 var addedCount = 0
                 s.selectedQuickItems.forEach { item ->
-                    // "🧅 양파" → "양파" (이모지 이후 텍스트 추출)
                     val name = item.substringAfter(" ").trim()
                     if (name.isNotBlank()) {
                         try {
                             val success = ingredientRepository.addItem(
-                                ItemCreateRequest(name = name, storageType = "FRIDGE")
+                                ItemCreateRequest(
+                                    name = name,
+                                    storageType = "FRIDGE",
+                                ),
                             )
                             if (success) addedCount++
                         } catch (e: Exception) {

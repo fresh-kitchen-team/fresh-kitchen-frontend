@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.viewmodel
+﻿package com.example.myfrigelocal.viewmodel
 
 import android.app.Application
 import android.net.Uri
@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.scan.ScanRepository
 import com.freshkitchen.app.data.scan.ScanResultUiModel
+import com.freshkitchen.app.data.scan.simulatedFridgeUiModel
 import com.freshkitchen.app.data.scan.simulatedIngredientUiModel
 import com.freshkitchen.app.data.scan.simulatedReceiptUiModel
 import com.freshkitchen.app.logging.ApiLog
@@ -60,6 +61,33 @@ class ScanViewModel(
                     ApiLog.e("Scan", "ingredient: ViewModel Failure ${e.message}", e)
                     _operationState.value =
                         ScanOperationState.Error(e.message ?: "식재료 스캔에 실패했습니다.")
+                },
+            )
+        }
+    }
+
+    /**
+     * 냉장고 탭 — POST /api/v1/scan/fridge-image
+     */
+    fun requestFridgeScan(imageUri: Uri, localPreviewUriString: String?) {
+        viewModelScope.launch {
+            _operationState.value = ScanOperationState.Loading
+            if (!ScanRepository.isApiConfigured()) {
+                ApiLog.w("Scan", "fridge: API 미설정 → 로컬 시뮬")
+                _operationState.value =
+                    ScanOperationState.Success(simulatedFridgeUiModel(localPreviewUriString))
+                return@launch
+            }
+            ApiLog.i("Scan", "fridge: scanFridgeImage 호출")
+            repository.scanFridgeImage(imageUri, localPreviewUriString).fold(
+                onSuccess = { model ->
+                    ApiLog.i("Scan", "fridge: ViewModel Success items=${model.items.size}")
+                    _operationState.value = ScanOperationState.Success(model)
+                },
+                onFailure = { e ->
+                    ApiLog.e("Scan", "fridge: ViewModel Failure ${e.message}", e)
+                    _operationState.value =
+                        ScanOperationState.Error(e.message ?: "냉장고 스캔에 실패했습니다.")
                 },
             )
         }

@@ -34,6 +34,9 @@ internal fun ScanResultItemUiModel.toReceiptResultItemUiState(): ReceiptResultIt
 internal fun buildReceiptListFromScan(model: ScanResultUiModel): List<ReceiptResultItemUiState> =
     model.items.map { it.toReceiptResultItemUiState() }
 
+internal fun buildFridgeListFromScan(model: ScanResultUiModel): List<ReceiptResultItemUiState> =
+    buildReceiptListFromScan(model)
+
 internal fun buildReceiptListFromLegacyNames(names: List<String>): List<ReceiptResultItemUiState> {
     val today = todayIsoDate()
     return names.map { n ->

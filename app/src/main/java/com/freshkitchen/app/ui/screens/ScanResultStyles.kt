@@ -298,14 +298,19 @@ internal fun storageTypeEmoji(code: String): String = when (code.uppercase()) {
 }
 
 /** 스캔 프레임·크롭 후 업로드(640×1024)와 동일한 가로:세로 비율 */
-private const val RECEIPT_PREVIEW_ASPECT_RATIO = 640f / 1024f
+internal const val RECEIPT_PREVIEW_ASPECT_RATIO = 640f / 1024f
 
-/** 영수증 스캔 결과 — 작은 썸네일 카드 (탭 시 [ReceiptFullscreenImageDialog]) */
+/** 냉장고 스캔 업로드(1024×1365) 비율 */
+internal const val FRIDGE_PREVIEW_ASPECT_RATIO = 1024f / 1365f
+
+/** 스캔 결과 — 작은 썸네일 카드 (탭 시 [ReceiptFullscreenImageDialog]) */
 @Composable
 internal fun ReceiptScanPreviewThumbnail(
     previewModel: Any,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    imageTitle: String = "영수증 이미지",
+    previewAspectRatio: Float = RECEIPT_PREVIEW_ASPECT_RATIO,
 ) {
     Surface(
         onClick = onClick,
@@ -328,7 +333,7 @@ internal fun ReceiptScanPreviewThumbnail(
                 Box(
                     modifier = Modifier
                         .width(52.dp)
-                        .aspectRatio(RECEIPT_PREVIEW_ASPECT_RATIO)
+                        .aspectRatio(previewAspectRatio)
                         .clip(RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -345,7 +350,7 @@ internal fun ReceiptScanPreviewThumbnail(
             Spacer(modifier = Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "영수증 이미지",
+                    text = imageTitle,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = ScanTextPrimary,

@@ -31,6 +31,10 @@ class ScanRepository(context: Context) {
                 ReceiptImageScanApiResponse::class.java,
                 ReceiptImageScanApiResponseDeserializer(),
             )
+            .registerTypeAdapter(
+                FridgeImageScanApiResponse::class.java,
+                FridgeImageScanApiResponseDeserializer(),
+            )
             .create()
 
     private val retrofit: Retrofit =
@@ -143,6 +147,32 @@ class ScanRepository(context: Context) {
                 .mapScanFailures()
         }
 
+    suspend fun scanFridgeImage(
+        imageUri: Uri,
+        localPreviewUriString: String?,
+    ): Result<ScanResultUiModel> =
+        withContext(Dispatchers.IO) {
+            ApiLog.i("Scan", "fridge-image START baseUrl=${BuildConfig.SCAN_API_BASE_URL} uri=$imageUri")
+            runCatching {
+                val part = imageUri.toImagePart()
+                val envelope = api.scanFridgeImage(file = part)
+                logScanApiResponse("fridge-image", envelope)
+                val data = envelope.unwrapFridgePayload()
+                logScanDataPayload("fridge-image", data)
+                if (data.detectedItems.isNullOrEmpty()) {
+                    ApiLog.w("Scan", "fridge-image: detectedItems 비어 있음")
+                }
+                val model = mapFridgeScanToUiModel(data, localPreviewUriString)
+                ApiLog.i(
+                    "Scan",
+                    "fridge-image OK items=${model.items.size} imageAssetId=${model.imageAssetId}",
+                )
+                model
+            }
+                .onFailure { e -> ApiLog.e("Scan", "fridge-image exception: ${e.message}", e) }
+                .mapScanFailures()
+        }
+
     suspend fun fetchItemStorages(): Result<List<StorageListItemDto>> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -193,6 +223,15 @@ class ScanRepository(context: Context) {
         return data ?: throw ScanApiException("응답 데이터가 없습니다.")
     }
 
+    private fun FridgeImageScanApiResponse.unwrapFridgePayload(): FridgeImageScanData {
+        if (!isScanEnvelopeSuccess(status, code)) {
+            throw ScanApiException(
+                message?.takeIf { it.isNotBlank() } ?: code ?: "냉장고 스캔에 실패했습니다. (status=$status)",
+            )
+        }
+        return data ?: throw ScanApiException("응답 데이터가 없습니다.")
+    }
+
     private fun logScanApiResponse(endpoint: String, envelope: Any) {
         if (!BuildConfig.DEBUG) return
         runCatching {
@@ -225,6 +264,17 @@ class ScanRepository(context: Context) {
                         "imageAssetId=${data.imageAsset?.imageAssetId} itemCount=${items.size} items=" +
                         items.joinToString(prefix = "[", postfix = "]") {
                             "{name=${it.name}, category=${it.category}, registeredAt=${it.registeredAt}}"
+                        },
+                )
+            }
+            is FridgeImageScanData -> {
+                val items = data.detectedItems.orEmpty()
+                ApiLog.i(
+                    "Scan",
+                    "$endpoint data: scanType=${data.scanType} imageAssetId=${data.imageAsset?.imageAssetId} " +
+                        "itemCount=${items.size} items=" +
+                        items.joinToString(prefix = "[", postfix = "]") {
+                            "{name=${it.name}, category=${it.category}}"
                         },
                 )
             }
@@ -298,6 +348,7 @@ private fun isScanEnvelopeSuccess(status: Int, code: String?): Boolean {
     if (status in 200..299) return true
     val c = code?.trim().orEmpty()
     if (c.equals("COMMON-200", ignoreCase = true)) return true
+    if (c.equals("COMMON-201", ignoreCase = true)) return true
     return false
 }
 

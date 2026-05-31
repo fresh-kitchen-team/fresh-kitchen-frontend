@@ -15,10 +15,9 @@ import androidx.navigation.NavController
 import com.freshkitchen.app.data.scan.CreateItemRequest
 import com.freshkitchen.app.data.scan.ScanRepository
 import com.freshkitchen.app.data.scan.ScanResultItemUiModel
-import com.freshkitchen.app.data.scan.normalizeScanCategory
 import com.freshkitchen.app.data.scan.ScanResultUiModel
+import com.freshkitchen.app.data.scan.normalizeStorageTypeForApi
 import com.freshkitchen.app.data.scan.parseScanResultUiModel
-import com.freshkitchen.app.data.scan.resolveStorageIdForSave
 import com.freshkitchen.app.navigation.BottomNavRoute
 import com.freshkitchen.app.navigation.ScanNav
 import com.freshkitchen.app.network.HomeRepository
@@ -41,9 +40,12 @@ fun ScanResultScreen(
     val suggestedIngredientName =
         prev?.savedStateHandle?.get<String>(ScanNav.keyIngredientSuggestion).orEmpty()
 
+    val isFridgeScanResult = parsedScan?.sourceType == "FRIDGE"
+
     /** 영수증 OCR: `sourceType == RECEIPT` 또는 레거시 `receiptItems` 목록 */
     val isReceiptOcrResult =
         when {
+            isFridgeScanResult -> false
             parsedScan?.sourceType == "RECEIPT" -> true
             parsedScan == null && !receiptItems.isNullOrEmpty() -> true
             else -> false
@@ -79,6 +81,21 @@ fun ScanResultScreen(
         navController.popBackStack()
     }
 
+    if (isFridgeScanResult) {
+        FridgeResultRoute(
+            parsedScan = parsedScan,
+            imageUriString = imageUriString,
+            scanRepo = scanRepo,
+            saving = saving,
+            onSavingChange = { saving = it },
+            context = context,
+            scope = scope,
+            onCancel = ::onCancel,
+            onNavigateHome = { navigateToHomeWithSummaryRefresh() },
+        )
+        return
+    }
+
     if (isReceiptOcrResult) {
         ReceiptResultRoute(
             parsedScan = parsedScan,
@@ -106,6 +123,100 @@ fun ScanResultScreen(
         scope = scope,
         onCancel = ::onCancel,
         onNavigateHome = { navigateToHomeWithSummaryRefresh() },
+    )
+}
+
+@Composable
+private fun FridgeResultRoute(
+    parsedScan: ScanResultUiModel?,
+    imageUriString: String?,
+    scanRepo: ScanRepository,
+    saving: Boolean,
+    onSavingChange: (Boolean) -> Unit,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onCancel: () -> Unit,
+    onNavigateHome: suspend () -> Unit,
+) {
+    var itemList by remember { mutableStateOf<List<ReceiptResultItemUiState>>(emptyList()) }
+    var listInitialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(parsedScan) {
+        if (!listInitialized && parsedScan != null) {
+            itemList = buildFridgeListFromScan(parsedScan)
+            listInitialized = true
+        }
+    }
+
+    val previewModel: Any? = remember(parsedScan, imageUriString) {
+        when {
+            parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
+            !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
+            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
+            else -> null
+        }
+    }
+
+    ReceiptScanResultContent(
+        items = itemList,
+        onItemsChange = { itemList = it },
+        previewModel = previewModel,
+        previewImageTitle = "냉장고 사진",
+        previewAspectRatio = FRIDGE_PREVIEW_ASPECT_RATIO,
+        saving = saving,
+        onCancel = onCancel,
+        onSave = {
+            if (saving) return@ReceiptScanResultContent
+            val toSave = itemList.filter { it.name.trim().isNotEmpty() }
+            if (toSave.isEmpty()) {
+                Toast.makeText(context, "저장할 품목이 없습니다.", Toast.LENGTH_SHORT).show()
+                return@ReceiptScanResultContent
+            }
+            scope.launch {
+                onSavingChange(true)
+                try {
+                    if (!ScanRepository.isApiConfigured()) {
+                        onNavigateHome()
+                        return@launch
+                    }
+                    val storages = scanRepo.fetchItemStorages().getOrElse { err ->
+                        Toast.makeText(
+                            context,
+                            err.message ?: "보관함 목록을 불러오지 못했습니다.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@launch
+                    }
+                    if (storages.isEmpty()) {
+                        Toast.makeText(context, "등록된 보관함이 없습니다.", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                    val purchaseDate = todayIsoDate()
+                    for (item in toSave) {
+                        val body = CreateItemRequest(
+                            name = item.name.trim(),
+                            storageType = normalizeStorageTypeForApi(item.storageType),
+                            expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
+                            purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
+                                ?: purchaseDate,
+                            memo = null,
+                            imageAssetId = parsedScan?.imageAssetId,
+                        )
+                        scanRepo.createItem(body).getOrElse { err ->
+                            Toast.makeText(
+                                context,
+                                err.message ?: "저장에 실패했습니다.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            return@launch
+                        }
+                    }
+                    onNavigateHome()
+                } finally {
+                    onSavingChange(false)
+                }
+            }
+        },
     )
 }
 
@@ -165,42 +276,17 @@ private fun ReceiptResultRoute(
                         onNavigateHome()
                         return@launch
                     }
-                    val storages = scanRepo.fetchItemStorages().getOrElse { err ->
-                        Toast.makeText(
-                            context,
-                            err.message ?: "보관함 목록을 불러오지 못했습니다.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        return@launch
-                    }
-                    if (storages.isEmpty()) {
-                        Toast.makeText(context, "등록된 보관함이 없습니다.", Toast.LENGTH_SHORT).show()
-                        return@launch
-                    }
                     val defaultPurchaseDate = parsedScan?.purchasedAt ?: todayIsoDate()
                     for (item in toSave) {
-                        val storageId = resolveStorageIdForSave(
-                            storages,
-                            storageTypeToDisplay(item.storageType),
-                            item.storageType,
-                        )
-                        if (storageId == null) {
-                            Toast.makeText(
-                                context,
-                                "보관 장소와 일치하는 storageId를 찾을 수 없습니다.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            return@launch
-                        }
                         val body = CreateItemRequest(
                             name = item.name.trim(),
-                            storageId = storageId,
+                            storageType = normalizeStorageTypeForApi(item.storageType),
                             expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
                             purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: defaultPurchaseDate,
                             memo = null,
                             imageAssetId = parsedScan?.imageAssetId,
-                            category = normalizeScanCategory(item.category),
+
                         )
                         scanRepo.createItem(body).getOrElse { err ->
                             Toast.makeText(
@@ -331,41 +417,15 @@ private fun IngredientResultRoute(
                         onNavigateHome()
                         return@launch
                     }
-                    val storages = scanRepo.fetchItemStorages().getOrElse { err ->
-                        Toast.makeText(
-                            context,
-                            err.message ?: "보관함 목록을 불러오지 못했습니다.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        return@launch
-                    }
-                    if (storages.isEmpty()) {
-                        Toast.makeText(context, "등록된 보관함이 없습니다.", Toast.LENGTH_SHORT).show()
-                        return@launch
-                    }
-                    val storageId = resolveStorageIdForSave(
-                        storages,
-                        storageTypeToDisplay(item.storageType),
-                        item.storageType,
-                    )
-                    if (storageId == null) {
-                        Toast.makeText(
-                            context,
-                            "보관 장소와 일치하는 storageId를 찾을 수 없습니다.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        return@launch
-                    }
                     val imageAssetId =
                         if (parsedScan?.sourceType == "PHOTO") parsedScan.imageAssetId else null
                     val body = CreateItemRequest(
                         name = trimmedName,
-                        storageId = storageId,
+                        storageType = normalizeStorageTypeForApi(item.storageType),
                         expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
                         purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() },
                         memo = null,
                         imageAssetId = imageAssetId,
-                        category = normalizeScanCategory(item.category),
                     )
                     scanRepo.createItem(body).fold(
                         onSuccess = { onNavigateHome() },

@@ -65,3 +65,23 @@ data class ReceiptRecognizedItem(
     val category: String? = null,
     val registeredAt: String? = null,
 )
+
+/** POST /api/v1/scan/fridge-image */
+data class FridgeImageScanApiResponse(
+    val status: Int,
+    val code: String? = null,
+    val message: String? = null,
+    val data: FridgeImageScanData? = null,
+)
+
+data class FridgeImageScanData(
+    val scanType: String? = null,
+    val imageAsset: ScanImageAsset? = null,
+    val detectedItems: List<FridgeDetectedItem>? = null,
+    val createdAt: String? = null,
+)
+
+data class FridgeDetectedItem(
+    val name: String? = null,
+    val category: String? = null,
+)
