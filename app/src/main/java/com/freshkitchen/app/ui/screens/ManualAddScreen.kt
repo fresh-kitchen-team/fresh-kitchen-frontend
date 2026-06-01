@@ -32,6 +32,7 @@ import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
 import com.freshkitchen.app.viewmodel.ManualAddViewModel
 import com.freshkitchen.app.viewmodel.StorageType
+import java.time.LocalDate
 
 // ───────────────────────────────────────────
 // 수동 식재료 추가 화면
@@ -45,6 +46,7 @@ fun ManualAddScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var quickOffsetDays by remember { mutableIntStateOf(0) }
 
     // 에러 스낵바
     LaunchedEffect(uiState.error) {
@@ -114,7 +116,7 @@ fun ManualAddScreen(
                 OutlinedTextField(
                     value = uiState.expiryDate,
                     onValueChange = { input ->
-                        // 숫자만 최대 8자리 저장 (표시는 VisualTransformation이 처리)
+                        quickOffsetDays = 0
                         viewModel.onExpiryDateChange(input.filter { it.isDigit() }.take(8))
                     },
                     placeholder = { Text("YYYY-MM-DD", color = Color.LightGray) },
@@ -134,6 +136,68 @@ fun ManualAddScreen(
                         unfocusedBorderColor = Color(0xFFE0E0E0)
                     )
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                // ── 빠른 날짜 설정 칩 (+1, +3, +7, +10) + 초기화 ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1, 3, 7, 10).forEach { days ->
+                        val active = quickOffsetDays > 0
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (active) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clickable {
+                                    val newOffset = quickOffsetDays + days
+                                    quickOffsetDays = newOffset
+                                    val newDate = LocalDate.now().plusDays(newOffset.toLong()).toString()
+                                    viewModel.onExpiryDateChange(newDate.filter { it.isDigit() })
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "+${days}일",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = if (active) Color(0xFF16A34A) else Color(0xFF94A3B8),
+                                )
+                            }
+                        }
+                    }
+                    // 초기화 버튼
+                    val hasDate = uiState.expiryDate.isNotEmpty()
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (hasDate) Color(0xFFFEE2E2) else Color(0xFFF1F5F9),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clickable {
+                                quickOffsetDays = 0
+                                viewModel.onExpiryDateChange("")
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "초기화",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = if (hasDate) Color(0xFFB91C1C) else Color(0xFF94A3B8),
+                            )
+                        }
+                    }
+                }
+                if (quickOffsetDays > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "오늘 기준 +${quickOffsetDays}일 · 누적",
+                        fontSize = 12.sp,
+                        color = Color(0xFF16A34A)
+                    )
+                }
             }
 
             // ── 구입일 ──
