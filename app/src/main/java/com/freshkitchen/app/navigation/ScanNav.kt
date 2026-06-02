@@ -10,6 +10,10 @@ object ScanNav {
     const val keyImageUri = "scan_image_uri"
     const val keyBarcodeValue = "scan_barcode_value"
     const val keyReset = "scan_reset"
+    /** Cancel/reset event token (monotonic timestamp). */
+    const val keyResetAt = "scan_reset_at"
+    /** Which scan tab to return to after cancel. */
+    const val keyReturnTab = "scan_return_tab"
 
     // Receipt scan: sequential multi-item processing
     const val keyReceiptItems = "receipt_items"

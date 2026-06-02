@@ -137,15 +137,52 @@ fun ScanScreen(
             ?.getStateFlow(ScanNav.keyReset, false)
     val scanReset by (scanResetFlow?.collectAsState(initial = false) ?: rememberSaveable { mutableStateOf(false) })
 
+    val scanResetAtFlow: StateFlow<Long>? =
+        navController.currentBackStackEntry
+            ?.savedStateHandle
+            ?.getStateFlow(ScanNav.keyResetAt, 0L)
+    val scanResetAt by (scanResetAtFlow?.collectAsState(initial = 0L) ?: rememberSaveable { mutableStateOf(0L) })
+
+    fun applyScanReset(returnTab: String?) {
+        // Important: clear SUCCESS so we don't auto-navigate again.
+        scanState = ScanState.IDLE
+        hasNavigatedToResult = false
+        lastBarcodeRawValue = null
+        lastSelectedImageUri = null
+        receiptItems = emptyList()
+        captureRequestToken = 0L
+        scanViewModel.resetOperation()
+
+        selectedTab =
+            when (returnTab?.uppercase()) {
+                "RECEIPT" -> ScanTab.Receipt
+                "FRIDGE" -> ScanTab.Fridge
+                else -> ScanTab.Ingredient
+            }
+
+        navController.currentBackStackEntry?.savedStateHandle?.apply {
+            remove<String>(ScanNav.keyScanResultJson)
+            remove<String>(ScanNav.keyImageUri)
+            remove<String>(ScanNav.keyBarcodeValue)
+            remove<ArrayList<String>>(ScanNav.keyReceiptItems)
+            remove<Int>(ScanNav.keyReceiptIndex)
+            remove<String>(ScanNav.keyReturnTab)
+            set(ScanNav.keyReset, false)
+            set(ScanNav.keyResetAt, 0L)
+        }
+    }
+
     LaunchedEffect(scanReset) {
         if (scanReset) {
-            // Important: clear SUCCESS so we don't auto-navigate again.
-            scanState = ScanState.IDLE
-            hasNavigatedToResult = false
-            lastBarcodeRawValue = null
-            receiptItems = emptyList()
-            scanViewModel.resetOperation()
-            navController.currentBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, false)
+            val returnTab = navController.currentBackStackEntry?.savedStateHandle?.get<String>(ScanNav.keyReturnTab)
+            applyScanReset(returnTab)
+        }
+    }
+
+    LaunchedEffect(scanResetAt) {
+        if (scanResetAt > 0L) {
+            val returnTab = navController.currentBackStackEntry?.savedStateHandle?.get<String>(ScanNav.keyReturnTab)
+            applyScanReset(returnTab)
         }
     }
 
