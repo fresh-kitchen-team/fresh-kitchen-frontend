@@ -1,6 +1,5 @@
 ﻿package com.freshkitchen.app.data.repository
 
-import com.freshkitchen.app.data.remote.AiChatApiConfig
 import com.freshkitchen.app.data.remote.ApiResponse
 import com.freshkitchen.app.data.remote.ChatApiService
 import com.freshkitchen.app.data.remote.isBusinessSuccess
@@ -11,7 +10,6 @@ import com.freshkitchen.app.data.remote.dto.CreateChatRoomResponseDto
 import com.freshkitchen.app.data.remote.dto.EmptyApiDataDto
 import com.freshkitchen.app.data.remote.dto.SendMessageRequest
 import com.freshkitchen.app.data.remote.dto.SendMessageResponseDto
-import com.freshkitchen.app.data.remote.dto.UpdateAiSettingRequest
 import com.freshkitchen.app.data.remote.dto.UpdateRoomTitleRequest
 import com.freshkitchen.app.data.remote.dto.UpdateRoomTitleResponseDto
 import retrofit2.HttpException
@@ -35,20 +33,11 @@ class ChatRepository(
     suspend fun sendMessage(roomId: Long, body: SendMessageRequest): Result<SendMessageResponseDto> =
         unwrapSingle(api.sendMessage(roomId, body))
 
-    suspend fun updateAiSetting(aiSetting: AiSettingDto): Result<Unit> {
-        val path = AiChatApiConfig.AI_SETTING_UPDATE_PATH.trim()
-        if (path.isEmpty()) {
-            return Result.failure(
-                IllegalStateException("AI setting API path is not configured yet"),
-            )
-        }
-        return unwrapSuccess(
-            api.updateAiSetting(
-                endpoint = path,
-                body = UpdateAiSettingRequest(aiSetting = aiSetting),
-            ),
-        )
-    }
+    suspend fun getAiSetting(): Result<AiSettingDto> =
+        unwrapSingle(api.getAiSetting())
+
+    suspend fun updateAiSetting(aiSetting: AiSettingDto): Result<AiSettingDto> =
+        unwrapSingle(api.updateAiSetting(aiSetting))
 
     suspend fun updateRoomTitle(roomId: Long, title: String): Result<UpdateRoomTitleResponseDto> =
         unwrapSingle(api.updateRoomTitle(roomId, UpdateRoomTitleRequest(title)))

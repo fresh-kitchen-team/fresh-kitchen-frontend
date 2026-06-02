@@ -6,7 +6,7 @@ import com.freshkitchen.app.data.remote.dto.CreateChatRoomResponseDto
 import com.freshkitchen.app.data.remote.dto.EmptyApiDataDto
 import com.freshkitchen.app.data.remote.dto.SendMessageRequest
 import com.freshkitchen.app.data.remote.dto.SendMessageResponseDto
-import com.freshkitchen.app.data.remote.dto.UpdateAiSettingRequest
+import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.data.remote.dto.UpdateRoomTitleRequest
 import com.freshkitchen.app.data.remote.dto.UpdateRoomTitleResponseDto
 import retrofit2.Response
@@ -16,7 +16,6 @@ import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
-import retrofit2.http.Url
 
 /**
  * AI Chat API — baseUrl must be `http://api.app-fresh.com/` (trailing slash).
@@ -41,15 +40,13 @@ interface ChatApiService {
         @Body body: SendMessageRequest,
     ): Response<ApiResponse<SendMessageResponseDto>>
 
-    /**
-     * AI setting API — path supplied at call time via [AiChatApiConfig.AI_SETTING_UPDATE_PATH].
-     * Uses `@Url` because the endpoint is not finalized yet.
-     */
-    @POST
+    @GET("ai/v1/chat/ai-setting")
+    suspend fun getAiSetting(): Response<ApiResponse<AiSettingDto>>
+
+    @PATCH("ai/v1/chat/ai-setting")
     suspend fun updateAiSetting(
-        @Url endpoint: String,
-        @Body body: UpdateAiSettingRequest,
-    ): Response<ApiResponse<EmptyApiDataDto?>>
+        @Body body: AiSettingDto,
+    ): Response<ApiResponse<AiSettingDto>>
 
     @PATCH("ai/v1/chat/room/{roomId}")
     suspend fun updateRoomTitle(

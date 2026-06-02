@@ -38,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -145,7 +146,11 @@ fun ChatScreen(
     onDismissSupportError: () -> Unit = {},
     onSubmitInquiry: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
     onSubmitReport: (categoryLabel: String, content: String, imageUri: String?) -> Unit = { _, _, _ -> },
-    onSaveAiSettings: (AiSettingDto) -> Unit = {},
+    aiSetting: AiSettingDto? = null,
+    isLoadingAiSetting: Boolean = false,
+    isSavingAiSetting: Boolean = false,
+    onLoadAiSettings: () -> Unit = {},
+    onSaveAiSettings: (AiSettingDto, (Boolean) -> Unit) -> Unit = { _, _ -> },
     onEnrichRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> List<RecipeMatchedItemUi> = { it },
     onConsumeRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> Result<Int> = {
         Result.failure(UnsupportedOperationException())
@@ -324,6 +329,7 @@ fun ChatScreen(
                 openedMenuThreadId = null
             },
             onSettingsClick = {
+                onLoadAiSettings()
                 isAiSettingsOpen = true
             },
             onHelpClick = {
@@ -353,7 +359,6 @@ fun ChatScreen(
                     onConfirmDelete = {
                         onDeleteRoom(tid)
                         deletingThreadId = null
-                        isSideMenuOpen = false
                     },
                 )
             }
@@ -373,12 +378,18 @@ fun ChatScreen(
         }
 
         if (isAiSettingsOpen) {
-            BackHandler { isAiSettingsOpen = false }
+            BackHandler(enabled = !isSavingAiSetting) { isAiSettingsOpen = false }
             AiSettingsScreen(
-                onClose = { isAiSettingsOpen = false },
+                settings = aiSetting,
+                isLoading = isLoadingAiSetting,
+                isSaving = isSavingAiSetting,
+                onClose = {
+                    if (!isSavingAiSetting) isAiSettingsOpen = false
+                },
                 onSave = { settings ->
-                    onSaveAiSettings(settings)
-                    isAiSettingsOpen = false
+                    onSaveAiSettings(settings) { success ->
+                        if (success) isAiSettingsOpen = false
+                    }
                 },
                 modifier = Modifier.zIndex(2f),
             )
@@ -456,15 +467,74 @@ private enum class AiResponseStyle { Friendly, Simple }
 
 @Composable
 private fun AiSettingsScreen(
+    settings: AiSettingDto?,
+    isLoading: Boolean,
+    isSaving: Boolean,
     onClose: () -> Unit,
     onSave: (AiSettingDto) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var extraInfo by rememberSaveable { mutableStateOf(true) }
-    var recommendExpiryFirst by rememberSaveable { mutableStateOf(true) }
-    var recommendNutritionBalanced by rememberSaveable { mutableStateOf(false) }
-    var recommendFavoriteIngredients by rememberSaveable { mutableStateOf(true) }
-    var responseStyle by rememberSaveable { mutableStateOf(AiResponseStyle.Friendly) }
+    // NOTE: Don't show arbitrary defaults before GET succeeds.
+    if (settings == null) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color(0xFFF3F4F6)),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(modifier = Modifier.size(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "AI 설정",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color(0xFF111827),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = onClose, enabled = !isSaving) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "닫기",
+                            tint = Color(0xFF111827),
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 70.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(color = ChatDesign.ChatPrimary)
+                    } else {
+                        Text(
+                            text = "설정을 불러오지 못했습니다.",
+                            color = Color(0xFF6B7280),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    var extraInfo by rememberSaveable(settings) { mutableStateOf(settings.provideExtraInfo) }
+    var recommendExpiryFirst by rememberSaveable(settings) { mutableStateOf(settings.priorityExpiration) }
+    var recommendNutritionBalanced by rememberSaveable(settings) { mutableStateOf(settings.priorityNutrition) }
+    var recommendFavoriteIngredients by rememberSaveable(settings) { mutableStateOf(settings.priorityFrequent) }
+    var responseStyle by rememberSaveable(settings) {
+        mutableStateOf(
+            if (settings.responseStyle) AiResponseStyle.Friendly else AiResponseStyle.Simple,
+        )
+    }
 
     Box(
         modifier = modifier
@@ -572,7 +642,20 @@ private fun AiSettingsScreen(
                         ),
                     )
                 },
+                isSaving = isSaving,
+                enabled = !isLoading && !isSaving,
             )
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x66000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = ChatDesign.ChatPrimary)
+            }
         }
     }
 }
@@ -581,6 +664,8 @@ private fun AiSettingsScreen(
 private fun AiSettingsBottomActions(
     onCancel: () -> Unit,
     onSave: () -> Unit,
+    isSaving: Boolean = false,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -598,6 +683,7 @@ private fun AiSettingsBottomActions(
         ) {
             OutlinedButton(
                 onClick = onCancel,
+                enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
@@ -614,6 +700,7 @@ private fun AiSettingsBottomActions(
             }
             Button(
                 onClick = onSave,
+                enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
@@ -623,10 +710,18 @@ private fun AiSettingsBottomActions(
                     contentColor = Color.White,
                 ),
             ) {
-                Text(
-                    text = "저장",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                )
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text(
+                        text = "저장",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                }
             }
         }
     }
