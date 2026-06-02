@@ -90,11 +90,6 @@ data class AiSettingDto(
     @SerializedName("provideExtraInfo") val provideExtraInfo: Boolean = true,
 )
 
-/** Dedicated AI setting API request body (endpoint TBD). */
-data class UpdateAiSettingRequest(
-    @SerializedName("aiSetting") val aiSetting: AiSettingDto,
-)
-
 /** POST /ai/v1/chat/room/{roomId} — request body (`message` only). */
 data class SendMessageRequest(
     @SerializedName("message") val message: String,
