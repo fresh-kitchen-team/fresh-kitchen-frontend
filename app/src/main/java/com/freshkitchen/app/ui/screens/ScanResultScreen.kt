@@ -77,7 +77,17 @@ fun ScanResultScreen(
     }
 
     fun onCancel() {
-        navController.previousBackStackEntry?.savedStateHandle?.set(ScanNav.keyReset, true)
+        val returnTab =
+            when {
+                isFridgeScanResult -> "FRIDGE"
+                isReceiptOcrResult -> "RECEIPT"
+                else -> "INGREDIENT"
+            }
+        navController.previousBackStackEntry?.savedStateHandle?.apply {
+            set(ScanNav.keyReturnTab, returnTab)
+            set(ScanNav.keyResetAt, System.currentTimeMillis())
+            set(ScanNav.keyReset, true)
+        }
         navController.popBackStack()
     }
 
@@ -196,6 +206,7 @@ private fun FridgeResultRoute(
                         val body = CreateItemRequest(
                             name = item.name.trim(),
                             storageType = normalizeStorageTypeForApi(item.storageType),
+                            sourceType = "PHOTO",
                             expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
                             purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: purchaseDate,
@@ -281,6 +292,7 @@ private fun ReceiptResultRoute(
                         val body = CreateItemRequest(
                             name = item.name.trim(),
                             storageType = normalizeStorageTypeForApi(item.storageType),
+                            sourceType = "RECEIPT",
                             expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
                             purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: defaultPurchaseDate,
@@ -422,6 +434,7 @@ private fun IngredientResultRoute(
                     val body = CreateItemRequest(
                         name = trimmedName,
                         storageType = normalizeStorageTypeForApi(item.storageType),
+                        sourceType = "PHOTO",
                         expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
                         purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() },
                         memo = null,

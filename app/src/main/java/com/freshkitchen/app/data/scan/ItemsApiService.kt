@@ -23,6 +23,8 @@ data class StorageListItemDto(
 data class CreateItemRequest(
     val name: String,
     val storageType: String,
+    /** MANUAL | PHOTO | RECEIPT */
+    val sourceType: String,
     val expiryDate: String?,
     val purchaseDate: String?,
     val memo: String?,
