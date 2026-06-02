@@ -70,6 +70,10 @@ fun AiChatScreen(
         onSubmitReport = { category, content, imageUri ->
             viewModel.submitReport(category, content, imageUri)
         },
+        aiSetting = state.aiSetting,
+        isLoadingAiSetting = state.isLoadingAiSetting,
+        isSavingAiSetting = state.isSavingAiSetting,
+        onLoadAiSettings = viewModel::loadAiSettings,
         onSaveAiSettings = viewModel::updateAiSetting,
         onEnrichRecipeMatchedItems = viewModel::enrichRecipeMatchedItems,
         onConsumeRecipeMatchedItems = viewModel::consumeRecipeMatchedItems,

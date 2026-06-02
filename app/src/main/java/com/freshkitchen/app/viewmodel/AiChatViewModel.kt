@@ -59,6 +59,9 @@ data class AiChatUiState(
     val supportSuccessMessage: String? = null,
     /** Increments after success message — UI closes form overlay. */
     val supportSubmitSuccessToken: Long = 0L,
+    val aiSetting: AiSettingDto? = null,
+    val isLoadingAiSetting: Boolean = false,
+    val isSavingAiSetting: Boolean = false,
 )
 
 class AiChatViewModel(
@@ -502,20 +505,46 @@ class AiChatViewModel(
         }
     }
 
-    /**
-     * Dedicated AI setting API — body `{ "aiSetting": { ... } }`.
-     * No-op until [com.freshkitchen.app.data.remote.AiChatApiConfig.AI_SETTING_UPDATE_PATH] is set.
-     */
-    fun updateAiSetting(aiSetting: AiSettingDto) {
+    fun loadAiSettings() {
+        if (_uiState.value.isLoadingAiSetting) return
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingAiSetting = true) }
+            logTokenPresence("getAiSetting")
+            repository.getAiSetting()
+                .onSuccess { setting ->
+                    Log.i(LOG_TAG, "[getAiSetting] success")
+                    _uiState.update {
+                        it.copy(isLoadingAiSetting = false, aiSetting = setting)
+                    }
+                }
+                .onFailure { e ->
+                    logFailure("getAiSetting", e)
+                    _uiState.update {
+                        it.copy(isLoadingAiSetting = false, error = e.toUserMessage())
+                    }
+                }
+        }
+    }
+
+    fun updateAiSetting(aiSetting: AiSettingDto, onComplete: (Boolean) -> Unit = {}) {
+        if (_uiState.value.isSavingAiSetting) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingAiSetting = true) }
             logTokenPresence("updateAiSetting")
             repository.updateAiSetting(aiSetting)
-                .onSuccess {
+                .onSuccess { saved ->
                     Log.i(LOG_TAG, "[updateAiSetting] success")
+                    _uiState.update {
+                        it.copy(isSavingAiSetting = false, aiSetting = saved)
+                    }
+                    onComplete(true)
                 }
                 .onFailure { e ->
                     logFailure("updateAiSetting", e)
-                    _uiState.update { it.copy(error = e.toUserMessage()) }
+                    _uiState.update {
+                        it.copy(isSavingAiSetting = false, error = e.toUserMessage())
+                    }
+                    onComplete(false)
                 }
         }
     }
@@ -528,16 +557,23 @@ class AiChatViewModel(
                 .onSuccess {
                     cachedSections = cachedSections.withoutRoom(roomId)
                     val wasCurrent = _uiState.value.currentRoomId == roomId
+
+                    // Keep chat UI "in place" even if the current room was deleted.
+                    // If there are remaining rooms, jump to one of them; otherwise create a new room.
+                    val fallbackRoomId = cachedSections.allSummaries().firstOrNull()?.roomId
+
                     _uiState.update { s ->
+                        val targetId = if (wasCurrent) (fallbackRoomId ?: s.currentRoomId) else s.currentRoomId
                         s.copy(
-                            currentRoomId = if (wasCurrent) null else s.currentRoomId,
-                            messages = if (wasCurrent) emptyList() else s.messages,
-                            topBarTitle = if (wasCurrent) "AI 주방 비서" else s.topBarTitle,
-                            sideMenuItems = markSelected(
-                                buildSideMenuItems(if (wasCurrent) null else s.currentRoomId),
-                                if (wasCurrent) null else s.currentRoomId,
-                            ),
+                            sideMenuItems = markSelected(buildSideMenuItems(targetId), targetId),
                         )
+                    }
+
+                    if (wasCurrent) {
+                        when {
+                            fallbackRoomId != null -> selectRoom(fallbackRoomId)
+                            else -> createRoom()
+                        }
                     }
                 }
                 .onFailure { e ->
