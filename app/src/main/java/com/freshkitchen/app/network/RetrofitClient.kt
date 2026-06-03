@@ -1,6 +1,7 @@
 ﻿package com.freshkitchen.app.network
 
 import com.freshkitchen.app.data.auth.AuthTokenStore
+import com.freshkitchen.app.data.remote.TokenRefreshInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -26,6 +27,7 @@ object RetrofitClient {
             }.build()
             chain.proceed(request)
         }
+        .addInterceptor(TokenRefreshInterceptor())
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()

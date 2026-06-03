@@ -20,6 +20,9 @@ object TokenDataStore {
     fun getAccessToken(context: Context): Flow<String?> =
         context.dataStore.data.map { it[ACCESS_TOKEN] }
 
+    fun getRefreshToken(context: Context): Flow<String?> =
+        context.dataStore.data.map { it[REFRESH_TOKEN] }
+
     fun getLoginProvider(context: Context): Flow<String?> =
         context.dataStore.data.map { it[LOGIN_PROVIDER] }
 

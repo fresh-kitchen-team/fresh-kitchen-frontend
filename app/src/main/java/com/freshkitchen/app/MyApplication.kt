@@ -11,8 +11,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MyApplication : Application() {
+
+    companion object {
+        lateinit var appContext: android.content.Context
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
 
         // 카카오 SDK 초기화
         KakaoSdk.init(this, "8c80a8aa4bedabb2e8dc0bdbfd03c4d8")
