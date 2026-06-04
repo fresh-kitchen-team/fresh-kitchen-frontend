@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.freshkitchen.app.network.RetrofitClient
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -45,6 +47,7 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.loadAccountInfo(context)
@@ -160,6 +163,28 @@ fun SettingsScreen(
                             putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                         }
                         context.startActivity(intent)
+                    }
+                )
+                SettingsDivider()
+
+                // 알림 테스트 (시연용)
+                SettingsButtonRow(
+                    title = "알림 테스트",
+                    description = "유통기한 임박 알림을 즉시 발송합니다.",
+                    buttonText = "테스트",
+                    onButtonClick = {
+                        scope.launch {
+                            try {
+                                val result = RetrofitClient.devApi.triggerExpiryNotification()
+                                if (result.code == "COMMON-200") {
+                                    snackbarHostState.showSnackbar("알림 전송 요청 완료 ✓")
+                                } else {
+                                    snackbarHostState.showSnackbar("실패: ${result.code}")
+                                }
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar("오류: ${e.message}")
+                            }
+                        }
                     }
                 )
             }

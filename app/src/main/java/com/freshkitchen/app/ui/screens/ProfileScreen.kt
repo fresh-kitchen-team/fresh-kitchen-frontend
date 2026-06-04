@@ -126,8 +126,7 @@ fun ProfileScreen(
             ProfileChipGrid(
                 items = listOf(
                     "🥛 유제품", "🥚 계란", "🌾 밀·글루텐", "🦐 갑각류",
-                    "🥜 견과류", "🫘 콩·대두", "🐟 생선", "🥜 땅콩",
-                    "🍑 복숭아", "🐷 돼지고기", "🍄 버섯", "🧅 파·마늘"
+                    "🥜 땅콩", "🫘 콩·대두"
                 ),
                 selected = uiState.selectedAllergies,
                 onToggle = { viewModel.toggleAllergy(it) },
@@ -180,8 +179,7 @@ fun ProfileScreen(
             ProfileChipGrid(
                 items = listOf(
                     "🍚 한식", "🍣 일식", "🥢 중식", "🍝 양식",
-                    "🌮 멕시칸", "🥗 채식·비건", "🌶️ 매콤한 것", "🍯 달달한 것",
-                    "🍲 담백한 것", "🥩 고기 위주"
+                    "🥗 채식·비건", "🍲 담백한 것"
                 ),
                 selected = uiState.selectedFoodStyles,
                 onToggle = { viewModel.toggleFoodStyle(it) },
@@ -200,9 +198,8 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
             ProfileChipGrid(
                 items = listOf(
-                    "🍳 프라이팬", "🥘 냄비", "♨️ 압력솥", "🫕 찜기",
-                    "🔥 오븐", "⚡ 전자레인지", "💨 에어프라이어", "🍚 밥솥",
-                    "🧊 블렌더", "🔪 그릴"
+                    "🍳 프라이팬", "🥘 냄비", "🔥 오븐",
+                    "⚡ 전자레인지", "💨 에어프라이어", "🧊 블렌더"
                 ),
                 selected = uiState.selectedUtensils,
                 onToggle = { viewModel.toggleUtensil(it) },
