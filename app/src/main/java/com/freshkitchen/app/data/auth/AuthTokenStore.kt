@@ -18,16 +18,22 @@ import java.util.concurrent.atomic.AtomicReference
  */
 object AuthTokenStore {
 
-    private val accessTokenRef = AtomicReference<String?>(null)
+    private val accessTokenRef  = AtomicReference<String?>(null)
+    private val refreshTokenRef = AtomicReference<String?>(null)
 
-    fun getAccessToken(): String? = accessTokenRef.get()?.trim()?.takeIf { it.isNotEmpty() }
+    fun getAccessToken(): String?  = accessTokenRef.get()?.trim()?.takeIf { it.isNotEmpty() }
+    fun getRefreshToken(): String? = refreshTokenRef.get()?.trim()?.takeIf { it.isNotEmpty() }
 
     fun setAccessToken(token: String?) {
-        val trimmed = token?.trim()?.takeIf { it.isNotEmpty() }
-        accessTokenRef.set(trimmed)
+        accessTokenRef.set(token?.trim()?.takeIf { it.isNotEmpty() })
+    }
+
+    fun setRefreshToken(token: String?) {
+        refreshTokenRef.set(token?.trim()?.takeIf { it.isNotEmpty() })
     }
 
     fun clear() {
         accessTokenRef.set(null)
+        refreshTokenRef.set(null)
     }
 }

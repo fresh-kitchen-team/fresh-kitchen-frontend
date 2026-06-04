@@ -58,6 +58,7 @@ class LoginViewModel(
                     val data = response.data
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "GOOGLE")
                     AuthTokenStore.setAccessToken(data.accessToken)
+                    AuthTokenStore.setRefreshToken(data.refreshToken)
                     Log.d("LoginViewModel", "로그인 성공 - newUser: ${data.newUser}")
                     registerFcmTokenAfterLogin()
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
@@ -116,6 +117,7 @@ class LoginViewModel(
                     val data = response.data
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "KAKAO")
                     AuthTokenStore.setAccessToken(data.accessToken)
+                    AuthTokenStore.setRefreshToken(data.refreshToken)
                     Log.d("LoginViewModel", "카카오 로그인 성공 - newUser: ${data.newUser}")
                     registerFcmTokenAfterLogin()
                     // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.

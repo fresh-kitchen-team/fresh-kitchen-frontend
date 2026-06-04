@@ -8,6 +8,7 @@ import com.freshkitchen.app.BuildConfig
 import com.freshkitchen.app.logging.ApiLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.freshkitchen.app.data.remote.TokenRefreshInterceptor
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -63,6 +64,7 @@ class ScanRepository(context: Context) {
                 .readTimeout(120, TimeUnit.SECONDS)
                 .writeTimeout(120, TimeUnit.SECONDS)
                 .addInterceptor(scanAuthInterceptor())
+                .addInterceptor(TokenRefreshInterceptor())
         if (BuildConfig.DEBUG) {
             builder.addInterceptor(
                 HttpLoggingInterceptor().apply {

@@ -31,10 +31,16 @@ class MainActivity : ComponentActivity() {
         val savedToken = runBlocking {
             TokenDataStore.getAccessToken(this@MainActivity).first()
         }
+        val savedRefreshToken = runBlocking {
+            TokenDataStore.getRefreshToken(this@MainActivity).first()
+        }
 
         if (savedToken != null) {
             // AuthTokenStore 하나로 통합 (RetrofitClient도 여기서 읽음)
             AuthTokenStore.setAccessToken(savedToken)
+        }
+        if (savedRefreshToken != null) {
+            AuthTokenStore.setRefreshToken(savedRefreshToken)
         }
 
         // 알림 권한 요청 (Android 13+)
