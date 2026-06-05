@@ -90,7 +90,7 @@ class TokenRefreshInterceptor : okhttp3.Interceptor {
             val body = """{"refreshToken":"$refreshToken"}"""
                 .toRequestBody("application/json".toMediaType())
             val req = Request.Builder()
-                .url("http://api.app-fresh.com/api/v1/auth/refresh")
+                .url("https://api.app-fresh.com/api/v1/auth/refresh")
                 .post(body)
                 .build()
             val res = client.newCall(req).execute()
