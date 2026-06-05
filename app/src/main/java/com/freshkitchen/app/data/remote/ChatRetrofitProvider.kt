@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 object ChatRetrofitProvider {
 
     /** Swagger / product candidate — trailing slash required for relative @GET paths. */
-    private const val DEFAULT_BASE_URL = "http://api.app-fresh.com/"
+    private const val DEFAULT_BASE_URL = "https://api.app-fresh.com/"
 
     /**
      * Do not use [GsonBuilder.serializeNulls] here: empty JSON arrays for optional lists

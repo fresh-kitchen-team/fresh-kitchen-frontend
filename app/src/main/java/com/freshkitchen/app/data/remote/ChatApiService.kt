@@ -19,43 +19,43 @@ import retrofit2.http.Path
 
 /**
  * AI Chat API — baseUrl must be `http://api.app-fresh.com/` (trailing slash).
- * Paths are relative: `ai/v1/...` (do **not** prefix `/api/v1`).
+ * Paths are relative: `api/v1/...` (do **not** prefix `/api/v1`).
  */
 interface ChatApiService {
 
-    @GET("ai/v1/chat/room")
+    @GET("api/v1/chat/room")
     suspend fun getChatRooms(): Response<ApiResponse<ChatRoomSectionsDto>>
 
-    @POST("ai/v1/chat/room")
+    @POST("api/v1/chat/room")
     suspend fun createChatRoom(): Response<ApiResponse<CreateChatRoomResponseDto>>
 
-    @GET("ai/v1/chat/room/{roomId}")
+    @GET("api/v1/chat/room/{roomId}")
     suspend fun getChatRoomDetail(
         @Path("roomId") roomId: Long,
     ): Response<ApiResponse<ChatRoomDetailDto>>
 
-    @POST("ai/v1/chat/room/{roomId}")
+    @POST("api/v1/chat/room/{roomId}")
     suspend fun sendMessage(
         @Path("roomId") roomId: Long,
         @Body body: SendMessageRequest,
     ): Response<ApiResponse<SendMessageResponseDto>>
 
-    @GET("ai/v1/chat/ai-setting")
+    @GET("api/v1/chat/ai-setting")
     suspend fun getAiSetting(): Response<ApiResponse<AiSettingDto>>
 
-    @PATCH("ai/v1/chat/ai-setting")
+    @PATCH("api/v1/chat/ai-setting")
     suspend fun updateAiSetting(
         @Body body: AiSettingDto,
     ): Response<ApiResponse<AiSettingDto>>
 
-    @PATCH("ai/v1/chat/room/{roomId}")
+    @PATCH("api/v1/chat/room/{roomId}")
     suspend fun updateRoomTitle(
         @Path("roomId") roomId: Long,
         @Body body: UpdateRoomTitleRequest,
     ): Response<ApiResponse<UpdateRoomTitleResponseDto>>
 
-    /** Swagger: `DELETE /ai/v1/chat/delete/room/{roomId}` — `data` is `{}`. */
-    @DELETE("ai/v1/chat/delete/room/{roomId}")
+    /** Swagger: `DELETE /api/v1/chat/delete/room/{roomId}` — `data` is `{}`. */
+    @DELETE("api/v1/chat/delete/room/{roomId}")
     suspend fun deleteChatRoom(
         @Path("roomId") roomId: Long,
     ): Response<ApiResponse<EmptyApiDataDto?>>
