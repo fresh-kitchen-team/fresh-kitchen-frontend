@@ -82,7 +82,7 @@ class AiChatViewModel(
     private val _uiState = MutableStateFlow(AiChatUiState())
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()
 
-    /** Last successful GET `/ai/v1/chat/room` buckets (for sidebar + title lookup). */
+    /** Last successful GET `/api/v1/chat/room` buckets (for sidebar + title lookup). */
     private var cachedSections: ChatRoomSectionsDto = ChatRoomSectionsDto()
 
     init {
@@ -93,7 +93,7 @@ class AiChatViewModel(
      * AI 채팅 탭 재진입 시 호출.
      * Activity-scoped VM이라 예전 401 메시지가 남거나, [AuthTokenStore]만 비어 있는 경우가 있어
      * DataStore에서 토큰을 다시 올린 뒤 필요 시 방 목록을 재요청합니다.
-     * 열려 있는 채팅방이 있으면 GET `/ai/v1/chat/room/{roomId}` 로 메시지를 다시 받아
+     * 열려 있는 채팅방이 있으면 GET `/api/v1/chat/room/{roomId}` 로 메시지를 다시 받아
      * 재고 변경(missingIngredients 등)이 반영되게 합니다.
      */
     fun onAiChatScreenVisible() {
@@ -258,7 +258,7 @@ class AiChatViewModel(
     }
 
     /**
-     * GET `/ai/v1/chat/room/{roomId}` — 서버가 ACTIVE 재고 기준으로 aiPayload(missingIngredients 등)를 다시 계산.
+     * GET `/api/v1/chat/room/{roomId}` — 서버가 ACTIVE 재고 기준으로 aiPayload(missingIngredients 등)를 다시 계산.
      */
     private suspend fun fetchAndApplyRoomDetail(
         roomId: Long,
@@ -308,7 +308,7 @@ class AiChatViewModel(
     }
 
     /**
-     * Creates an empty room (POST body 없음). Swagger: `POST /ai/v1/chat/room`.
+     * Creates an empty room (POST body 없음). Swagger: `POST /api/v1/chat/room`.
      *
      */
     fun createRoom() {
@@ -372,7 +372,7 @@ class AiChatViewModel(
     }
 
     /**
-     * Swagger `POST /ai/v1/chat/room/{roomId}` — sends `message` only.
+     * Swagger `POST /api/v1/chat/room/{roomId}` — sends `message` only.
      * AI settings are updated separately via [updateAiSetting].
      */
     fun sendMessage(text: String) {
@@ -549,7 +549,7 @@ class AiChatViewModel(
         }
     }
 
-    /** DELETE `/ai/v1/chat/delete/room/{roomId}` — 목록에서 제거, 현재 방이면 채팅 화면 초기화. */
+    /** DELETE `/api/v1/chat/delete/room/{roomId}` — 목록에서 제거, 현재 방이면 채팅 화면 초기화. */
     fun deleteRoom(roomId: Long) {
         viewModelScope.launch {
             logTokenPresence("deleteChatRoom")
@@ -583,7 +583,7 @@ class AiChatViewModel(
         }
     }
 
-    /** PATCH `/ai/v1/chat/room/{roomId}` — 응답 `data.title`로 로컬 갱신. */
+    /** PATCH `/api/v1/chat/room/{roomId}` — 응답 `data.title`로 로컬 갱신. */
     fun updateRoomTitle(roomId: Long, title: String) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return

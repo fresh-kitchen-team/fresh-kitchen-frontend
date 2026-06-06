@@ -2,7 +2,7 @@
 
 import com.google.gson.annotations.SerializedName
 
-/** GET /ai/v1/chat/room — one row in today / last7Days / last30Days. */
+/** GET /api/v1/chat/room — one row in today / last7Days / last30Days. */
 data class ChatRoomSummaryDto(
     @SerializedName("roomId") val roomId: Long,
     @SerializedName("title") val title: String? = null,
@@ -11,14 +11,14 @@ data class ChatRoomSummaryDto(
     @SerializedName("content") val content: String? = null,
 )
 
-/** GET /ai/v1/chat/room — `data` payload. */
+/** GET /api/v1/chat/room — `data` payload. */
 data class ChatRoomSectionsDto(
     @SerializedName("today") val today: List<ChatRoomSummaryDto>? = null,
     @SerializedName("last7Days") val last7Days: List<ChatRoomSummaryDto>? = null,
     @SerializedName("last30Days") val last30Days: List<ChatRoomSummaryDto>? = null,
 )
 
-/** POST /ai/v1/chat/room — `data` payload. */
+/** POST /api/v1/chat/room — `data` payload. */
 data class CreateChatRoomResponseDto(
     @SerializedName("roomId") val roomId: Long,
     @SerializedName("title") val title: String? = null,
@@ -45,7 +45,7 @@ data class AiPayloadDto(
     @SerializedName("matchedItems") val matchedItems: List<MatchedItemDto>? = null,
 )
 
-/** GET /ai/v1/chat/room/{roomId} — one message. */
+/** GET /api/v1/chat/room/{roomId} — one message. */
 data class ChatMessageDto(
     @SerializedName("messageId") val messageId: Long,
     @SerializedName("sender") val sender: String,
@@ -58,7 +58,7 @@ data class ChatMessageDto(
     @SerializedName("createdAt") val createdAt: String? = null,
 )
 
-/** GET /ai/v1/chat/room/{roomId} — `data` payload. */
+/** GET /api/v1/chat/room/{roomId} — `data` payload. */
 data class ChatRoomDetailDto(
     @SerializedName("title") val title: String? = null,
     @SerializedName("messages") val messages: List<ChatMessageDto>? = null,
@@ -90,12 +90,12 @@ data class AiSettingDto(
     @SerializedName("provideExtraInfo") val provideExtraInfo: Boolean = true,
 )
 
-/** POST /ai/v1/chat/room/{roomId} — request body (`message` only). */
+/** POST /api/v1/chat/room/{roomId} — request body (`message` only). */
 data class SendMessageRequest(
     @SerializedName("message") val message: String,
 )
 
-/** POST /ai/v1/chat/room/{roomId} — `data` payload. */
+/** POST /api/v1/chat/room/{roomId} — `data` payload. */
 data class SendMessageResponseDto(
     @SerializedName("title") val title: String? = null,
     @SerializedName("aiMessage") val aiMessage: ChatMessageDto,
@@ -105,12 +105,12 @@ data class UpdateRoomTitleRequest(
     @SerializedName("title") val title: String,
 )
 
-/** PATCH /ai/v1/chat/room/{roomId} — `data` payload. */
+/** PATCH /api/v1/chat/room/{roomId} — `data` payload. */
 data class UpdateRoomTitleResponseDto(
     @SerializedName("roomId") val roomId: Long,
     @SerializedName("title") val title: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
 )
 
-/** DELETE `/ai/v1/chat/delete/room/{roomId}` — Swagger `data: {}`. */
+/** DELETE `/api/v1/chat/delete/room/{roomId}` — Swagger `data: {}`. */
 class EmptyApiDataDto

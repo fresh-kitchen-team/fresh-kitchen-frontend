@@ -12,15 +12,15 @@
 | 영수증 이미지 | `POST` | `api/v1/scan/receipt-image` |
 
 **전체 URL 예:** `{SCAN_API_BASE_URL}` + 위 경로  
-예: `http://api.app-fresh.com/` + `api/v1/scan/ingredient-image`
+예: `https://api.app-fresh.com/` + `api/v1/scan/ingredient-image`
 
 ---
 
 ## 2. Base URL 설정
 
-- **BuildConfig:** `SCAN_API_BASE_URL` (`app/build.gradle.kts`에서 `local.properties`의 `SCAN_API_BASE_URL` 읽음, 없으면 기본 `http://api.app-fresh.com/`).
+- **BuildConfig:** `SCAN_API_BASE_URL` (`app/build.gradle.kts`에서 `local.properties`의 `SCAN_API_BASE_URL` 읽음, 없으면 기본 `https://api.app-fresh.com/`).
 - **로컬 오버라이드:** 프로젝트 루트 `local.properties`  
-  `SCAN_API_BASE_URL=http://api.app-fresh.com/`  
+  `SCAN_API_BASE_URL=https://api.app-fresh.com/`  
   (에뮬레이터 → PC 로컬 등은 `http://10.0.2.2:8080/` 등으로 변경)
 - **미연동 판별:** URL에 `placeholder.invalid` 이 포함되면 시뮬만 동작 (`ScanRepository.isApiConfigured()`).
 
@@ -83,9 +83,10 @@
 
 ---
 
-## 8. HTTP(cleartext)
+## 8. HTTPS / 로컬 cleartext
 
-- `http://api.app-fresh.com` 사용을 위해 `app/src/main/res/xml/network_security_config.xml` 에 도메인 허용 + `AndroidManifest.xml` 의 `application` 에 `networkSecurityConfig` 연결.
+- 프로덕션·스테이징: **`https://api.app-fresh.com/`** (기본값).
+- 로컬 백엔드(`http://10.0.2.2:8080/` 등)만 `network_security_config.xml` 에서 cleartext 허용.
 
 ---
 

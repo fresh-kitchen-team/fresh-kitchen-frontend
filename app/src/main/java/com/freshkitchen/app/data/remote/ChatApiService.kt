@@ -18,8 +18,8 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * AI Chat API — baseUrl must be `http://api.app-fresh.com/` (trailing slash).
- * Paths are relative: `api/v1/...` (do **not** prefix `/api/v1`).
+ * AI Chat API — baseUrl must be `https://api.app-fresh.com/` (trailing slash).
+ * Paths are relative: `api/v1/chat/...` (do **not** prefix `/api/v1` twice).
  */
 interface ChatApiService {
 
