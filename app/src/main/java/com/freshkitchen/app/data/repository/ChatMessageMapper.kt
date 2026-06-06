@@ -12,7 +12,7 @@ import com.freshkitchen.app.ui.screens.chat.RecipeUiModel
 import com.freshkitchen.app.ui.screens.chat.Sender
 
 /**
- * Maps [ChatMessageDto] (Swagger /ai/v1) to UI [ChatMessage].
+ * Maps [ChatMessageDto] (Swagger `/api/v1/chat`) to UI [ChatMessage].
  *
  * `sender`: treats USER / user / AI / Ai / ASSISTANT (case-insensitive) safely.
  * `uiType`: `RECIPE` → recipe card when [aiPayload] has a recipe; `GENERAL` → text bubble.

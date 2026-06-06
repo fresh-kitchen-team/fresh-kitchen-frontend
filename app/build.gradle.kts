@@ -13,13 +13,13 @@ if (localPropertiesFile.exists()) {
 }
 
 /**
- * Scan API Base URL (must end with `/`). Matches Swagger "Servers": http://api.app-fresh.com
+ * Scan API Base URL (must end with `/`). Matches Swagger "Servers": https://api.app-fresh.com
  * Retrofit paths: `api/v1/scan/...` from [ScanApiService].
  * Override in `local.properties`: SCAN_API_BASE_URL=...
  */
 val scanApiBaseUrl =
     localProperties
-        .getProperty("SCAN_API_BASE_URL", "http://api.app-fresh.com/")
+        .getProperty("SCAN_API_BASE_URL", "https://api.app-fresh.com/")
         .trim()
         .let { if (it.endsWith("/")) it else "$it/" }
 
@@ -39,7 +39,7 @@ android {
         applicationId = "com.freshkitchen.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

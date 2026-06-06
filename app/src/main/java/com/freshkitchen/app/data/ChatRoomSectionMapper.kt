@@ -4,7 +4,7 @@ import com.freshkitchen.app.data.remote.dto.ChatRoomSummaryDto
 import java.time.Instant
 
 /**
- * Sidebar section labels — must match server buckets from GET `/ai/v1/chat/room`
+ * Sidebar section labels — must match server buckets from GET `/api/v1/chat/room`
  * (`today` / `last7Days` / `last30Days`). Grouping is **not** derived from dates on the client.
  */
 object ChatRoomSectionMapper {
