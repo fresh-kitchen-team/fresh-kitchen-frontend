@@ -36,7 +36,7 @@ fun mapIngredientScanToUiModel(
             )
         }
     return ScanResultUiModel(
-        sourceType = "PHOTO",
+        sourceType = ScanSourceType.PHOTO,
         localPreviewImageUri = localCapturedImageUri,
         remotePreviewImageUrl = remoteUrl,
         items = items,
@@ -71,7 +71,7 @@ fun mapReceiptScanToUiModel(
             )
         }
     return ScanResultUiModel(
-        sourceType = "RECEIPT",
+        sourceType = ScanSourceType.RECEIPT,
         localPreviewImageUri = localCapturedImageUri,
         remotePreviewImageUrl = remoteUrl,
         items = items,
@@ -100,7 +100,7 @@ fun mapFridgeScanToUiModel(
             )
         }
     return ScanResultUiModel(
-        sourceType = "FRIDGE",
+        sourceType = ScanSourceType.FRIDGE,
         localPreviewImageUri = localCapturedImageUri,
         remotePreviewImageUrl = remoteUrl,
         items = items,
@@ -114,7 +114,7 @@ fun simulatedFridgeUiModel(localUri: String?): ScanResultUiModel {
     val today = todayIsoDate()
     val names = listOf("우유", "계란", "양파")
     return ScanResultUiModel(
-        sourceType = "FRIDGE",
+        sourceType = ScanSourceType.FRIDGE,
         localPreviewImageUri = localUri,
         remotePreviewImageUrl = null,
         items =
@@ -138,7 +138,7 @@ fun simulatedReceiptUiModel(localUri: String?): ScanResultUiModel {
     val names = listOf("신선한 우유", "사과", "돼지고기")
     val today = todayIsoDate()
     return ScanResultUiModel(
-        sourceType = "RECEIPT",
+        sourceType = ScanSourceType.RECEIPT,
         localPreviewImageUri = localUri,
         remotePreviewImageUrl = null,
         items =
@@ -160,7 +160,7 @@ fun simulatedReceiptUiModel(localUri: String?): ScanResultUiModel {
 
 fun simulatedIngredientUiModel(localUri: String?): ScanResultUiModel =
     ScanResultUiModel(
-        sourceType = "PHOTO",
+        sourceType = ScanSourceType.PHOTO,
         localPreviewImageUri = localUri,
         remotePreviewImageUrl = null,
         items =
