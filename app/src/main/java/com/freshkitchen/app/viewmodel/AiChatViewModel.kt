@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.viewmodel
+package com.freshkitchen.app.viewmodel
 
 import android.app.Application
 import android.util.Log

@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.data.repository
+package com.freshkitchen.app.data.repository
 
 import com.freshkitchen.app.data.remote.ApiResponse
 import com.freshkitchen.app.data.remote.ChatApiService

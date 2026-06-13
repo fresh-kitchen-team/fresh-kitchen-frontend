@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.data.remote
+package com.freshkitchen.app.data.remote
 
 import com.freshkitchen.app.data.remote.dto.ChatRoomDetailDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomSectionsDto
