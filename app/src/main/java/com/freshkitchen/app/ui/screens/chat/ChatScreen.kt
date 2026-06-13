@@ -156,6 +156,7 @@ fun ChatScreen(
     isSavingAiSetting: Boolean = false,
     onLoadAiSettings: () -> Unit = {},
     onSaveAiSettings: (AiSettingDto, (Boolean) -> Unit) -> Unit = { _, _ -> },
+    quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
     onEnrichRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> List<RecipeMatchedItemUi> = { it },
     onConsumeRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> Result<Int> = {
         Result.failure(UnsupportedOperationException())
@@ -303,6 +304,7 @@ fun ChatScreen(
 
             ChatQuickRepliesRow(
                 enabled = !isSending,
+                quickReplies = quickReplies,
                 onQuickReplyClick = { message ->
                     keyboardController?.hide()
                     onSendMessage(message)

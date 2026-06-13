@@ -75,6 +75,7 @@ fun AiChatScreen(
         isSavingAiSetting = state.isSavingAiSetting,
         onLoadAiSettings = viewModel::loadAiSettings,
         onSaveAiSettings = viewModel::updateAiSetting,
+        quickReplies = state.quickReplies,
         onEnrichRecipeMatchedItems = viewModel::enrichRecipeMatchedItems,
         onConsumeRecipeMatchedItems = viewModel::consumeRecipeMatchedItems,
     )
