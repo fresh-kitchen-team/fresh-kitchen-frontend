@@ -16,6 +16,7 @@ import com.freshkitchen.app.data.scan.CreateItemRequest
 import com.freshkitchen.app.data.scan.ScanRepository
 import com.freshkitchen.app.data.scan.ScanResultItemUiModel
 import com.freshkitchen.app.data.scan.ScanResultUiModel
+import com.freshkitchen.app.data.scan.ScanSourceType
 import com.freshkitchen.app.data.scan.normalizeStorageTypeForApi
 import com.freshkitchen.app.data.scan.parseScanResultUiModel
 import com.freshkitchen.app.navigation.BottomNavRoute
@@ -40,13 +41,13 @@ fun ScanResultScreen(
     val suggestedIngredientName =
         prev?.savedStateHandle?.get<String>(ScanNav.keyIngredientSuggestion).orEmpty()
 
-    val isFridgeScanResult = parsedScan?.sourceType == "FRIDGE"
+    val isFridgeScanResult = parsedScan?.sourceType == ScanSourceType.FRIDGE
 
     /** 영수증 OCR: `sourceType == RECEIPT` 또는 레거시 `receiptItems` 목록 */
     val isReceiptOcrResult =
         when {
             isFridgeScanResult -> false
-            parsedScan?.sourceType == "RECEIPT" -> true
+            parsedScan?.sourceType == ScanSourceType.RECEIPT -> true
             parsedScan == null && !receiptItems.isNullOrEmpty() -> true
             else -> false
         }
@@ -159,12 +160,7 @@ private fun FridgeResultRoute(
     }
 
     val previewModel: Any? = remember(parsedScan, imageUriString) {
-        when {
-            parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
-            !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
-            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
-            else -> null
-        }
+        resolveScanPreviewModel(parsedScan, imageUriString)
     }
 
     ReceiptScanResultContent(
@@ -185,44 +181,16 @@ private fun FridgeResultRoute(
             scope.launch {
                 onSavingChange(true)
                 try {
-                    if (!ScanRepository.isApiConfigured()) {
-                        onNavigateHome()
-                        return@launch
-                    }
-                    val storages = scanRepo.fetchItemStorages().getOrElse { err ->
-                        Toast.makeText(
-                            context,
-                            err.message ?: "보관함 목록을 불러오지 못했습니다.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        return@launch
-                    }
-                    if (storages.isEmpty()) {
-                        Toast.makeText(context, "등록된 보관함이 없습니다.", Toast.LENGTH_SHORT).show()
-                        return@launch
-                    }
-                    val purchaseDate = todayIsoDate()
-                    for (item in toSave) {
-                        val body = CreateItemRequest(
-                            name = item.name.trim(),
-                            storageType = normalizeStorageTypeForApi(item.storageType),
-                            sourceType = "PHOTO",
-                            expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
-                            purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
-                                ?: purchaseDate,
-                            memo = null,
-                            imageAssetId = parsedScan?.imageAssetId,
-                        )
-                        scanRepo.createItem(body).getOrElse { err ->
-                            Toast.makeText(
-                                context,
-                                err.message ?: "저장에 실패했습니다.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            return@launch
-                        }
-                    }
-                    onNavigateHome()
+                    saveScannedItems(
+                        context = context,
+                        scanRepo = scanRepo,
+                        items = toSave,
+                        sourceType = ScanSourceType.PHOTO,
+                        defaultPurchaseDate = todayIsoDate(),
+                        imageAssetId = parsedScan?.imageAssetId,
+                        requireStorageGuard = true,
+                        onNavigateHome = onNavigateHome,
+                    )
                 } finally {
                     onSavingChange(false)
                 }
@@ -259,12 +227,7 @@ private fun ReceiptResultRoute(
     }
 
     val previewModel: Any? = remember(parsedScan, imageUriString) {
-        when {
-            parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
-            !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
-            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
-            else -> null
-        }
+        resolveScanPreviewModel(parsedScan, imageUriString)
     }
 
     ReceiptScanResultContent(
@@ -283,33 +246,16 @@ private fun ReceiptResultRoute(
             scope.launch {
                 onSavingChange(true)
                 try {
-                    if (!ScanRepository.isApiConfigured()) {
-                        onNavigateHome()
-                        return@launch
-                    }
-                    val defaultPurchaseDate = parsedScan?.purchasedAt ?: todayIsoDate()
-                    for (item in toSave) {
-                        val body = CreateItemRequest(
-                            name = item.name.trim(),
-                            storageType = normalizeStorageTypeForApi(item.storageType),
-                            sourceType = "RECEIPT",
-                            expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
-                            purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() }
-                                ?: defaultPurchaseDate,
-                            memo = null,
-                            imageAssetId = parsedScan?.imageAssetId,
-
-                        )
-                        scanRepo.createItem(body).getOrElse { err ->
-                            Toast.makeText(
-                                context,
-                                err.message ?: "저장에 실패했습니다.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            return@launch
-                        }
-                    }
-                    onNavigateHome()
+                    saveScannedItems(
+                        context = context,
+                        scanRepo = scanRepo,
+                        items = toSave,
+                        sourceType = ScanSourceType.RECEIPT,
+                        defaultPurchaseDate = parsedScan?.purchasedAt ?: todayIsoDate(),
+                        imageAssetId = parsedScan?.imageAssetId,
+                        requireStorageGuard = false,
+                        onNavigateHome = onNavigateHome,
+                    )
                 } finally {
                     onSavingChange(false)
                 }
@@ -386,12 +332,7 @@ private fun IngredientResultRoute(
 
     // API 업로드와 동일한 로컬 파일을 우선 표시 (S3 URL은 서버 가공본일 수 있음).
     val previewModel: Any? = remember(parsedScan, imageUriString) {
-        when {
-            parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
-            !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
-            parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
-            else -> null
-        }
+        resolveScanPreviewModel(parsedScan, imageUriString)
     }
 
     IngredientScanResultContent(
@@ -417,38 +358,24 @@ private fun IngredientResultRoute(
         onCancel = onCancel,
         onSave = onSave@{
             if (saving) return@onSave
-            val trimmedName = item.name.trim()
-            if (trimmedName.isEmpty()) {
+            if (item.name.trim().isEmpty()) {
                 Toast.makeText(context, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@onSave
             }
+            val imageAssetId =
+                if (parsedScan?.sourceType == ScanSourceType.PHOTO) parsedScan.imageAssetId else null
             scope.launch {
                 onSavingChange(true)
                 try {
-                    if (!ScanRepository.isApiConfigured()) {
-                        onNavigateHome()
-                        return@launch
-                    }
-                    val imageAssetId =
-                        if (parsedScan?.sourceType == "PHOTO") parsedScan.imageAssetId else null
-                    val body = CreateItemRequest(
-                        name = trimmedName,
-                        storageType = normalizeStorageTypeForApi(item.storageType),
-                        sourceType = "PHOTO",
-                        expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
-                        purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() },
-                        memo = null,
+                    saveScannedItems(
+                        context = context,
+                        scanRepo = scanRepo,
+                        items = listOf(item),
+                        sourceType = ScanSourceType.PHOTO,
+                        defaultPurchaseDate = null,
                         imageAssetId = imageAssetId,
-                    )
-                    scanRepo.createItem(body).fold(
-                        onSuccess = { onNavigateHome() },
-                        onFailure = { err ->
-                            Toast.makeText(
-                                context,
-                                err.message ?: "저장에 실패했습니다.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
+                        requireStorageGuard = false,
+                        onNavigateHome = onNavigateHome,
                     )
                 } finally {
                     onSavingChange(false)
@@ -456,4 +383,83 @@ private fun IngredientResultRoute(
             }
         },
     )
+}
+
+/**
+ * 스캔 결과 미리보기 모델 우선순위: 로컬 캡처본 → 화면 전달 URI → 서버 가공 URL.
+ * (S3 가공본보다 업로드한 로컬 파일을 우선 표시)
+ */
+private fun resolveScanPreviewModel(
+    parsedScan: ScanResultUiModel?,
+    imageUriString: String?,
+): Any? = when {
+    parsedScan?.localPreviewImageUri?.isNotBlank() == true -> Uri.parse(parsedScan.localPreviewImageUri)
+    !imageUriString.isNullOrBlank() -> Uri.parse(imageUriString)
+    parsedScan?.remotePreviewImageUrl?.isNotBlank() == true -> parsedScan.remotePreviewImageUrl
+    else -> null
+}
+
+/**
+ * 스캔 결과 품목을 메인 식재료 저장 API(`POST /api/v1/items`)로 순차 저장합니다.
+ * 세 결과 화면(식재료/냉장고/영수증)이 공유하는 저장 흐름을 한 곳으로 모읍니다.
+ *
+ * @param requireStorageGuard 저장 전 보관함 목록 조회로 사전 검증할지 (냉장고 흐름과 동일).
+ */
+private suspend fun saveScannedItems(
+    context: android.content.Context,
+    scanRepo: ScanRepository,
+    items: List<ReceiptResultItemUiState>,
+    sourceType: String,
+    defaultPurchaseDate: String?,
+    imageAssetId: Long?,
+    requireStorageGuard: Boolean,
+    onNavigateHome: suspend () -> Unit,
+) {
+    if (!ScanRepository.isApiConfigured()) {
+        onNavigateHome()
+        return
+    }
+    if (requireStorageGuard) {
+        val storages = scanRepo.fetchItemStorages().getOrElse { err ->
+            context.showSaveToast(err.message ?: "보관함 목록을 불러오지 못했습니다.")
+            return
+        }
+        if (storages.isEmpty()) {
+            context.showSaveToast("등록된 보관함이 없습니다.")
+            return
+        }
+    }
+    for (item in items) {
+        val body = buildScanCreateItemRequest(
+            item = item,
+            sourceType = sourceType,
+            defaultPurchaseDate = defaultPurchaseDate,
+            imageAssetId = imageAssetId,
+        )
+        scanRepo.createItem(body).getOrElse { err ->
+            context.showSaveToast(err.message ?: "저장에 실패했습니다.")
+            return
+        }
+    }
+    onNavigateHome()
+}
+
+private fun buildScanCreateItemRequest(
+    item: ReceiptResultItemUiState,
+    sourceType: String,
+    defaultPurchaseDate: String?,
+    imageAssetId: Long?,
+): CreateItemRequest =
+    CreateItemRequest(
+        name = item.name.trim(),
+        storageType = normalizeStorageTypeForApi(item.storageType),
+        sourceType = sourceType,
+        expiryDate = item.expiresAt.trim().takeIf { it.isNotEmpty() },
+        purchaseDate = item.registeredAt?.trim()?.takeIf { it.isNotEmpty() } ?: defaultPurchaseDate,
+        memo = null,
+        imageAssetId = imageAssetId,
+    )
+
+private fun android.content.Context.showSaveToast(message: String) {
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 }
