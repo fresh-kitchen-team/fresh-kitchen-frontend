@@ -241,15 +241,8 @@ fun ScanScreen(
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             if (uri == null) return@rememberLauncherForActivityResult
-            val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, uri)
-            val imageUriStr =
-                context.prepareImageForScanUpload(
-                    originalBitmap = originalBitmap,
-                    fallbackUri = uri,
-                    tab = currentTab,
-                    previewBounds = previewBounds,
-                    frameBounds = frameBounds,
-                )
+            // 갤러리 선택: 식재료·냉장고·영수증 모두 원본 그대로 업로드
+            val imageUriStr = uri.toString()
             lastBarcodeRawValue = null
             scope.launch { startScanForTab(currentTab, imageUriStr) }
         }
@@ -302,15 +295,17 @@ fun ScanScreen(
             },
             onPhotoUri = { photoUriString ->
                 val originalUri = Uri.parse(photoUriString)
-                val originalBitmap = ScanImageCropper.loadBitmapFromUri(context, originalUri)
                 val imageUriStr =
-                    context.prepareImageForScanUpload(
-                        originalBitmap = originalBitmap,
-                        fallbackUri = originalUri,
-                        tab = selectedTab,
-                        previewBounds = previewBounds,
-                        frameBounds = frameBounds,
-                    )
+                    when (selectedTab) {
+                        ScanTab.Ingredient ->
+                            context.prepareIngredientCameraImage(
+                                originalBitmap = ScanImageCropper.loadBitmapFromUri(context, originalUri),
+                                fallbackUri = originalUri,
+                                previewBounds = previewBounds,
+                                frameBounds = frameBounds,
+                            )
+                        ScanTab.Fridge, ScanTab.Receipt -> originalUri.toString()
+                    }
                 lastBarcodeRawValue = null
                 scope.launch { startScanForTab(selectedTab, imageUriStr) }
             },
@@ -333,10 +328,10 @@ fun ScanScreen(
             val guideText = when (selectedTab) {
                 ScanTab.Ingredient -> "식재료를 프레임 안에 맞춰주세요"
                 ScanTab.Fridge -> "냉장고 내부 전체가 보이게 촬영해주세요"
-                ScanTab.Receipt -> "영수증을 프레임 안에 맞춰주세요"
+                ScanTab.Receipt -> "영수증을 촬영해주세요"
             }
             val guideSubtext = when (selectedTab) {
-                ScanTab.Fridge -> "문을 열고 선반 전체가 프레임 안에 들어오게 맞춰주세요"
+                ScanTab.Fridge -> "문을 열고 선반 전체가 보이게 촬영해주세요"
                 else -> null
             }
 
@@ -350,27 +345,11 @@ fun ScanScreen(
                 if (scanState == ScanState.SUCCESS) {
                     ScanSuccessOverlay()
                 } else {
-                    when (selectedTab) {
-                        ScanTab.Ingredient -> ScanFrameBox(
+                    if (selectedTab == ScanTab.Ingredient) {
+                        ScanFrameBox(
                             frameStyle = ScanFrameStyle.Corners,
                             widthFraction = 0.74f,
                             aspectRatio = 1f,
-                            maxHeightFraction = 0.94f,
-                            onFrameBoundsInWindow = { rect -> frameBounds = rect },
-                        )
-
-                        ScanTab.Fridge -> ScanFrameBox(
-                            frameStyle = ScanFrameStyle.FridgeInterior,
-                            widthFraction = 0.88f,
-                            aspectRatio = 0.72f,
-                            maxHeightFraction = 0.94f,
-                            onFrameBoundsInWindow = { rect -> frameBounds = rect },
-                        )
-
-                        ScanTab.Receipt -> ScanFrameBox(
-                            frameStyle = ScanFrameStyle.RoundedRect,
-                            widthFraction = 0.86f,
-                            aspectRatio = 1f / 1.6f,
                             maxHeightFraction = 0.94f,
                             onFrameBoundsInWindow = { rect -> frameBounds = rect },
                         )
@@ -485,23 +464,17 @@ private fun emptyResultTabOrNull(
     else -> null
 }
 
-// 크롭/리사이즈 목표 해상도 (탭별 업로드 규격).
-private const val INGREDIENT_FIT_MAX_EDGE = 1024
-private const val RECEIPT_TARGET_W = 640
-private const val RECEIPT_TARGET_H = 1024
-private const val FRIDGE_TARGET_W = 1024
-private const val FRIDGE_TARGET_H = 1365
+// 식재료 카메라 촬영 업로드 규격 (프레임 크롭 후 리사이즈).
 private const val INGREDIENT_TARGET_W = 1024
 private const val INGREDIENT_TARGET_H = 1024
 
 /**
- * 식재료: 프레임 크롭 없이 원본 비율 유지 + 긴 변 최대 1024 리사이즈 (API·미리보기 동일 파일).
- * 영수증/냉장고: 프레임 영역 크롭 후 지정 해상도로 리사이즈.
+ * 식재료 카메라 촬영 전용: UI 프레임 영역 크롭 후 1024×1024 JPEG 저장.
+ * 갤러리·냉장고·영수증은 원본 URI를 그대로 업로드합니다.
  */
-private fun Context.prepareImageForScanUpload(
+private fun Context.prepareIngredientCameraImage(
     originalBitmap: Bitmap?,
     fallbackUri: Uri,
-    tab: ScanTab,
     previewBounds: RectF?,
     frameBounds: RectF?,
 ): String {
@@ -509,17 +482,8 @@ private fun Context.prepareImageForScanUpload(
         Log.d("ScanCrop", "Bitmap load failed; using fallback uri=$fallbackUri")
         return fallbackUri.toString()
     }
-    if (tab == ScanTab.Ingredient) {
-        val resized = ScanImageCropper.resizeFitWithinMax(originalBitmap, maxSize = INGREDIENT_FIT_MAX_EDGE)
-        val uri = ScanImageCropper.saveJpegToInternal(this, resized, prefix = "ingredient_fit")
-        Log.d(
-            "ScanCrop",
-            "ingredient fit-resize ${originalBitmap.width}x${originalBitmap.height} -> ${resized.width}x${resized.height}",
-        )
-        return uri.toString()
-    }
     if (previewBounds == null || frameBounds == null) {
-        Log.d("ScanCrop", "Bounds missing; skipping crop. tab=$tab")
+        Log.d("ScanCrop", "Bounds missing; skipping crop for ingredient camera")
         return fallbackUri.toString()
     }
     val cropRect = ScanImageCropper.calculateCropRectCenterCrop(
@@ -530,14 +494,8 @@ private fun Context.prepareImageForScanUpload(
     )
     val cropped = ScanImageCropper.cropBitmapSafe(originalBitmap, cropRect)
     val croppedUri = ScanImageCropper.saveJpegToInternal(this, cropped, prefix = "cropped")
-    val (targetW, targetH, prefix) =
-        when (tab) {
-            ScanTab.Receipt -> Triple(RECEIPT_TARGET_W, RECEIPT_TARGET_H, "resized_640x1024")
-            ScanTab.Fridge -> Triple(FRIDGE_TARGET_W, FRIDGE_TARGET_H, "resized_fridge")
-            ScanTab.Ingredient -> Triple(INGREDIENT_TARGET_W, INGREDIENT_TARGET_H, "resized_1024")
-        }
-    val resized = ScanImageCropper.resize(cropped, targetW = targetW, targetH = targetH)
-    val resizedUri = ScanImageCropper.saveJpegToInternal(this, resized, prefix = prefix)
+    val resized = ScanImageCropper.resize(cropped, targetW = INGREDIENT_TARGET_W, targetH = INGREDIENT_TARGET_H)
+    val resizedUri = ScanImageCropper.saveJpegToInternal(this, resized, prefix = "resized_1024")
     ScanImageCropper.logDebug(
         ScanImageCropper.CropDebug(
             bitmapW = originalBitmap.width,
