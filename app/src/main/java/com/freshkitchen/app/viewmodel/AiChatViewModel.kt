@@ -23,10 +23,14 @@ import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.InquiryApiType
 import com.freshkitchen.app.network.InquiryRepository
 import com.freshkitchen.app.network.IngredientRepository
+import com.freshkitchen.app.network.UserRepository
 import com.freshkitchen.app.ui.screens.chat.ChatMessage
+import com.freshkitchen.app.ui.screens.chat.ChatQuickReply
 import com.freshkitchen.app.ui.screens.chat.RecipeMatchedItemUi
 import com.freshkitchen.app.ui.screens.chat.Sender
 import com.freshkitchen.app.ui.screens.chat.SideMenuItem
+import com.freshkitchen.app.ui.screens.chat.buildChatQuickReplies
+import com.freshkitchen.app.ui.screens.chat.fixedChatQuickReplies
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,6 +66,7 @@ data class AiChatUiState(
     val aiSetting: AiSettingDto? = null,
     val isLoadingAiSetting: Boolean = false,
     val isSavingAiSetting: Boolean = false,
+    val quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
 )
 
 class AiChatViewModel(
@@ -76,6 +81,8 @@ class AiChatViewModel(
 
     private val ingredientRepository = IngredientRepository()
 
+    private val userRepository = UserRepository()
+
 
     private val debugGson: Gson = ChatRetrofitProvider.gson()
 
@@ -87,6 +94,7 @@ class AiChatViewModel(
 
     init {
         refreshRooms(selectFirstAfterLoad = true)
+        loadQuickReplies()
     }
 
     /**
@@ -99,6 +107,7 @@ class AiChatViewModel(
     fun onAiChatScreenVisible() {
         viewModelScope.launch {
             hydrateTokenFromStore()
+            loadQuickReplies()
             val s = _uiState.value
             if (s.error != null || s.sideMenuItems.isEmpty()) {
                 refreshRooms(selectFirstAfterLoad = s.currentRoomId == null && s.sideMenuItems.isEmpty())
@@ -122,6 +131,22 @@ class AiChatViewModel(
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /** GET `/api/v1/users/me/profile` — preferred food styles for quick-reply chips. */
+    private fun loadQuickReplies() {
+        viewModelScope.launch {
+            try {
+                val response = userRepository.getProfile()
+                if (response.code == "COMMON-200" && response.data != null) {
+                    val replies = buildChatQuickReplies(response.data.foodStyles)
+                    _uiState.update { it.copy(quickReplies = replies) }
+                    Log.i(LOG_TAG, "[loadQuickReplies] foodStyles=${response.data.foodStyles}, chips=${replies.size}")
+                }
+            } catch (e: Exception) {
+                logFailure("loadQuickReplies", e)
+            }
+        }
     }
 
     fun dismissSupportError() {

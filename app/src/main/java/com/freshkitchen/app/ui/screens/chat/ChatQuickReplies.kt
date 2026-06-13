@@ -1,5 +1,6 @@
 ﻿package com.freshkitchen.app.ui.screens.chat
 
+import com.freshkitchen.app.network.ProfileEnumMapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +28,8 @@ data class ChatQuickReply(
     val message: String,
 )
 
-val defaultChatQuickReplies: List<ChatQuickReply> = listOf(
+/** Always shown regardless of profile. */
+val fixedChatQuickReplies: List<ChatQuickReply> = listOf(
     ChatQuickReply(
         label = "레시피 추천",
         message = "레시피 추천해줘",
@@ -37,25 +39,33 @@ val defaultChatQuickReplies: List<ChatQuickReply> = listOf(
         message = "보유 중인 식재료로 만들 수 있는 레시피 추천해줘",
     ),
     ChatQuickReply(
-        label = "냉장고 재료",
-        message = "냉장고에 있는 재료로 만들 수 있는 레시피 추천해줘",
-    ),
-    ChatQuickReply(
         label = "소비 임박",
         message = "소비 임박 재료로 만들 수 있는 레시피 추천해줘",
     ),
-    ChatQuickReply(
-        label = "양식 메뉴",
-        message = "양식 메뉴 추천해줘",
-    ),
 )
+
+/** Fixed chips + user's preferred food styles from GET `/api/v1/users/me/profile`. */
+fun buildChatQuickReplies(foodStyleEnums: List<String>?): List<ChatQuickReply> {
+    val dynamic = foodStyleEnums.orEmpty().mapNotNull { enum ->
+        ProfileEnumMapper.foodStyleShortLabelFromEnum(enum)?.let { label ->
+            ChatQuickReply(
+                label = label,
+                message = "${label} 메뉴 추천해줘",
+            )
+        }
+    }
+    return fixedChatQuickReplies + dynamic
+}
+
+/** @deprecated Use [buildChatQuickReplies] with profile foodStyles. */
+val defaultChatQuickReplies: List<ChatQuickReply> = fixedChatQuickReplies
 
 @Composable
 fun ChatQuickRepliesRow(
     onQuickReplyClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    quickReplies: List<ChatQuickReply> = defaultChatQuickReplies,
+    quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
 ) {
     val scrollState = rememberScrollState()
 
