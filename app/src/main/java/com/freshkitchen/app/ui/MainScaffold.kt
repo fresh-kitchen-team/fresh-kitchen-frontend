@@ -91,14 +91,14 @@ fun MainScaffold(
         },
     ) { innerPadding ->
         val layoutDirection = LocalLayoutDirection.current
-        // 스캔 결과: 하단 바 숨김 + innerPadding bottom이 커서 버튼이 위로 떠 보임 → 최소 여백만
+        // 스캔 결과: 앱 하단 탭은 숨기고, 시스템 내비게이션 바 inset은 ScanResultBottomBar에서 처리
         val contentPadding =
             if (currentRoute == ScanNav.routeResult) {
                 PaddingValues(
                     top = innerPadding.calculateTopPadding(),
                     start = innerPadding.calculateStartPadding(layoutDirection),
                     end = innerPadding.calculateEndPadding(layoutDirection),
-                    bottom = 12.dp,
+                    bottom = 0.dp,
                 )
             } else {
                 innerPadding

@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
+import com.freshkitchen.app.ui.ImmersiveNavigationBarEffect
 import com.freshkitchen.app.data.scan.CreateItemRequest
 import com.freshkitchen.app.data.scan.ScanRepository
 import com.freshkitchen.app.data.scan.ScanResultItemUiModel
@@ -31,6 +32,10 @@ import kotlinx.coroutines.withContext
 fun ScanResultScreen(
     navController: NavController,
 ) {
+    // 앱 하단 탭은 MainScaffold에서 숨김. 시스템 내비게이션 바도 immersive로 숨기고
+    // 스와이프로 올릴 때 ScanResultBottomBar(navigationBarsPadding)가 함께 위로 이동.
+    ImmersiveNavigationBarEffect()
+
     val prev = navController.previousBackStackEntry
     val imageUriString = prev?.savedStateHandle?.get<String?>(ScanNav.keyImageUri)
     val receiptItems: ArrayList<String>? =

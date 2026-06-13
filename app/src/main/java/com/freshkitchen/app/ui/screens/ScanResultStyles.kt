@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -413,7 +414,7 @@ internal fun ReceiptFullscreenImageDialog(
     }
 }
 
-/** 스캔 결과 화면 공통 하단 취소/저장 바 (Scaffold innerPadding이 시스템 바 inset 처리) */
+/** 스캔 결과 화면 공통 하단 취소/저장 바 (시스템 내비게이션 바 inset 포함) */
 @Composable
 internal fun ScanResultBottomBar(
     cancelEnabled: Boolean,
@@ -426,7 +427,9 @@ internal fun ScanResultBottomBar(
     Surface(
         color = ScanCardBg,
         shadowElevation = 8.dp,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
