@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.ui.screens
+package com.freshkitchen.app.ui.screens
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
