@@ -35,7 +35,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshkitchen.app.ui.theme.FreshGreenDark
+import com.freshkitchen.app.ui.theme.LightGray
+import com.freshkitchen.app.ui.theme.WarnOrange
+import com.freshkitchen.app.ui.theme.WarnRed
 import com.freshkitchen.app.viewmodel.FoodItem
 import com.freshkitchen.app.viewmodel.FoodStatus
 import com.freshkitchen.app.viewmodel.SearchViewModel
@@ -47,7 +51,7 @@ import com.freshkitchen.app.viewmodel.SearchViewModel
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit = {},
-    viewModel: SearchViewModel = viewModel()
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }

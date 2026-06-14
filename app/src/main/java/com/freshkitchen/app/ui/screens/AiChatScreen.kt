@@ -4,10 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import com.freshkitchen.app.ui.screens.chat.ChatScreen
 import com.freshkitchen.app.viewmodel.AiChatViewModel
@@ -22,11 +21,8 @@ fun AiChatScreen(
 
     // Activity-scoped: survives bottom-tab switches (Nav destination VM can be cleared on leave).
     val activity = LocalContext.current as ComponentActivity
-    val viewModel: AiChatViewModel = viewModel(
+    val viewModel: AiChatViewModel = hiltViewModel(
         viewModelStoreOwner = activity,
-        factory = ViewModelProvider.AndroidViewModelFactory.getInstance(
-            activity.application,
-        ),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.IngredientRepository
 import com.freshkitchen.app.network.ItemCreateRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,8 +23,9 @@ data class ManualAddUiState(
     val error: String? = null,
 )
 
-class ManualAddViewModel(
-    private val repository: IngredientRepository = IngredientRepository(),
+@HiltViewModel
+class ManualAddViewModel @Inject constructor(
+    private val repository: IngredientRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ManualAddUiState())

@@ -4,7 +4,7 @@
 // 인증 레포지토리
 // ───────────────────────────────────────────
 class AuthRepository(
-    private val api: AuthApiService = RetrofitClient.authApi
+    private val api: AuthApiService,
 ) {
     suspend fun loginWithGoogle(idToken: String): ApiResponse<AuthResponse> {
         return api.loginWithGoogle(GoogleLoginRequest(idToken))

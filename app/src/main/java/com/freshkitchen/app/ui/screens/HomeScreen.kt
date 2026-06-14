@@ -25,15 +25,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshkitchen.app.ui.components.HomeBrandedTopBar
+import com.freshkitchen.app.ui.theme.FreshGreen
+import com.freshkitchen.app.ui.theme.FreshGreenDark
+import com.freshkitchen.app.ui.theme.LightGray
+import com.freshkitchen.app.ui.theme.WarnOrange
+import com.freshkitchen.app.ui.theme.WarnRed
 import com.freshkitchen.app.viewmodel.HomeViewModel
 import com.freshkitchen.app.viewmodel.RecentItemUi
-
-val FreshGreen = Color(0xFF4ADE80)
-val FreshGreenDark = Color(0xFF22C55E)
-val WarnOrange = Color(0xFFF97316)
-val WarnRed = Color(0xFFEF4444)
-val LightGray = Color(0xFFF5F5F5)
 
 // ───────────────────────────────────────────
 // 홈 스크린
@@ -45,7 +45,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     refreshHomeTrigger: Long = 0L,
-    viewModel: HomeViewModel = viewModel(),
+    viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -56,7 +56,13 @@ fun HomeScreen(
     }
 
     Scaffold(
-        topBar = { HomeTopBar(onProfileClick = onNavigateToProfile, onSettingsClick = onNavigateToSettings, onSearchClick = onNavigateToSearch) },
+        topBar = {
+            HomeBrandedTopBar(
+                onProfileClick = onNavigateToProfile,
+                onSettingsClick = onNavigateToSettings,
+                onSearchClick = onNavigateToSearch,
+            )
+        },
         containerColor = Color.White
     ) { innerPadding ->
         Column(
@@ -135,47 +141,6 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
-
-// ───────────────────────────────────────────
-// 상단 앱바 (프로필 / 검색 / 설정)
-// ───────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeTopBar(onProfileClick: () -> Unit = {}, onSearchClick: () -> Unit = {}, onSettingsClick: () -> Unit = {}) {
-    TopAppBar(
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(FreshGreen),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🍳", fontSize = 16.sp)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "주방 인벤토리",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            }
-        },
-        actions = {
-            IconButton(onClick = onProfileClick) {
-                Icon(Icons.Default.Person, contentDescription = "프로필")
-            }
-            IconButton(onClick = onSearchClick) {
-                Icon(Icons.Default.Search, contentDescription = "검색")
-            }
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Settings, contentDescription = "설정")
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-    )
 }
 
 // ───────────────────────────────────────────

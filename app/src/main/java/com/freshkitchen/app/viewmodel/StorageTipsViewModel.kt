@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.StorageTipDto
 import com.freshkitchen.app.network.TipsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,8 +55,9 @@ data class StorageTipsUiState(
 //   - 보관 팁 전체 목록을 한번에 불러오고
 //     카테고리별로 묶어 UI 에 전달한다.
 // ───────────────────────────────────────────
-class StorageTipsViewModel(
-    private val repository: TipsRepository = TipsRepository(),
+@HiltViewModel
+class StorageTipsViewModel @Inject constructor(
+    private val repository: TipsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StorageTipsUiState())

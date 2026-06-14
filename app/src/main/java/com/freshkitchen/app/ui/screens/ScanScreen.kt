@@ -1,7 +1,7 @@
 ﻿package com.freshkitchen.app.ui.screens
 
 import android.Manifest
-import android.app.Application
+import androidx.navigation.NavController
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.RectF
@@ -45,9 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.data.scan.ScanSourceType
 import com.freshkitchen.app.data.scan.simulatedReceiptUiModel
 import com.freshkitchen.app.data.scan.toJson
@@ -81,10 +79,8 @@ fun ScanScreen(
     lifecycleOwner: LifecycleOwner,
 ) {
     val context = LocalContext.current
-    val application = context.applicationContext as Application
     val scope = rememberCoroutineScope()
-    val scanViewModel: ScanViewModel =
-        viewModel(factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application))
+    val scanViewModel: ScanViewModel = hiltViewModel()
     val operationState by scanViewModel.operationState.collectAsState()
 
     var selectedTab by rememberSaveable { mutableStateOf(ScanTab.Ingredient) }

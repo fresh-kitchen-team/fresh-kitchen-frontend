@@ -8,6 +8,8 @@ import com.freshkitchen.app.network.ItemCreateRequest
 import com.freshkitchen.app.network.ProfileEnumMapper
 import com.freshkitchen.app.network.UserProfileUpdateRequest
 import com.freshkitchen.app.network.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,9 +31,10 @@ data class OnboardingSetupState(
 // ───────────────────────────────────────────
 // 온보딩 설정 ViewModel
 // ───────────────────────────────────────────
-class OnboardingSetupViewModel(
-    private val userRepository: UserRepository = UserRepository(),
-    private val ingredientRepository: IngredientRepository = IngredientRepository()
+@HiltViewModel
+class OnboardingSetupViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val ingredientRepository: IngredientRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingSetupState())

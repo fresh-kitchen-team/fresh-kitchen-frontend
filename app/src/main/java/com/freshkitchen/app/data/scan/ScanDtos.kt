@@ -7,12 +7,6 @@ import com.google.gson.annotations.SerializedName
  * Gson 제네릭 역직렬화 이슈를 피하기 위해 Retrofit 응답은 구체 타입
  * [IngredientImageScanApiResponse], [ReceiptImageScanApiResponse]를 사용합니다.
  */
-data class ApiResponse<T>(
-    val status: Int,
-    val code: String? = null,
-    val message: String? = null,
-    val data: T? = null,
-)
 
 /** POST /api/v1/scan/ingredient-image */
 data class IngredientImageScanApiResponse(

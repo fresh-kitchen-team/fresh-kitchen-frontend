@@ -1,15 +1,29 @@
 ﻿package com.freshkitchen.app.network
 
+import com.google.gson.annotations.SerializedName
+
 // ───────────────────────────────────────────
 // 백엔드 공통 응답 래퍼
 // { "status": 200, "code": "COMMON-200", "message": "Success", "data": { ... } }
 // ───────────────────────────────────────────
 data class ApiResponse<T>(
-    val status: Int,
-    val code: String,
-    val message: String,
-    val data: T?
+    @SerializedName("status") val status: Int,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: T? = null,
 )
+
+/** Business success across main, chat, scan, and inquiry APIs. */
+fun <T> ApiResponse<T>.isBusinessSuccess(): Boolean = isEnvelopeSuccess(status, code, message)
+
+fun isEnvelopeSuccess(status: Int, code: String?, message: String? = null): Boolean {
+    if (status == 0 || status in 200..299) return true
+    when (code?.trim()?.uppercase()) {
+        "COMMON-200", "COMMON-201" -> return true
+    }
+    if (message.equals("Success", ignoreCase = true)) return true
+    return false
+}
 
 // ───────────────────────────────────────────
 // GET /api/v1/items 응답 데이터
@@ -43,6 +57,8 @@ data class ItemCreateRequest(
     val name: String,
     val storageType: String,
     val catalogId: Long? = null,
+    /** MANUAL | PHOTO | RECEIPT — scan flows set this; manual add omits it. */
+    val sourceType: String? = null,
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
     val memo: String? = null,

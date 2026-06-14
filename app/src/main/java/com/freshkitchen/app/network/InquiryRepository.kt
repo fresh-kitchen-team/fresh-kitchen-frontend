@@ -4,6 +4,7 @@ import android.content.Context
 import com.freshkitchen.app.data.ChatRoomSectionMapper
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.logging.ApiLog
+import com.freshkitchen.app.network.isBusinessSuccess
 import okhttp3.MultipartBody
 import retrofit2.HttpException
 
@@ -21,7 +22,7 @@ enum class InquiryApiCategory(val apiValue: String) {
 }
 
 class InquiryRepository(
-    private val api: InquiryApiService = RetrofitClient.inquiriesApi,
+    private val api: InquiryApiService,
 ) {
 
     /** GET `/api/v1/inquiries` — 로그인 사용자 문의·신고 내역 (최신순). */
@@ -34,7 +35,7 @@ class InquiryRepository(
                 sub,
                 "envelope status=${response.status} code=${response.code} count=${response.data?.size ?: 0}",
             )
-            if (!isBusinessSuccess(response)) {
+            if (!response.isBusinessSuccess()) {
                 val msg = response.message?.takeIf { it.isNotBlank() }
                     ?: "목록을 불러오지 못했습니다. (${response.code})"
                 ApiLog.w(sub, "business failure: $msg")
@@ -70,7 +71,7 @@ class InquiryRepository(
                     "hasImageUrl=${!detail?.imageUrl.isNullOrBlank()} " +
                     "imageUrl=${detail?.imageUrl.orEmpty().take(120)}",
             )
-            if (!isBusinessSuccess(response)) {
+            if (!response.isBusinessSuccess()) {
                 val msg = response.message?.takeIf { it.isNotBlank() }
                     ?: "상세를 불러오지 못했습니다. (${response.code})"
                 ApiLog.w(
@@ -151,7 +152,7 @@ class InquiryRepository(
                 sub,
                 "envelope status=${response.status} code=${response.code} message=${response.message}",
             )
-            if (isBusinessSuccess(response)) {
+            if (response.isBusinessSuccess()) {
                 val display = completionMessage(type, response.message)
                 ApiLog.i(sub, "OK displayMessage=$display")
                 Result.success(display)
@@ -176,13 +177,6 @@ class InquiryRepository(
             "AI 관련" -> InquiryApiCategory.AI
             else -> InquiryApiCategory.OTHER
         }
-
-    private fun isBusinessSuccess(response: ApiResponse<*>): Boolean {
-        if (response.message.equals("Success", ignoreCase = true)) return true
-        if (response.code == "COMMON-200") return true
-        if (response.status == 0 || response.status in 200..299) return true
-        return false
-    }
 
     private fun completionMessage(type: InquiryApiType, serverMessage: String?): String {
         if (serverMessage.equals("Success", ignoreCase = true)) {

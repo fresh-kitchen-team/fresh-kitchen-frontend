@@ -52,11 +52,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.theme.BottomNavSelected
-import com.freshkitchen.app.navigation.BottomNavRoute
-import com.freshkitchen.app.navigation.ScanNav
+import com.freshkitchen.app.navigation.requestHomeRefresh
 import com.freshkitchen.app.viewmodel.ConsumptionDdayTone
 import com.freshkitchen.app.viewmodel.ConsumptionItemUi
 import com.freshkitchen.app.viewmodel.ConsumptionStorageFilter
@@ -67,7 +66,7 @@ import com.freshkitchen.app.viewmodel.ConsumptionViewModel
 fun ConsumptionDetailScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: ConsumptionViewModel = viewModel(),
+    viewModel: ConsumptionViewModel = hiltViewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
@@ -155,13 +154,10 @@ fun ConsumptionDetailScreen(
                                 accent = accent,
                                 isConsuming = item.id in uiState.consumingIds,
                                 onConsumeComplete = {
-                    viewModel.consumeItem(item.id) {
-                        // 소비 성공 → 홈 화면 품목 수 갱신
-                        navController.getBackStackEntry(BottomNavRoute.Home.route)
-                            .savedStateHandle
-                            .set(ScanNav.keyRefreshHome, System.currentTimeMillis())
-                    }
-                },
+                                    viewModel.consumeItem(item.id) {
+                                        navController.requestHomeRefresh()
+                                    }
+                                },
                             )
                         }
                     }

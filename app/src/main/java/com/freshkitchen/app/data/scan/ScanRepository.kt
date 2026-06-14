@@ -3,24 +3,26 @@
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.BuildConfig
 import com.freshkitchen.app.logging.ApiLog
+import com.freshkitchen.app.network.IngredientApiService
+import com.freshkitchen.app.network.ItemCreateRequest
+import com.freshkitchen.app.network.OkHttpClientFactory
+import com.freshkitchen.app.network.RetrofitClient
+import com.freshkitchen.app.network.StorageDto
+import com.freshkitchen.app.network.isBusinessSuccess
+import com.freshkitchen.app.network.isEnvelopeSuccess
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.freshkitchen.app.data.remote.TokenRefreshInterceptor
-import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import com.google.gson.GsonBuilder
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 class ScanRepository(context: Context) {
 
@@ -46,7 +48,7 @@ class ScanRepository(context: Context) {
             .build()
 
     private val api: ScanApiService = retrofit.create(ScanApiService::class.java)
-    private val itemsApi: ItemsApiService = retrofit.create(ItemsApiService::class.java)
+    private val ingredientApi: IngredientApiService = RetrofitClient.ingredientApi
 
     init {
         if (BuildConfig.DEBUG) {
@@ -57,43 +59,13 @@ class ScanRepository(context: Context) {
         }
     }
 
-    private fun buildClient(): OkHttpClient {
-        val builder =
-            OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(120, TimeUnit.SECONDS)
-                .addInterceptor(scanAuthInterceptor())
-                .addInterceptor(TokenRefreshInterceptor())
-        if (BuildConfig.DEBUG) {
-            builder.addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.HEADERS
-                },
-            )
-        }
-        return builder.build()
-    }
-
-    /** Spring Security JWT: `Authorization: Bearer <access_token>` */
-    private fun scanAuthInterceptor(): Interceptor =
-        Interceptor { chain ->
-            val original = chain.request()
-            val raw = AuthTokenStore.getAccessToken()?.trim().orEmpty()
-            val authHeader =
-                when {
-                    raw.isEmpty() -> null
-                    raw.startsWith("Bearer ", ignoreCase = true) -> raw
-                    else -> "Bearer $raw"
-                }
-            val request =
-                if (authHeader != null) {
-                    original.newBuilder().header("Authorization", authHeader).build()
-                } else {
-                    original
-                }
-            chain.proceed(request)
-        }
+    private fun buildClient(): OkHttpClient =
+        OkHttpClientFactory.authenticatedClient(
+            connectTimeoutSec = 30,
+            readTimeoutSec = 120,
+            writeTimeoutSec = 120,
+            debugLogTag = "FreshKitchenScan",
+        )
 
     suspend fun scanIngredientImage(
         imageUri: Uri,
@@ -175,30 +147,31 @@ class ScanRepository(context: Context) {
                 .mapScanFailures()
         }
 
-    suspend fun fetchItemStorages(): Result<List<StorageListItemDto>> =
+    suspend fun fetchItemStorages(): Result<List<StorageDto>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val env = itemsApi.getStorages()
-                if (!isScanEnvelopeSuccess(env.status, env.code)) {
+                val response = ingredientApi.getStorages()
+                if (!response.isBusinessSuccess()) {
                     throw ScanApiException(
-                        env.message?.takeIf { it.isNotBlank() }
-                            ?: env.code
+                        response.message?.takeIf { it.isNotBlank() }
+                            ?: response.code
                             ?: "보관함 목록을 불러오지 못했습니다.",
                     )
                 }
-                env.data ?: emptyList()
+                response.data ?: emptyList()
             }
                 .onFailure { e -> ApiLog.e("Items", "getStorages exception: ${e.message}", e) }
                 .mapScanFailures()
         }
 
-    suspend fun createItem(request: CreateItemRequest): Result<Unit> =
+    suspend fun createItem(request: ItemCreateRequest): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val env = itemsApi.createItem(request)
-                if (!isScanEnvelopeSuccess(env.status, env.code)) {
+                val response = ingredientApi.addItem(request)
+                if (!response.isBusinessSuccess()) {
                     throw ScanApiException(
-                        env.message?.takeIf { it.isNotBlank() } ?: env.code ?: "저장에 실패했습니다.",
+                        response.message?.takeIf { it.isNotBlank() }
+                            ?: response.code ?: "저장에 실패했습니다.",
                     )
                 }
                 Unit
@@ -208,7 +181,7 @@ class ScanRepository(context: Context) {
         }
 
     private fun IngredientImageScanApiResponse.unwrapIngredientPayload(): IngredientImageScanData {
-        if (!isScanEnvelopeSuccess(status, code)) {
+        if (!isEnvelopeSuccess(status, code, message)) {
             throw ScanApiException(
                 message?.takeIf { it.isNotBlank() } ?: code ?: "식재료 스캔에 실패했습니다. (status=$status)",
             )
@@ -217,7 +190,7 @@ class ScanRepository(context: Context) {
     }
 
     private fun ReceiptImageScanApiResponse.unwrapReceiptPayload(): ReceiptImageScanData {
-        if (!isScanEnvelopeSuccess(status, code)) {
+        if (!isEnvelopeSuccess(status, code, message)) {
             throw ScanApiException(
                 message?.takeIf { it.isNotBlank() } ?: code ?: "영수증 스캔에 실패했습니다. (status=$status)",
             )
@@ -226,7 +199,7 @@ class ScanRepository(context: Context) {
     }
 
     private fun FridgeImageScanApiResponse.unwrapFridgePayload(): FridgeImageScanData {
-        if (!isScanEnvelopeSuccess(status, code)) {
+        if (!isEnvelopeSuccess(status, code, message)) {
             throw ScanApiException(
                 message?.takeIf { it.isNotBlank() } ?: code ?: "냉장고 스캔에 실패했습니다. (status=$status)",
             )
@@ -341,18 +314,6 @@ class ScanRepository(context: Context) {
 }
 
 class ScanApiException(message: String) : Exception(message)
-
-/**
- * 백엔드가 Swagger 예시처럼 `status: 0` 이거나, 실서버처럼 `status: 200` + `code: COMMON-200` 형태로 성공을 줄 수 있음.
- */
-private fun isScanEnvelopeSuccess(status: Int, code: String?): Boolean {
-    if (status == 0) return true
-    if (status in 200..299) return true
-    val c = code?.trim().orEmpty()
-    if (c.equals("COMMON-200", ignoreCase = true)) return true
-    if (c.equals("COMMON-201", ignoreCase = true)) return true
-    return false
-}
 
 private fun <T> Result<T>.mapScanFailures(): Result<T> =
     fold(

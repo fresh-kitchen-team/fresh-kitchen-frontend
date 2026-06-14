@@ -42,7 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.theme.BottomNavSelected
 import com.freshkitchen.app.viewmodel.DisposalGuideViewModel
@@ -53,7 +53,7 @@ import com.freshkitchen.app.viewmodel.DisposalWasteTone
 fun DisposalGuideScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: DisposalGuideViewModel = viewModel(),
+    viewModel: DisposalGuideViewModel = hiltViewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
