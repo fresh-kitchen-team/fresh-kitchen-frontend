@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 /**
  * 401 응답 시 refresh token으로 access token을 자동 갱신하고 원래 요청을 재시도한다.
@@ -40,20 +42,20 @@ class TokenRefreshInterceptor : okhttp3.Interceptor {
 
         val refreshToken = AuthTokenStore.getRefreshToken()
         if (refreshToken.isNullOrEmpty()) {
-            Log.w(TAG, "refresh token 없음 — 로그인 필요")
-            return chain.proceed(request)
+            Log.w(TAG, "refresh token 없음 — 401 반환")
+            return buildUnauthorizedResponse(request)
         }
 
         val newTokens = callRefreshSync(refreshToken)
         if (newTokens == null) {
-            Log.w(TAG, "refresh 실패 — 토큰 삭제")
+            Log.w(TAG, "refresh 실패 — 토큰 삭제 후 401 반환")
             AuthTokenStore.clear()
             runBlocking {
                 runCatching {
                     TokenDataStore.clearTokens(MyApplication.appContext)
                 }
             }
-            return chain.proceed(request)
+            return buildUnauthorizedResponse(request)
         }
 
         // 새 토큰 저장
@@ -122,6 +124,16 @@ class TokenRefreshInterceptor : okhttp3.Interceptor {
         val accessToken: String,
         val refreshToken: String
     )
+
+    /** refresh 실패/토큰 없음 시 401 응답을 직접 만들어 반환 — 원본 요청 재시도 없음. */
+    private fun buildUnauthorizedResponse(request: Request): Response =
+        Response.Builder()
+            .request(request)
+            .protocol(Protocol.HTTP_1_1)
+            .code(401)
+            .message("Unauthorized")
+            .body("".toResponseBody(null))
+            .build()
 
     companion object {
         private const val TAG = "TokenRefresh"

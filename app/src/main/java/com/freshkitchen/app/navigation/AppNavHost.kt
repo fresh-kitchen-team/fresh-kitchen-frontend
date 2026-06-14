@@ -113,7 +113,10 @@ fun AppNavHost(
         // 검색 화면
         composable("search") {
             SearchScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = {
+                    navController.requestHomeRefresh()
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -161,7 +164,10 @@ fun AppNavHost(
             val filter = backStackEntry.arguments?.getString("filter") ?: "all"
             InventoryListScreen(
                 initialFilter = filter,
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    navController.requestHomeRefresh()
+                    navController.popBackStack()
+                },
                 onNavigateToProfile = { navController.navigate("profile") },
                 onNavigateToSearch = { navController.navigate("search") },
                 onNavigateToSettings = { navController.navigate("settings") },

@@ -1,6 +1,7 @@
 ﻿package com.freshkitchen.app.notification
 
 import android.util.Log
+import com.freshkitchen.app.data.auth.SettingsDataStore
 import com.freshkitchen.app.network.UserRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -8,7 +9,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 // ───────────────────────────────────────────
 // FCM 메시지 수신 서비스
@@ -36,22 +39,39 @@ class FreshKitchenMessagingService : FirebaseMessagingService() {
 
     // ───────────────────────────────────────────
     // 백엔드에서 FCM 메시지 수신 시 호출
-    // notification 필드 or data 필드로 내용 전달됨
+    // data["type"] 으로 메시지 종류 구분:
+    //   "INQUIRY_REPLY" → 문의 답변 알림
+    //   그 외           → 유통기한 알림
     // ───────────────────────────────────────────
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         Log.d(TAG, "FCM 메시지 수신 from=${message.from}")
 
-        // notification 필드 (백엔드가 title/body를 설정한 경우)
+        val type = message.data["type"] ?: ""
+
+        // 알람 설정 확인 (DataStore는 코루틴 기반이므로 runBlocking으로 동기 처리)
+        val shouldShow = runBlocking {
+            if (type == "INQUIRY_REPLY") {
+                SettingsDataStore.getInquiryAlarmEnabled(applicationContext).first()
+            } else {
+                SettingsDataStore.getExpiryAlarmEnabled(applicationContext).first()
+            }
+        }
+
+        if (!shouldShow) {
+            Log.d(TAG, "알림 설정 꺼짐 (type=$type) — 표시 생략")
+            return
+        }
+
         val title = message.notification?.title
             ?: message.data["title"]
             ?: "FreshKitchen 알림"
 
         val body = message.notification?.body
             ?: message.data["body"]
-            ?: "냉장고를 확인해보세요!"
+            ?: if (type == "INQUIRY_REPLY") "문의하신 내용에 답변이 등록되었어요." else "냉장고를 확인해보세요!"
 
-        Log.d(TAG, "알림 표시: title=$title body=$body")
+        Log.d(TAG, "알림 표시: type=$type title=$title")
         NotificationHelper.sendExpiryNotification(this, title, body)
     }
 

@@ -83,6 +83,16 @@ class ManualAddViewModel @Inject constructor(
             return
         }
 
+        // 날짜 부분 입력 방지 — 0자(미입력)는 허용, 8자리 완성 시에만 서버 전송
+        if (s.expiryDate.isNotEmpty() && s.expiryDate.length != 8) {
+            _uiState.value = s.copy(error = "유통기한을 8자리로 입력해주세요 (예: 20261231)")
+            return
+        }
+        if (s.purchaseDate.isNotEmpty() && s.purchaseDate.length != 8) {
+            _uiState.value = s.copy(error = "구매일을 8자리로 입력해주세요 (예: 20260101)")
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = s.copy(isSubmitting = true, error = null)
             val success = repository.addItem(
