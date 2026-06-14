@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.freshkitchen.app.ui.components.FoodItemThumbnail
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
 import com.freshkitchen.app.ui.theme.StatusExpiredBgColor
@@ -208,16 +209,8 @@ fun DetailTitleSection(item: FoodItem) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 이모지 아이콘
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(LightGray),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(item.emoji, fontSize = 32.sp)
-        }
+        // 대표 이미지 or 이모지 (상세: imageUrl 사용)
+        FoodItemThumbnail(item = item, size = 64.dp, emojiSize = 32.sp, cornerRadius = 12.dp, isDetail = true)
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(item.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)

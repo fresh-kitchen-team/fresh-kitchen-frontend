@@ -167,7 +167,7 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
 
-                // 알림 테스트 (시연용)
+                // 유통기한 알림 테스트 (시연용)
                 SettingsButtonRow(
                     title = "알림 테스트",
                     description = "유통기한 임박 알림을 즉시 발송합니다.",
@@ -184,6 +184,27 @@ fun SettingsScreen(
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("오류: ${e.message}")
                             }
+                        }
+                    }
+                )
+                SettingsDivider()
+
+                // 문의 답변 알림 테스트 (시연용)
+                SettingsButtonRow(
+                    title = "문의 답변 알림 테스트",
+                    description = "문의 답변 알림을 즉시 발송합니다.",
+                    buttonText = "테스트",
+                    onButtonClick = {
+                        if (!uiState.inquiryAlarmEnabled) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("문의 답변 알림이 꺼져 있어요")
+                            }
+                        } else {
+                            com.freshkitchen.app.notification.NotificationHelper.sendExpiryNotification(
+                                context,
+                                "문의 답변이 도착했어요",
+                                "회원님의 문의에 답변이 등록되었습니다. 확인해보세요!"
+                            )
                         }
                     }
                 )

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshkitchen.app.ui.components.FoodItemThumbnail
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
 import com.freshkitchen.app.ui.theme.WarnOrange
@@ -387,7 +388,7 @@ fun NearExpirySearchCard(item: FoodItem, onClick: () -> Unit = {}) {
     ) {
         Text("🔥", fontSize = 22.sp)
         Spacer(modifier = Modifier.height(6.dp))
-        Text(item.emoji, fontSize = 28.sp)
+        FoodItemThumbnail(item = item, size = 48.dp, emojiSize = 28.sp, cornerRadius = 10.dp)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             item.name,
@@ -479,16 +480,8 @@ fun SearchResultCard(item: FoodItem, onClick: () -> Unit = {}) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 이모지
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(item.emoji, fontSize = 26.sp)
-            }
+            // 대표 이미지 or 이모지
+            FoodItemThumbnail(item = item, size = 50.dp, emojiSize = 26.sp, cornerRadius = 12.dp)
 
             Spacer(modifier = Modifier.width(14.dp))
 

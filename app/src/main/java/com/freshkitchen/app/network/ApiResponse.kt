@@ -28,6 +28,16 @@ fun isEnvelopeSuccess(status: Int, code: String?, message: String? = null): Bool
 // ───────────────────────────────────────────
 // GET /api/v1/items 응답 데이터
 // ───────────────────────────────────────────
+
+// 식재료 대표 이미지 (PHOTO 또는 EMOJI)
+data class RepresentativeImageDto(
+    val type: String,           // "PHOTO" | "EMOJI"
+    val imageUrl: String?,      // 원본 URL (PHOTO일 때만)
+    val thumbnailUrl: String?,  // 썸네일 URL (PHOTO일 때만, 없으면 imageUrl과 동일)
+    val emoji: String?,         // 이모지 (EMOJI일 때만)
+    val source: String          // "USER_PHOTO" | "CATALOG_IMAGE" | "CATALOG_EMOJI" | "CATEGORY_EMOJI" | "DEFAULT"
+)
+
 data class ItemDto(
     val id: Long,
     val name: String,
@@ -36,9 +46,10 @@ data class ItemDto(
     val storage: String,            // "FRIDGE" | "FREEZER" | "PANTRY"
     val category: String?,          // 카테고리 (null 가능)
     val expiryDate: String?,        // 유통기한 "2026-05-28" (null 가능)
-    val emoji: String?,             // 카탈로그 이모지 (null 가능)
+    val emoji: String?,             // 카탈로그 이모지 (null 가능, representativeImage 폴백용)
     val purchaseDate: String?,      // 구매일 "2026-05-13"
-    val memo: String?               // 메모
+    val memo: String?,              // 메모
+    val representativeImage: RepresentativeImageDto? = null  // 대표 이미지 (null이면 emoji 폴백)
 )
 
 // ───────────────────────────────────────────

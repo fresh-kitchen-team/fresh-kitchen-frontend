@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshkitchen.app.ui.components.FoodItemThumbnail
 import com.freshkitchen.app.ui.components.InventoryScreenTopBar
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
@@ -575,16 +576,8 @@ fun FoodItemCard(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 이모지 아이콘
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(item.emoji, fontSize = 24.sp)
-            }
+            // 대표 이미지 or 이모지
+            FoodItemThumbnail(item = item, size = 48.dp, emojiSize = 24.sp)
 
             Spacer(modifier = Modifier.width(12.dp))
 

@@ -49,7 +49,8 @@ data class FoodItem(
     val emoji: String,
     val purchaseDate: String = "",
     val memo: String = "",
-    val storageId: Long = 0L
+    val storageId: Long = 0L,
+    val representativeImage: com.freshkitchen.app.network.RepresentativeImageDto? = null
 )
 
 // ───────────────────────────────────────────
@@ -289,10 +290,11 @@ internal fun ItemDto.toFoodItem(): FoodItem {
         amount = "",                          // 백엔드 미지원 필드
         expiryDate = expiryDate ?: "",
         status = foodStatus,
-        emoji = emoji ?: "🍽️",               // 카탈로그 이모지 없으면 기본값
+        emoji = emoji ?: "🍽️",               // representativeImage 없을 때 폴백
         purchaseDate = purchaseDate ?: "",
         memo = memo ?: "",
-        storageId = storageId
+        storageId = storageId,
+        representativeImage = representativeImage
     )
 }
 
