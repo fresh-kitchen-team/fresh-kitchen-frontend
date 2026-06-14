@@ -121,12 +121,20 @@ class InventoryListViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isProcessing = true)
+            val successIds = mutableSetOf<Int>()
             ids.forEach { id ->
-                repository.deleteItem(id.toLong())
+                if (repository.deleteItem(id.toLong())) successIds.add(id)
             }
-            allItems = allItems.filter { it.id !in ids }.toMutableList()
+            if (successIds.isNotEmpty()) {
+                allItems = allItems.filter { it.id !in successIds }.toMutableList()
+            }
+            val failCount = ids.size - successIds.size
             updateState(_uiState.value.selectedFilter)
-            // updateState resets isSelectMode/selectedItemIds to default (false/empty) — correct
+            if (failCount > 0) {
+                _uiState.value = _uiState.value.copy(
+                    error = "${failCount}개 항목을 삭제하지 못했어요. 다시 시도해주세요."
+                )
+            }
             onComplete()
         }
     }
@@ -139,24 +147,37 @@ class InventoryListViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isProcessing = true)
+            val successIds = mutableSetOf<Int>()
             ids.forEach { id ->
-                repository.consumeItem(id.toLong())
+                if (repository.consumeItem(id.toLong())) successIds.add(id)
             }
-            allItems = allItems.filter { it.id !in ids }.toMutableList()
+            if (successIds.isNotEmpty()) {
+                allItems = allItems.filter { it.id !in successIds }.toMutableList()
+            }
+            val failCount = ids.size - successIds.size
             updateState(_uiState.value.selectedFilter)
+            if (failCount > 0) {
+                _uiState.value = _uiState.value.copy(
+                    error = "${failCount}개 항목을 소비 처리하지 못했어요. 다시 시도해주세요."
+                )
+            }
             onComplete()
         }
     }
 
     fun updateItem(updatedItem: FoodItem) {
         val index = allItems.indexOfFirst { it.id == updatedItem.id }
-        if (index != -1) {
-            allItems = allItems.toMutableList().also { it[index] = updatedItem }
-            updateState(_uiState.value.selectedFilter)
-        }
+        if (index == -1) return
+
+        val originalItem = allItems[index]
+
+        // 낙관적 업데이트 — UI 즉시 반영
+        allItems = allItems.toMutableList().also { it[index] = updatedItem }
+        updateState(_uiState.value.selectedFilter)
+
         // 서버에 PATCH 요청
         viewModelScope.launch {
-            repository.updateItem(
+            val success = repository.updateItem(
                 id = updatedItem.id.toLong(),
                 request = ItemUpdateRequest(
                     name = updatedItem.name,
@@ -169,6 +190,17 @@ class InventoryListViewModel @Inject constructor(
                             ?: storageIdMap[updatedItem.storage],
                 )
             )
+            if (!success) {
+                // API 실패 시 원래 값으로 롤백
+                val rollbackIndex = allItems.indexOfFirst { it.id == originalItem.id }
+                if (rollbackIndex != -1) {
+                    allItems = allItems.toMutableList().also { it[rollbackIndex] = originalItem }
+                    updateState(_uiState.value.selectedFilter)
+                }
+                _uiState.value = _uiState.value.copy(
+                    error = "수정 내용을 저장하지 못했어요. 다시 시도해주세요."
+                )
+            }
         }
     }
 
@@ -176,31 +208,30 @@ class InventoryListViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val dtos = repository.getIngredients()
+            repository.getIngredients().fold(
+                onSuccess = { dtos ->
+                    // 빈 목록도 정상 상태 — empty state로 표시
+                    allItems = dtos.map { it.toFoodItem() }.toMutableList()
 
-            if (dtos.isNotEmpty()) {
-                // 서버가 이미 유효한 아이템만 내려줌 (DISCARDED/CONSUMED 제외)
-                allItems = dtos
-                    .map { it.toFoodItem() }
-                    .toMutableList()
-
-                // storageId 매핑 채우기
-                dtos.forEach { dto ->
-                    val type = when (dto.storage) {
-                        "FREEZER" -> StorageType.FREEZER
-                        "PANTRY"  -> StorageType.PANTRY
-                        else      -> StorageType.FRIDGE
+                    // storageId 매핑 채우기
+                    dtos.forEach { dto ->
+                        val type = when (dto.storage) {
+                            "FREEZER" -> StorageType.FREEZER
+                            "PANTRY"  -> StorageType.PANTRY
+                            else      -> StorageType.FRIDGE
+                        }
+                        storageIdMap[type] = dto.storageId
                     }
-                    storageIdMap[type] = dto.storageId
-                }
 
-                updateState(_uiState.value.selectedFilter)
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "데이터를 불러오지 못했어요."
-                )
-            }
+                    updateState(_uiState.value.selectedFilter)
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "데이터를 불러오지 못했어요."
+                    )
+                }
+            )
         }
     }
 

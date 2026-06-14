@@ -143,12 +143,12 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
 
-                // 사진 등록 알림
+                // 문의 답변 알림
                 SettingsToggleRow(
-                    title = "사진 등록 알림",
-                    description = "새로운 식재료 사진이 감지되면 등록 여부를 물어봅니다.",
-                    checked = uiState.photoAlarmEnabled,
-                    onCheckedChange = { viewModel.togglePhotoAlarm(it) }
+                    title = "문의 답변 알림",
+                    description = "1:1 문의에 답변이 등록되면 푸시 알림을 보냅니다.",
+                    checked = uiState.inquiryAlarmEnabled,
+                    onCheckedChange = { viewModel.toggleInquiryAlarm(it) }
                 )
                 SettingsDivider()
 

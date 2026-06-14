@@ -78,7 +78,10 @@ fun SearchScreen(
         FoodItemEditDialog(
             item = item,
             onDismiss = { itemToEdit = null },
-            onSave = { itemToEdit = null }
+            onSave = { updatedItem ->
+                viewModel.updateItem(updatedItem)
+                itemToEdit = null
+            }
         )
     }
 

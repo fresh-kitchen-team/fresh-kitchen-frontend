@@ -50,11 +50,16 @@ fun ProfileScreen(
         uri?.let { viewModel.onImageSelected(it.toString()) }
     }
 
-    // 저장 완료 스낵바
+    // 스낵바 (저장 완료 + 에러)
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
             snackbarHostState.showSnackbar("저장되었습니다 ✓")
+        }
+    }
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
         }
     }
 
@@ -75,10 +80,14 @@ fun ProfileScreen(
         },
         containerColor = Color.White
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -211,17 +220,39 @@ fun ProfileScreen(
             // ── 저장 버튼 ──
             Button(
                 onClick = { viewModel.save() },
+                enabled = !uiState.isSaving,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = FreshGreen)
             ) {
-                Text("저장하기", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                if (uiState.isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text("저장하기", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+
+        // ── 로딩 오버레이 (프로필 초기 로드 중) ──
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = FreshGreenDark)
+            }
+        }
+        } // Box 닫기
     }
 }
 

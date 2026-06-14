@@ -3,6 +3,7 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.IngredientRepository
+import com.freshkitchen.app.network.ItemUpdateRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -45,6 +46,7 @@ class SearchViewModel @Inject constructor(
     private fun loadNearExpiryItems() {
         viewModelScope.launch {
             val items = repository.getIngredients()
+                .getOrDefault(emptyList())
                 .map { it.toFoodItem() }
                 .filter { it.status == FoodStatus.NEAR_EXPIRY }
                 .sortedWith(compareBy(nullsLast()) {
@@ -52,6 +54,32 @@ class SearchViewModel @Inject constructor(
                 })
             _uiState.value = _uiState.value.copy(nearExpiryItems = items)
         }
+    }
+
+    /** 식재료 수정 — PATCH /api/v1/items/{id} */
+    fun updateItem(updatedItem: FoodItem) {
+        viewModelScope.launch {
+            repository.updateItem(
+                id = updatedItem.id.toLong(),
+                request = ItemUpdateRequest(
+                    name = updatedItem.name,
+                    category = updatedItem.category.ifEmpty { null },
+                    expiryDate = updatedItem.expiryDate.ifEmpty { null },
+                    purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
+                    memo = updatedItem.memo.ifEmpty { null },
+                    storageId = updatedItem.storageId.takeIf { it > 0L }
+                )
+            )
+        }
+        // 로컬 상태 즉시 반영 (검색 결과 & 소비임박 목록)
+        _uiState.value = _uiState.value.copy(
+            searchResults = _uiState.value.searchResults?.map {
+                if (it.id == updatedItem.id) updatedItem else it
+            },
+            nearExpiryItems = _uiState.value.nearExpiryItems.map {
+                if (it.id == updatedItem.id) updatedItem else it
+            }
+        )
     }
 
     /** 검색어 입력 중 호출 */

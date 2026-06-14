@@ -488,7 +488,7 @@ class AiChatViewModel @Inject constructor(
     /** Refresh inventory and map aiPayload matched rows to consumable UI rows. */
     suspend fun enrichRecipeMatchedItems(items: List<RecipeMatchedItemUi>): List<RecipeMatchedItemUi> {
         if (items.isEmpty()) return emptyList()
-        val inventory = ingredientRepository.getIngredients()
+        val inventory = ingredientRepository.getIngredients().getOrDefault(emptyList())
         return RecipeConsumeResolver.enrichMatchedItems(items, inventory)
     }
 
@@ -502,7 +502,7 @@ class AiChatViewModel @Inject constructor(
         if (selectedRows.isEmpty()) {
             return Result.failure(IllegalArgumentException("선택된 재료가 없습니다."))
         }
-        val inventory = ingredientRepository.getIngredients()
+        val inventory = ingredientRepository.getIngredients().getOrDefault(emptyList())
         val ids = RecipeConsumeResolver.resolveConsumeIdsForRows(selectedRows, inventory)
         if (ids.isEmpty()) {
             return Result.failure(IllegalStateException("저장소에서 선택한 재료를 찾을 수 없습니다."))
