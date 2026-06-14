@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -47,19 +45,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.freshkitchen.app.ui.theme.MyFrigeLocalTheme
 
 private val CardCorner = ChatDesign.CardShape
-private val ThumbnailShape = RoundedCornerShape(14.dp)
 private val SectionShape = RoundedCornerShape(12.dp)
 
 private val BodyTextColor = ChatDesign.TextPrimary
@@ -125,7 +118,6 @@ fun RecipeResponseCard(
                 RecipeCardHeader(
                     title = recipe.title,
                     cookTime = recipe.cookTime,
-                    imageUrl = recipe.imageUrl,
                 )
 
                 if (recipe.ingredients.isNotEmpty()) {
@@ -310,76 +302,22 @@ private fun ExpandToggleButton(
 private fun RecipeCardHeader(
     title: String,
     cookTime: String,
-    imageUrl: String,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RecipeThumbnail(imageUrl = imageUrl)
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title.ifBlank { "레시피" },
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                ),
-                color = BodyTextColor,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            CookTimeBadge(cookTime = cookTime.ifBlank { "—" })
-        }
-    }
-}
-
-@Composable
-private fun RecipeThumbnail(
-    imageUrl: String,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val url = imageUrl.trim()
-    val showImage = url.isNotEmpty()
-
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .clip(ThumbnailShape)
-            .background(Color(0xFFF6F8F7))
-            .then(
-                if (!showImage) {
-                    Modifier.border(1.dp, ChipBorder, ThumbnailShape)
-                } else {
-                    Modifier
-                },
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title.ifBlank { "레시피" },
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                lineHeight = 22.sp,
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (showImage) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(url)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Outlined.Restaurant,
-                contentDescription = null,
-                tint = ChatDesign.TextMuted,
-                modifier = Modifier.size(28.dp),
-            )
-        }
+            color = BodyTextColor,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        CookTimeBadge(cookTime = cookTime.ifBlank { "—" })
     }
 }
 
