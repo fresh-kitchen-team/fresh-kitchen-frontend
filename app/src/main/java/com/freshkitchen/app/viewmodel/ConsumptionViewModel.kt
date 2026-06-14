@@ -6,6 +6,8 @@ import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.AnalyticsRepository
 import com.freshkitchen.app.network.ExpiringItemDto
 import com.freshkitchen.app.network.IngredientRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,9 +62,10 @@ data class ConsumptionUiState(
 //   - 모든 저장 공간(냉장/냉동/팬트리) 결과를 한 번에 받아두고
 //     화면에서 필터 chip 으로 클라이언트 사이드 필터링한다.
 // ───────────────────────────────────────────
-class ConsumptionViewModel(
-    private val repository: AnalyticsRepository = AnalyticsRepository(),
-    private val ingredientRepository: IngredientRepository = IngredientRepository(),
+@HiltViewModel
+class ConsumptionViewModel @Inject constructor(
+    private val repository: AnalyticsRepository,
+    private val ingredientRepository: IngredientRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConsumptionUiState())

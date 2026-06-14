@@ -6,11 +6,16 @@ import com.freshkitchen.app.network.UserRepository
 import com.freshkitchen.app.notification.NotificationHelper
 import com.google.firebase.messaging.FirebaseMessaging
 import com.kakao.sdk.common.KakaoSdk
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@HiltAndroidApp
 class MyApplication : Application() {
+
+    @Inject lateinit var userRepository: UserRepository
 
     companion object {
         lateinit var appContext: android.content.Context
@@ -42,7 +47,7 @@ class MyApplication : Application() {
                 Log.d("MyApplication", "FCM 토큰 발급: ${token.take(20)}...")
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        UserRepository().registerFcmToken(token)
+                        userRepository.registerFcmToken(token)
                         Log.d("MyApplication", "FCM 토큰 서버 등록 완료")
                     } catch (e: Exception) {
                         Log.w("MyApplication", "FCM 토큰 등록 실패 (비로그인 상태일 수 있음): ${e.message}")

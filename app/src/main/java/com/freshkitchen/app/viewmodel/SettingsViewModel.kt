@@ -6,9 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.data.auth.TokenDataStore
+import com.freshkitchen.app.network.AppVersionApiService
 import com.freshkitchen.app.network.AuthRepository
-import com.freshkitchen.app.network.RetrofitClient
+import com.freshkitchen.app.network.LegalApiService
 import com.freshkitchen.app.network.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,9 +38,12 @@ data class SettingsUiState(
 // ───────────────────────────────────────────
 // 설정 ViewModel
 // ───────────────────────────────────────────
-class SettingsViewModel(
-    private val userRepository: UserRepository = UserRepository(),
-    private val authRepository: AuthRepository = AuthRepository()
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository,
+    private val appVersionApi: AppVersionApiService,
+    private val legalApi: LegalApiService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -70,7 +76,7 @@ class SettingsViewModel(
     fun loadAppVersion() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.appVersionApi.getAppVersion()
+                val response = appVersionApi.getAppVersion()
                 if (response.data != null) {
                     _uiState.value = _uiState.value.copy(appVersion = response.data.latestVersion)
                 }
@@ -86,7 +92,7 @@ class SettingsViewModel(
     fun loadLegalUrls() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.legalApi.getLegal()
+                val response = legalApi.getLegal()
                 response.data?.let { data ->
                     _uiState.value = _uiState.value.copy(
                         termsUrl = data.termsUrl,
@@ -105,7 +111,7 @@ class SettingsViewModel(
     fun loadAgreementStatus() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.legalApi.getAgreement()
+                val response = legalApi.getAgreement()
                 response.data?.let { data ->
                     _uiState.value = _uiState.value.copy(
                         termsAgreedAt = data.termsAgreedAt,

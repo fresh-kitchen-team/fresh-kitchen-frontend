@@ -3,6 +3,8 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.IngredientRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,8 +27,9 @@ data class SearchUiState(
 // ───────────────────────────────────────────
 // 검색 ViewModel
 // ───────────────────────────────────────────
-class SearchViewModel(
-    private val repository: IngredientRepository = IngredientRepository()
+@HiltViewModel
+class SearchViewModel @Inject constructor(
+    private val repository: IngredientRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())

@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
@@ -39,7 +39,7 @@ import com.freshkitchen.app.viewmodel.ProfileViewModel
 @Composable
 fun ProfileScreen(
     onBackClick: () -> Unit = {},
-    viewModel: ProfileViewModel = viewModel()
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

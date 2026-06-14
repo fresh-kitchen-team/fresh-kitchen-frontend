@@ -22,6 +22,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
+import com.freshkitchen.app.ui.theme.StatusExpiredBgColor
+import com.freshkitchen.app.ui.theme.StatusExpiredColor
+import com.freshkitchen.app.ui.theme.StatusFreshBgColor
+import com.freshkitchen.app.ui.theme.StatusFreshColor
+import com.freshkitchen.app.ui.theme.StatusNearExpiryBgColor
+import com.freshkitchen.app.ui.theme.StatusNearExpiryColor
 import com.freshkitchen.app.viewmodel.FoodItem
 import com.freshkitchen.app.viewmodel.FoodStatus
 import com.freshkitchen.app.viewmodel.StorageType

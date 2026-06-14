@@ -4,7 +4,7 @@
 // 유저 프로필 Repository
 // ───────────────────────────────────────────
 class UserRepository(
-    private val api: UserApiService = RetrofitClient.userApi
+    private val api: UserApiService,
 ) {
     suspend fun getProfile(): ApiResponse<UserProfileDto> = api.getProfile()
 

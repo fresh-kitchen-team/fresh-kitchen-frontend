@@ -22,10 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.freshkitchen.app.navigation.BottomNavRoute
-import com.freshkitchen.app.navigation.ScanNav
+import com.freshkitchen.app.navigation.requestHomeRefresh
 import com.freshkitchen.app.ui.analysis.AnalysisColors
 import com.freshkitchen.app.ui.analysis.component.AnalysisBackTopBar
 import com.freshkitchen.app.ui.analysis.component.AnalysisCenterLoadingIndicator
@@ -43,7 +42,7 @@ import com.freshkitchen.app.viewmodel.ConsumptionViewModel
 fun ConsumptionDetailScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: ConsumptionViewModel = viewModel(),
+    viewModel: ConsumptionViewModel = hiltViewModel(),
 ) {
     val accent = BottomNavSelected
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -133,9 +132,7 @@ fun ConsumptionDetailScreen(
                                 isConsuming = item.id in uiState.consumingIds,
                                 onConsumeComplete = {
                                     viewModel.consumeItem(item.id) {
-                                        navController.getBackStackEntry(BottomNavRoute.Home.route)
-                                            .savedStateHandle
-                                            .set(ScanNav.keyRefreshHome, System.currentTimeMillis())
+                                        navController.requestHomeRefresh()
                                     }
                                 },
                             )

@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.analysis.AnalysisColors
 import com.freshkitchen.app.ui.analysis.component.AnalysisBackTopBar
@@ -34,7 +34,7 @@ import com.freshkitchen.app.viewmodel.DisposalGuideViewModel
 fun DisposalGuideScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: DisposalGuideViewModel = viewModel(),
+    viewModel: DisposalGuideViewModel = hiltViewModel(),
 ) {
     val accent = BottomNavSelected
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

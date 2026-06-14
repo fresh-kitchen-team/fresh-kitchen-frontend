@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.scan.ScanRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import com.freshkitchen.app.data.scan.ScanResultUiModel
 import com.freshkitchen.app.data.scan.simulatedFridgeUiModel
 import com.freshkitchen.app.data.scan.simulatedIngredientUiModel
@@ -25,11 +27,11 @@ sealed interface ScanOperationState {
     data class Error(val message: String) : ScanOperationState
 }
 
-class ScanViewModel(
+@HiltViewModel
+class ScanViewModel @Inject constructor(
     application: Application,
+    private val repository: ScanRepository,
 ) : AndroidViewModel(application) {
-
-    private val repository = ScanRepository(application)
 
     private val _operationState = MutableStateFlow<ScanOperationState>(ScanOperationState.Idle)
     val operationState: StateFlow<ScanOperationState> = _operationState.asStateFlow()

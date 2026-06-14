@@ -4,7 +4,7 @@
 // 홈 데이터 레포지토리
 // ───────────────────────────────────────────
 class HomeRepository(
-    private val api: HomeApiService = RetrofitClient.homeApi
+    private val api: HomeApiService,
 ) {
     suspend fun getHomeSummary(): HomeSummaryData? {
         return try {

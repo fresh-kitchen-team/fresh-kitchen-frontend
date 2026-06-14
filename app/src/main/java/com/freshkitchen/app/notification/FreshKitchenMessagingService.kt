@@ -4,6 +4,8 @@ import android.util.Log
 import com.freshkitchen.app.network.UserRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -13,7 +15,10 @@ import kotlinx.coroutines.launch
 //   - onNewToken : FCM 토큰 갱신 시 서버에 재등록
 //   - onMessageReceived : 백엔드가 보낸 알림 수신 → 로컬 알림 표시
 // ───────────────────────────────────────────
+@AndroidEntryPoint
 class FreshKitchenMessagingService : FirebaseMessagingService() {
+
+    @Inject lateinit var userRepository: UserRepository
 
     companion object {
         private const val TAG = "FCMService"
@@ -56,7 +61,7 @@ class FreshKitchenMessagingService : FirebaseMessagingService() {
     private fun registerTokenToServer(token: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val result = UserRepository().registerFcmToken(token)
+                val result = userRepository.registerFcmToken(token)
                 if (result.isSuccess) {
                     Log.d(TAG, "FCM 토큰 서버 등록 성공")
                 } else {

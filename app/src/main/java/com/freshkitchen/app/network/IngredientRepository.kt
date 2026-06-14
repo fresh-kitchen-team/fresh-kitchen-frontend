@@ -7,7 +7,7 @@ import com.freshkitchen.app.logging.ApiLog
 // 식재료 데이터 레포지토리
 // ───────────────────────────────────────────
 class IngredientRepository(
-    private val api: IngredientApiService = RetrofitClient.ingredientApi
+    private val api: IngredientApiService,
 ) {
     suspend fun getIngredients(): List<ItemDto> {
         return try {

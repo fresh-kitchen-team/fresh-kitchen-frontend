@@ -5,20 +5,20 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.ChatRoomSectionMapper
-import com.freshkitchen.app.data.SessionTokenProvider
+import com.freshkitchen.app.data.repository.ChatRepository
+import com.freshkitchen.app.data.repository.RecipeConsumeResolver
+import com.freshkitchen.app.data.repository.toChatMessage
+import com.google.gson.Gson
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.data.auth.TokenDataStore
-import com.freshkitchen.app.data.remote.ChatRetrofitProvider
-import com.google.gson.Gson
 import com.freshkitchen.app.data.remote.dto.ChatRoomSectionsDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomSummaryDto
 import com.freshkitchen.app.BuildConfig
 import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.data.remote.dto.SendMessageRequest
 import com.freshkitchen.app.data.remote.dto.SendMessageResponseDto
-import com.freshkitchen.app.data.repository.ChatRepository
-import com.freshkitchen.app.data.repository.RecipeConsumeResolver
-import com.freshkitchen.app.data.repository.toChatMessage
 import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.InquiryApiType
 import com.freshkitchen.app.network.InquiryRepository
@@ -69,22 +69,15 @@ data class AiChatUiState(
     val quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
 )
 
-class AiChatViewModel(
+@HiltViewModel
+class AiChatViewModel @Inject constructor(
     application: Application,
+    private val repository: ChatRepository,
+    private val inquiryRepository: InquiryRepository,
+    private val ingredientRepository: IngredientRepository,
+    private val userRepository: UserRepository,
+    private val debugGson: Gson,
 ) : AndroidViewModel(application) {
-
-    private val repository = ChatRepository(
-        ChatRetrofitProvider.chatApi(SessionTokenProvider),
-    )
-
-    private val inquiryRepository = InquiryRepository()
-
-    private val ingredientRepository = IngredientRepository()
-
-    private val userRepository = UserRepository()
-
-
-    private val debugGson: Gson = ChatRetrofitProvider.gson()
 
     private val _uiState = MutableStateFlow(AiChatUiState())
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()

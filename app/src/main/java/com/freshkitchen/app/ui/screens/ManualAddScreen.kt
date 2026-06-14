@@ -27,7 +27,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
 import com.freshkitchen.app.viewmodel.ManualAddViewModel
@@ -42,7 +42,7 @@ import java.time.LocalDate
 fun ManualAddScreen(
     onBackClick: () -> Unit = {},
     onAddSuccess: () -> Unit = {},
-    viewModel: ManualAddViewModel = viewModel(),
+    viewModel: ManualAddViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

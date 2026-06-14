@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.analysis.AnalysisColors
 import com.freshkitchen.app.ui.analysis.component.AnalysisInfoTopBar
@@ -41,7 +41,7 @@ import com.freshkitchen.app.viewmodel.StorageTipCategoryType
 @Composable
 fun AnalyticsTipsScreen(
     navController: NavHostController,
-    viewModel: AnalyticsViewModel = viewModel(),
+    viewModel: AnalyticsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

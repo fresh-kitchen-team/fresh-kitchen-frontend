@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.analysis.AnalysisColors
 import com.freshkitchen.app.ui.analysis.component.AnalysisBackTopBar
@@ -34,7 +34,7 @@ fun StorageTipCategoryScreen(
     navController: NavHostController,
     type: String,
     modifier: Modifier = Modifier,
-    viewModel: StorageTipsViewModel = viewModel(),
+    viewModel: StorageTipsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

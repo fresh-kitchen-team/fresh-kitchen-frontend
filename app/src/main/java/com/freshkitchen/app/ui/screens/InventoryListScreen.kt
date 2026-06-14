@@ -23,19 +23,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshkitchen.app.ui.components.InventoryScreenTopBar
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.ui.theme.LightGray
+import com.freshkitchen.app.ui.theme.StatusExpiredBgColor
+import com.freshkitchen.app.ui.theme.StatusExpiredColor
+import com.freshkitchen.app.ui.theme.StatusFreshBgColor
+import com.freshkitchen.app.ui.theme.StatusFreshColor
+import com.freshkitchen.app.ui.theme.StatusNearExpiryBgColor
+import com.freshkitchen.app.ui.theme.StatusNearExpiryColor
 import com.freshkitchen.app.viewmodel.*
-
-// 상태별 색상
-val StatusFreshColor = Color(0xFF22C55E)
-val StatusNearExpiryColor = Color(0xFFF97316)
-val StatusExpiredColor = Color(0xFFEF4444)
-val StatusFreshBgColor = Color(0xFFDCFCE7)
-val StatusNearExpiryBgColor = Color(0xFFFFF7ED)
-val StatusExpiredBgColor = Color(0xFFFEF2F2)
 
 // ───────────────────────────────────────────
 // ViewModel 연결 진입점 (실제 앱에서 사용)
@@ -48,7 +47,7 @@ fun InventoryListScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onSelectModeChange: (Boolean) -> Unit = {},
-    viewModel: InventoryListViewModel = viewModel(),
+    viewModel: InventoryListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -238,19 +237,16 @@ fun InventoryTopBar(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
-    TopAppBar(
+    InventoryScreenTopBar(
         title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
             }
         },
-        actions = {
-            IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "프로필") }
-            IconButton(onClick = onNavigateToSearch) { Icon(Icons.Default.Search, contentDescription = "검색") }
-            IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "설정") }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+        onProfileClick = onNavigateToProfile,
+        onSearchClick = onNavigateToSearch,
+        onSettingsClick = onNavigateToSettings,
     )
 }
 

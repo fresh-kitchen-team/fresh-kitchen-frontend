@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.ProfileEnumMapper
 import com.freshkitchen.app.network.UserProfileUpdateRequest
 import com.freshkitchen.app.network.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,8 +32,9 @@ data class ProfileUiState(
 // ───────────────────────────────────────────
 // 프로필 ViewModel
 // ───────────────────────────────────────────
-class ProfileViewModel(
-    private val userRepository: UserRepository = UserRepository()
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())

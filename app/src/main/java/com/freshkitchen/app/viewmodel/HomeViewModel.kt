@@ -3,6 +3,8 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.HomeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,8 +45,9 @@ data class HomeUiState(
 // ───────────────────────────────────────────
 // HomeViewModel
 // ───────────────────────────────────────────
-class HomeViewModel(
-    private val repository: HomeRepository = HomeRepository()
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val repository: HomeRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())

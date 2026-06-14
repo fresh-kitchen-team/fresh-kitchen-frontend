@@ -48,7 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.ui.screens.chat.ChatDesign
 import com.freshkitchen.app.ui.theme.BottomNavSelected
 import com.freshkitchen.app.ui.theme.MyFrigeLocalTheme
@@ -59,7 +59,7 @@ fun InquiryDetailScreen(
     inquiryId: Long,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: InquiryDetailViewModel = viewModel(),
+    viewModel: InquiryDetailViewModel = hiltViewModel(),
 ) {
     BackHandler { onClose() }
 

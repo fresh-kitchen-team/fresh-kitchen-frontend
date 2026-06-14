@@ -30,8 +30,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshkitchen.app.R
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
@@ -59,8 +59,9 @@ fun LoginScreen(
     onBackClick: () -> Unit = {}     // 뒤로가기 → onboarding
 ) {
     val context = LocalContext.current
-    val viewModel: LoginViewModel = viewModel()
+    val viewModel: LoginViewModel = hiltViewModel()
     val loginState by viewModel.loginState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // 바텀시트 상태
     val sheetState = rememberModalBottomSheetState()
@@ -108,15 +109,20 @@ fun LoginScreen(
 
     // ── 로그인 상태 처리 ── (LaunchedEffect: 컴포지션 중 네비게이션 방지)
     LaunchedEffect(loginState) {
-        if (loginState is LoginState.Success) {
-            val newUser = (loginState as LoginState.Success).isNewUser
-            viewModel.resetState()
-            if (newUser) {
-                // 신규 유저 → 약관 동의 바텀시트 표시 후 이동
-                showLegalSheet = true
-            } else {
-                onExistingUser()
+        when (val state = loginState) {
+            is LoginState.Success -> {
+                viewModel.resetState()
+                if (state.isNewUser) {
+                    showLegalSheet = true
+                } else {
+                    onExistingUser()
+                }
             }
+            is LoginState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+                viewModel.resetState()
+            }
+            else -> Unit
         }
     }
 
@@ -348,6 +354,13 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 }
 

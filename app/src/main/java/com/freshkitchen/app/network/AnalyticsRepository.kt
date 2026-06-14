@@ -7,7 +7,7 @@ import com.freshkitchen.app.logging.ApiLog
 //   - Logcat 필터: `tag:MyFridgeApi` 또는 `Analytics:Summary` / `Analytics:Expiring`
 // ───────────────────────────────────────────
 class AnalyticsRepository(
-    private val api: AnalyticsApiService = RetrofitClient.analyticsApi
+    private val api: AnalyticsApiService,
 ) {
 
     suspend fun getAnalyticsSummary(): AnalyticsSummaryData? {
