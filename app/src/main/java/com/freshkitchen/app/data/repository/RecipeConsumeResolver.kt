@@ -24,6 +24,7 @@ object RecipeConsumeResolver {
                     name = item.name.trim().ifBlank { picked.name.trim() },
                     storageLabel = picked.storage.toKoreanStorageLabel(),
                     emoji = picked.emoji?.trim()?.takeIf { it.isNotEmpty() },
+                    representativeImage = picked.representativeImage,
                     isAvailable = true,
                 )
             }
