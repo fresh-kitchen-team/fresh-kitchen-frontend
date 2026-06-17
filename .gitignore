@@ -1,5 +1,11 @@
 HELP.md
 
+# UI/UX reference mockups (not part of the app)
+image/
+
+# JVM crash logs
+hs_err_pid*.log
+
 # Local Android SDK path
 local.properties
 
