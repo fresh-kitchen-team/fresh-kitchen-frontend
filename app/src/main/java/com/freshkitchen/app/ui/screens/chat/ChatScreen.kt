@@ -55,6 +55,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,8 +71,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.freshkitchen.app.R
 import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.ui.theme.BottomNavUnselected
@@ -1000,77 +1004,86 @@ fun ChatTopBar(
         tonalElevation = 0.dp,
     ) {
         Column {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .height(56.dp)
+                    .padding(horizontal = 4.dp),
             ) {
-                Box(
+                IconButton(
+                    onClick = onMenuClick,
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(ChatDesign.ScreenBg)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onMenuClick,
-                        ),
-                    contentAlignment = Alignment.Center,
+                        .align(Alignment.CenterStart)
+                        .size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Menu,
                         contentDescription = "메뉴",
                         tint = ChatDesign.TextPrimary,
-                        modifier = Modifier.size(22.dp),
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                val brandTitle = "AI 주방 비서"
+                val iconSize = 40.dp
+                val iconTextGap = 14.dp
+                var titleWidthPx by remember { mutableIntStateOf(0) }
+                var titleAnchorPx by remember { mutableIntStateOf(0) }
+                val density = LocalDensity.current
+                val iconSizePx = with(density) { iconSize.roundToPx() }
+                val gapPx = with(density) { iconTextGap.roundToPx() }
 
-                Box(
+                Text(
+                    text = brandTitle,
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(ChatDesign.BrandGradient),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.SmartToy,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(21.dp),
-                    )
-                }
+                        .align(Alignment.Center)
+                        .offset {
+                            val textOffsetPx = (titleWidthPx / 2f - titleAnchorPx).roundToInt()
+                            IntOffset(textOffsetPx, 0)
+                        },
+                    onTextLayout = { layout ->
+                        titleWidthPx = layout.size.width
+                        val juIdx = brandTitle.indexOf('주')
+                        val bangIdx = brandTitle.indexOf('방')
+                        titleAnchorPx = if (juIdx >= 0 && bangIdx >= 0) {
+                            val juBox = layout.getBoundingBox(juIdx)
+                            val bangBox = layout.getBoundingBox(bangIdx)
+                            ((juBox.left + bangBox.right) / 2f).roundToInt()
+                        } else {
+                            layout.size.width / 2
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                    ),
+                    color = ChatDesign.TextPrimary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
 
-                Spacer(modifier = Modifier.width(11.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                        ),
-                        color = ChatDesign.TextPrimary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                if (titleAnchorPx > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset {
+                                IntOffset(
+                                    -(titleAnchorPx + gapPx + iconSizePx / 2),
+                                    0,
+                                )
+                            }
+                            .size(iconSize)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White)
+                            .border(1.dp, ChatDesign.BorderSoft, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fresh_kitchen),
+                            contentDescription = "FreshKitchen",
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(ChatDesign.BrandGreenDark),
-                        )
-                        Text(
-                            text = "AI 주방 비서",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = ChatDesign.TextMuted,
+                                .fillMaxSize()
+                                .padding(1.dp),
+                            contentScale = ContentScale.Fit,
                         )
                     }
                 }
