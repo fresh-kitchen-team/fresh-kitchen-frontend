@@ -1,19 +1,43 @@
 ﻿package com.freshkitchen.app.network
 
+import com.google.gson.annotations.SerializedName
+
 // ───────────────────────────────────────────
 // 백엔드 공통 응답 래퍼
 // { "status": 200, "code": "COMMON-200", "message": "Success", "data": { ... } }
 // ───────────────────────────────────────────
 data class ApiResponse<T>(
-    val status: Int,
-    val code: String,
-    val message: String,
-    val data: T?
+    @SerializedName("status") val status: Int,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: T? = null,
 )
+
+/** Business success across main, chat, scan, and inquiry APIs. */
+fun <T> ApiResponse<T>.isBusinessSuccess(): Boolean = isEnvelopeSuccess(status, code, message)
+
+fun isEnvelopeSuccess(status: Int, code: String?, message: String? = null): Boolean {
+    if (status == 0 || status in 200..299) return true
+    when (code?.trim()?.uppercase()) {
+        "COMMON-200", "COMMON-201" -> return true
+    }
+    if (message.equals("Success", ignoreCase = true)) return true
+    return false
+}
 
 // ───────────────────────────────────────────
 // GET /api/v1/items 응답 데이터
 // ───────────────────────────────────────────
+
+// 식재료 대표 이미지 (PHOTO 또는 EMOJI)
+data class RepresentativeImageDto(
+    val type: String,           // "PHOTO" | "EMOJI"
+    val imageUrl: String?,      // 원본 URL (PHOTO일 때만)
+    val thumbnailUrl: String?,  // 썸네일 URL (PHOTO일 때만, 없으면 imageUrl과 동일)
+    val emoji: String?,         // 이모지 (EMOJI일 때만)
+    val source: String          // "USER_PHOTO" | "CATALOG_IMAGE" | "CATALOG_EMOJI" | "CATEGORY_EMOJI" | "DEFAULT"
+)
+
 data class ItemDto(
     val id: Long,
     val name: String,
@@ -22,9 +46,10 @@ data class ItemDto(
     val storage: String,            // "FRIDGE" | "FREEZER" | "PANTRY"
     val category: String?,          // 카테고리 (null 가능)
     val expiryDate: String?,        // 유통기한 "2026-05-28" (null 가능)
-    val emoji: String?,             // 카탈로그 이모지 (null 가능)
+    val emoji: String?,             // 카탈로그 이모지 (null 가능, representativeImage 폴백용)
     val purchaseDate: String?,      // 구매일 "2026-05-13"
-    val memo: String?               // 메모
+    val memo: String?,              // 메모
+    val representativeImage: RepresentativeImageDto? = null  // 대표 이미지 (null이면 emoji 폴백)
 )
 
 // ───────────────────────────────────────────
@@ -43,6 +68,8 @@ data class ItemCreateRequest(
     val name: String,
     val storageType: String,
     val catalogId: Long? = null,
+    /** MANUAL | PHOTO | RECEIPT — scan flows set this; manual add omits it. */
+    val sourceType: String? = null,
     val expiryDate: String? = null,
     val purchaseDate: String? = null,
     val memo: String? = null,
@@ -177,7 +204,8 @@ data class ExpiringItemDto(
     val categoryDisplayName: String?,      // 화면 표시용 라벨 (예: "채소/과일")
     val expiresAt: String?,
     val dday: Int,
-    val storageType: String                // "FRIDGE" | "FREEZER" | "PANTRY"
+    val storageType: String,               // "FRIDGE" | "FREEZER" | "PANTRY"
+    val representativeImage: RepresentativeImageDto? = null,
 )
 
 // ───────────────────────────────────────────

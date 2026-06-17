@@ -7,16 +7,19 @@ import com.freshkitchen.app.logging.ApiLog
 // 식재료 데이터 레포지토리
 // ───────────────────────────────────────────
 class IngredientRepository(
-    private val api: IngredientApiService = RetrofitClient.ingredientApi
+    private val api: IngredientApiService,
 ) {
-    suspend fun getIngredients(): List<ItemDto> {
+    suspend fun getIngredients(): Result<List<ItemDto>> {
         return try {
             val response = api.getIngredients()
-            if (response.code == "COMMON-200") response.data ?: emptyList()
-            else emptyList()
+            if (response.code == "COMMON-200") {
+                Result.success(response.data ?: emptyList())
+            } else {
+                Result.failure(Exception("API 오류: ${response.code}"))
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            Result.failure(e)
         }
     }
 

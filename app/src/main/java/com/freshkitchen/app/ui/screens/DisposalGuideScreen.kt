@@ -1,5 +1,6 @@
 ﻿package com.freshkitchen.app.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,13 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.ui.theme.BottomNavSelected
 import com.freshkitchen.app.viewmodel.DisposalGuideViewModel
@@ -53,7 +56,7 @@ import com.freshkitchen.app.viewmodel.DisposalWasteTone
 fun DisposalGuideScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: DisposalGuideViewModel = viewModel(),
+    viewModel: DisposalGuideViewModel = hiltViewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val accent = BottomNavSelected
@@ -282,10 +285,7 @@ private fun DisposalItemCard(
                     .border(1.dp, Color(0xFFE5EAEE), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = item.toneEmoji(),
-                    fontSize = 22.sp,
-                )
+                DisposalItemIcon(name = item.name, tone = item.tone)
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -314,7 +314,30 @@ private fun DisposalItemCard(
     }
 }
 
-private fun DisposalItemUi.toneEmoji(): String = when (tone) {
+@Composable
+private fun DisposalItemIcon(
+    name: String,
+    tone: DisposalWasteTone,
+) {
+    val iconRes = recyclingItemIconRes(name)
+    if (iconRes != null) {
+        Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
+            contentScale = ContentScale.Fit,
+        )
+    } else {
+        Text(
+            text = tone.toneEmoji(),
+            fontSize = 22.sp,
+        )
+    }
+}
+
+private fun DisposalWasteTone.toneEmoji(): String = when (this) {
     DisposalWasteTone.General -> "🗑️"
     DisposalWasteTone.Food -> "🍽️"
     DisposalWasteTone.Other -> "♻️"

@@ -10,7 +10,15 @@ val BottomNavUnselected = Color(0xFFAAB4C1)
 
 val BottomNavBarBackground = Color(0xFFFFFFFF)
 
-// ui/theme/Color.kt
 val FreshGreen = Color(0xFF4ADE80)
 val FreshGreenDark = Color(0xFF22C55E)
 val LightGray = Color(0xFFF5F5F5)
+val WarnOrange = Color(0xFFF97316)
+val WarnRed = Color(0xFFEF4444)
+
+val StatusFreshColor = Color(0xFF22C55E)
+val StatusNearExpiryColor = WarnOrange
+val StatusExpiredColor = WarnRed
+val StatusFreshBgColor = Color(0xFFDCFCE7)
+val StatusNearExpiryBgColor = Color(0xFFFFF7ED)
+val StatusExpiredBgColor = Color(0xFFFEF2F2)

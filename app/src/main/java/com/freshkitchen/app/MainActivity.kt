@@ -7,51 +7,40 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.data.auth.TokenDataStore
 import com.freshkitchen.app.ui.MainScaffold
 import com.freshkitchen.app.ui.theme.MyFrigeLocalTheme
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // 알림 권한 요청 런처 (Android 13+)
     private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // 허용/거부 결과 — 별도 처리 불필요
-        }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // DataStore에서 저장된 토큰 읽기 (동기)
-        val savedToken = runBlocking {
-            TokenDataStore.getAccessToken(this@MainActivity).first()
-        }
-        val savedRefreshToken = runBlocking {
-            TokenDataStore.getRefreshToken(this@MainActivity).first()
-        }
-
-        if (savedToken != null) {
-            // AuthTokenStore 하나로 통합 (RetrofitClient도 여기서 읽음)
-            AuthTokenStore.setAccessToken(savedToken)
-        }
-        if (savedRefreshToken != null) {
-            AuthTokenStore.setRefreshToken(savedRefreshToken)
-        }
-
-        // 알림 권한 요청 (Android 13+)
         requestNotificationPermission()
-
         setContent {
-            MyFridgeApp(isLoggedIn = savedToken != null)
+            MyFridgeApp()
         }
     }
 
-    // Android 13 이상에서만 권한 팝업 표시, 이미 허용된 경우 스킵
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
@@ -65,8 +54,27 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MyFridgeApp(isLoggedIn: Boolean = false) {
+fun MyFridgeApp() {
+    val context = LocalContext.current
+    var isLoggedIn by remember { mutableStateOf<Boolean?>(null) }
+
+    LaunchedEffect(Unit) {
+        val accessToken = TokenDataStore.getAccessToken(context).first()
+        val refreshToken = TokenDataStore.getRefreshToken(context).first()
+        accessToken?.let { AuthTokenStore.setAccessToken(it) }
+        refreshToken?.let { AuthTokenStore.setRefreshToken(it) }
+        isLoggedIn = accessToken != null
+    }
+
     MyFrigeLocalTheme {
-        MainScaffold(isLoggedIn = isLoggedIn)
+        when (val loggedIn = isLoggedIn) {
+            null -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            else -> MainScaffold(isLoggedIn = loggedIn)
+        }
     }
 }

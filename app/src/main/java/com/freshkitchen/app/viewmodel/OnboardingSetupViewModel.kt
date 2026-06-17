@@ -8,6 +8,8 @@ import com.freshkitchen.app.network.ItemCreateRequest
 import com.freshkitchen.app.network.ProfileEnumMapper
 import com.freshkitchen.app.network.UserProfileUpdateRequest
 import com.freshkitchen.app.network.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,9 +31,10 @@ data class OnboardingSetupState(
 // ───────────────────────────────────────────
 // 온보딩 설정 ViewModel
 // ───────────────────────────────────────────
-class OnboardingSetupViewModel(
-    private val userRepository: UserRepository = UserRepository(),
-    private val ingredientRepository: IngredientRepository = IngredientRepository()
+@HiltViewModel
+class OnboardingSetupViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val ingredientRepository: IngredientRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingSetupState())
@@ -86,8 +89,8 @@ class OnboardingSetupViewModel(
         viewModelScope.launch {
             _state.value = s.copy(isSubmitting = true, submitError = null)
 
-            // ── 1. 프로필 PATCH (실패해도 계속 진행) ──
-            try {
+            // ── 1. 프로필 PATCH (실패 시 중단) ──
+            val profileOk = try {
                 val request = UserProfileUpdateRequest(
                     allergies = ProfileEnumMapper.allergiesToEnum(s.selectedAllergies),
                     foodStyles = ProfileEnumMapper.foodStylesToEnum(s.selectedFoodStyles),
@@ -95,8 +98,18 @@ class OnboardingSetupViewModel(
                 )
                 val response = userRepository.updateProfile(request)
                 Log.d("OnboardingSetupVM", "프로필 PATCH 응답: ${response.code}")
+                response.code == "COMMON-200"
             } catch (e: Exception) {
-                Log.w("OnboardingSetupVM", "프로필 PATCH 실패 (무시하고 계속): ${e.message}")
+                Log.e("OnboardingSetupVM", "프로필 PATCH 실패: ${e.message}")
+                false
+            }
+
+            if (!profileOk) {
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    submitError = "프로필 저장에 실패했어요. 다시 시도해주세요."
+                )
+                return@launch
             }
 
             // ── 2. 선택한 식재료 인벤토리 추가 ──
@@ -124,5 +137,9 @@ class OnboardingSetupViewModel(
             _state.value = _state.value.copy(isSubmitting = false, submitDone = true)
             onSuccess()
         }
+    }
+
+    fun clearSubmitError() {
+        _state.value = _state.value.copy(submitError = null)
     }
 }

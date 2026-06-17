@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
 import com.freshkitchen.app.R
+import com.freshkitchen.app.ui.theme.FreshGreen
+import com.freshkitchen.app.ui.theme.FreshGreenDark
 import kotlinx.coroutines.launch
 
 // ───────────────────────────────────────────

@@ -1,5 +1,7 @@
 ﻿package com.freshkitchen.app.ui.screens.chat
 
+import com.freshkitchen.app.network.RepresentativeImageDto
+
 /** Matches backend `uiType` for general chat bubbles. */
 const val AI_RESPONSE_TYPE_TEXT = "GENERAL"
 
@@ -43,6 +45,7 @@ data class RecipeMatchedItemUi(
     val rowKey: String,
     val storageLabel: String? = null,
     val emoji: String? = null,
+    val representativeImage: RepresentativeImageDto? = null,
     /** When false, row is disabled with "재고에서 찾을 수 없음". */
     val isAvailable: Boolean = true,
 )

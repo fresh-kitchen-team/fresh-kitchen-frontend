@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.BuildConfig
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
@@ -43,7 +43,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onLogout: () -> Unit = {},
     onWithdraw: () -> Unit = {},
-    viewModel: SettingsViewModel = viewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -143,12 +143,12 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
 
-                // 사진 등록 알림
+                // 문의 답변 알림
                 SettingsToggleRow(
-                    title = "사진 등록 알림",
-                    description = "새로운 식재료 사진이 감지되면 등록 여부를 물어봅니다.",
-                    checked = uiState.photoAlarmEnabled,
-                    onCheckedChange = { viewModel.togglePhotoAlarm(it) }
+                    title = "문의 답변 알림",
+                    description = "1:1 문의에 답변이 등록되면 푸시 알림을 보냅니다.",
+                    checked = uiState.inquiryAlarmEnabled,
+                    onCheckedChange = { viewModel.toggleInquiryAlarm(it) }
                 )
                 SettingsDivider()
 
@@ -167,7 +167,7 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
 
-                // 알림 테스트 (시연용)
+                // 유통기한 알림 테스트 (시연용)
                 SettingsButtonRow(
                     title = "알림 테스트",
                     description = "유통기한 임박 알림을 즉시 발송합니다.",
@@ -184,6 +184,27 @@ fun SettingsScreen(
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("오류: ${e.message}")
                             }
+                        }
+                    }
+                )
+                SettingsDivider()
+
+                // 문의 답변 알림 테스트 (시연용)
+                SettingsButtonRow(
+                    title = "문의 답변 알림 테스트",
+                    description = "문의 답변 알림을 즉시 발송합니다.",
+                    buttonText = "테스트",
+                    onButtonClick = {
+                        if (!uiState.inquiryAlarmEnabled) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("문의 답변 알림이 꺼져 있어요")
+                            }
+                        } else {
+                            com.freshkitchen.app.notification.NotificationHelper.sendExpiryNotification(
+                                context,
+                                "문의 답변이 도착했어요",
+                                "회원님의 문의에 답변이 등록되었습니다. 확인해보세요!"
+                            )
                         }
                     }
                 )

@@ -6,6 +6,8 @@ import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.AnalyticsCategoryStatDto
 import com.freshkitchen.app.network.AnalyticsRepository
 import com.freshkitchen.app.network.ExpiringItemDto
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,8 +53,9 @@ data class AnalyticsUiState(
 //   - GET /api/v1/analytics/summary → overallDiscardRate, categoryStats[].discardRate
 //   - GET /api/v1/analytics/expiring-items → 소비 권장 알림 chip
 // ───────────────────────────────────────────
-class AnalyticsViewModel(
-    private val repository: AnalyticsRepository = AnalyticsRepository(),
+@HiltViewModel
+class AnalyticsViewModel @Inject constructor(
+    private val repository: AnalyticsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AnalyticsUiState())

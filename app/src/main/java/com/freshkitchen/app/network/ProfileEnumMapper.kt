@@ -55,6 +55,13 @@ object ProfileEnumMapper {
     fun foodStylesFromEnum(enumList: List<String>?): Set<String> =
         enumList?.mapNotNull { foodStyleEnumToUi[it] }?.toSet() ?: emptySet()
 
+    /** e.g. `KOREAN` → `한식` (emoji stripped for compact chips). */
+    fun foodStyleShortLabelFromEnum(enum: String): String? =
+        foodStyleEnumToUi[enum]
+            ?.substringAfter(' ')
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+
     fun cookingToolsFromEnum(enumList: List<String>?): Set<String> =
         enumList?.mapNotNull { cookingToolEnumToUi[it] }?.toSet() ?: emptySet()
 }

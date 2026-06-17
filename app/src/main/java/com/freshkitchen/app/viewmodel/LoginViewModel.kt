@@ -7,10 +7,13 @@ import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.data.auth.TokenDataStore
 import com.freshkitchen.app.network.AuthRepository
-import com.freshkitchen.app.network.RetrofitClient
+import com.freshkitchen.app.network.LegalApiService
 import com.freshkitchen.app.network.UserProfileUpdateRequest
 import com.freshkitchen.app.network.UserRepository
+import com.freshkitchen.app.network.isBusinessSuccess
 import com.google.firebase.messaging.FirebaseMessaging
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -28,9 +31,11 @@ sealed class LoginState {
 // ───────────────────────────────────────────
 // LoginViewModel
 // ───────────────────────────────────────────
-class LoginViewModel(
-    private val repository: AuthRepository = AuthRepository(),
-    private val userRepository: UserRepository = UserRepository()
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val userRepository: UserRepository,
+    private val legalApi: LegalApiService,
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
@@ -54,17 +59,13 @@ class LoginViewModel(
             try {
                 val response = repository.loginWithGoogle(idToken)
                 Log.d("LoginViewModel", "응답 code: ${response.code}, data: ${response.data}")
-                if (response.code == "COMMON-200" && response.data != null) {
+                if (response.isBusinessSuccess() && response.data != null) {
                     val data = response.data
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "GOOGLE")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     AuthTokenStore.setRefreshToken(data.refreshToken)
                     Log.d("LoginViewModel", "로그인 성공 - newUser: ${data.newUser}")
                     registerFcmTokenAfterLogin()
-                    // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
-                    Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
-                    Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
-                    Log.d("LoginViewModel", "SWAGGER_AUTHORIZATION=Bearer ${data.accessToken}")
 
                     // 신규 유저: Google 프로필 정보로 초기 프로필 설정
                     if (data.newUser) {
@@ -113,17 +114,13 @@ class LoginViewModel(
             try {
                 val response = repository.loginWithKakao(idToken)
                 Log.d("LoginViewModel", "카카오 응답 code: ${response.code}, data: ${response.data}")
-                if (response.code == "COMMON-200" && response.data != null) {
+                if (response.isBusinessSuccess() && response.data != null) {
                     val data = response.data
                     TokenDataStore.saveTokens(context, data.accessToken, data.refreshToken, "KAKAO")
                     AuthTokenStore.setAccessToken(data.accessToken)
                     AuthTokenStore.setRefreshToken(data.refreshToken)
                     Log.d("LoginViewModel", "카카오 로그인 성공 - newUser: ${data.newUser}")
                     registerFcmTokenAfterLogin()
-                    // 디버그 전용: Swagger 등에 붙여넣을 풀 토큰. 운영 시 마스킹/제거 필요.
-                    Log.d("LoginViewModel", "FULL_ACCESS_TOKEN=${data.accessToken}")
-                    Log.d("LoginViewModel", "FULL_REFRESH_TOKEN=${data.refreshToken}")
-                    Log.d("LoginViewModel", "SWAGGER_AUTHORIZATION=Bearer ${data.accessToken}")
 
                     // 신규 유저: 카카오 프로필 정보로 초기 프로필 설정
                     if (data.newUser) {
@@ -163,7 +160,7 @@ class LoginViewModel(
     fun postLegalAgreement(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                RetrofitClient.legalApi.postAgreement()
+                legalApi.postAgreement()
                 Log.d("LoginViewModel", "약관 동의 처리 완료")
             } catch (e: Exception) {
                 Log.w("LoginViewModel", "약관 동의 처리 실패 (무시): ${e.message}")

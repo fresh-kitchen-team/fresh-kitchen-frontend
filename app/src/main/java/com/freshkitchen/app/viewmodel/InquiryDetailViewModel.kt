@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.InquiryRepository
 import com.freshkitchen.app.ui.screens.help.InquiryDetailUi
 import com.freshkitchen.app.ui.screens.help.InquiryListMapper
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +21,9 @@ data class InquiryDetailUiState(
     val error: String? = null,
 )
 
-class InquiryDetailViewModel(
-    private val repository: InquiryRepository = InquiryRepository(),
+@HiltViewModel
+class InquiryDetailViewModel @Inject constructor(
+    private val repository: InquiryRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InquiryDetailUiState())

@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.freshkitchen.app.ui.ImmersiveNavigationBarEffect
-import com.freshkitchen.app.data.scan.CreateItemRequest
+import com.freshkitchen.app.network.ItemCreateRequest
 import com.freshkitchen.app.data.scan.ScanRepository
 import com.freshkitchen.app.data.scan.ScanResultItemUiModel
 import com.freshkitchen.app.data.scan.ScanResultUiModel
@@ -22,6 +22,7 @@ import com.freshkitchen.app.data.scan.normalizeStorageTypeForApi
 import com.freshkitchen.app.data.scan.parseScanResultUiModel
 import com.freshkitchen.app.navigation.BottomNavRoute
 import com.freshkitchen.app.navigation.ScanNav
+import com.freshkitchen.app.network.RetrofitClient
 import com.freshkitchen.app.network.HomeRepository
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ fun ScanResultScreen(
     suspend fun navigateToHomeWithSummaryRefresh() {
         if (ScanRepository.isApiConfigured()) {
             withContext(Dispatchers.IO) {
-                runCatching { HomeRepository().getHomeSummary() }
+                runCatching { HomeRepository(RetrofitClient.homeApi).getHomeSummary() }
             }
         }
         val refreshAt = System.currentTimeMillis()
@@ -454,8 +455,8 @@ private fun buildScanCreateItemRequest(
     sourceType: String,
     defaultPurchaseDate: String?,
     imageAssetId: Long?,
-): CreateItemRequest =
-    CreateItemRequest(
+): ItemCreateRequest =
+    ItemCreateRequest(
         name = item.name.trim(),
         storageType = normalizeStorageTypeForApi(item.storageType),
         sourceType = sourceType,

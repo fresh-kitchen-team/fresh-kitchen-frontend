@@ -42,7 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.freshkitchen.app.viewmodel.StorageTipCategoryType
 import com.freshkitchen.app.viewmodel.StorageTipUi
@@ -52,7 +52,7 @@ import com.freshkitchen.app.viewmodel.StorageTipsViewModel
 fun StorageTipDetailScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: StorageTipsViewModel = viewModel(),
+    viewModel: StorageTipsViewModel = hiltViewModel(),
 ) {
     val background = Color(0xFFF6F8F7)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

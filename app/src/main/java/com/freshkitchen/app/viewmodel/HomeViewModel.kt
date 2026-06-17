@@ -3,6 +3,8 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.HomeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,8 +45,9 @@ data class HomeUiState(
 // ───────────────────────────────────────────
 // HomeViewModel
 // ───────────────────────────────────────────
-class HomeViewModel(
-    private val repository: HomeRepository = HomeRepository()
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val repository: HomeRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -58,32 +61,32 @@ class HomeViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val data = repository.getHomeSummary()
-
-            if (data != null) {
-                _uiState.value = HomeUiState(
-                    totalItemCount = data.totalCount,
-                    recentAddedCount = data.recentItems.size,
-                    nearExpiryCount = data.nearExpiryCount,
-                    expiredCount = data.expiredCount,
-                    storageList = data.storages.map { storage ->
-                        StorageInfo(
-                            emoji = storage.emoji,
-                            name = storage.name,
-                            itemCount = storage.itemCount,
-                            filterKey = storage.filterKey,
-                        )
-                    },
-                    recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji, name = it.name) },
-                    isLoading = false
-                )
-            } else {
-                // API 실패 시 빈 화면 + 에러 메시지
-                _uiState.value = HomeUiState(
-                    isLoading = false,
-                    error = "데이터를 불러오지 못했어요. 다시 시도해주세요."
-                )
-            }
+            repository.getHomeSummary().fold(
+                onSuccess = { data ->
+                    _uiState.value = HomeUiState(
+                        totalItemCount = data.totalCount,
+                        recentAddedCount = data.recentItems.size,
+                        nearExpiryCount = data.nearExpiryCount,
+                        expiredCount = data.expiredCount,
+                        storageList = data.storages.map { storage ->
+                            StorageInfo(
+                                emoji = storage.emoji,
+                                name = storage.name,
+                                itemCount = storage.itemCount,
+                                filterKey = storage.filterKey,
+                            )
+                        },
+                        recentItems = data.recentItems.map { RecentItemUi(emoji = it.emoji, name = it.name) },
+                        isLoading = false
+                    )
+                },
+                onFailure = {
+                    _uiState.value = HomeUiState(
+                        isLoading = false,
+                        error = "데이터를 불러오지 못했어요. 다시 시도해주세요."
+                    )
+                }
+            )
         }
     }
 }

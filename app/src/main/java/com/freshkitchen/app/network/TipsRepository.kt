@@ -7,7 +7,7 @@ import com.freshkitchen.app.logging.ApiLog
 //   - Logcat 필터: `tag:MyFridgeApi` 또는 `[Tips] / [Tips:Recycling]` 키워드
 // ───────────────────────────────────────────
 class TipsRepository(
-    private val api: TipsApiService = RetrofitClient.tipsApi
+    private val api: TipsApiService,
 ) {
 
     suspend fun getStorageTips(category: String? = null): List<StorageTipDto>? {

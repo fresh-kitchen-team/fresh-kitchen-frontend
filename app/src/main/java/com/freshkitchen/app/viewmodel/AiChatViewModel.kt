@@ -1,32 +1,36 @@
-﻿package com.freshkitchen.app.viewmodel
+package com.freshkitchen.app.viewmodel
 
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.ChatRoomSectionMapper
-import com.freshkitchen.app.data.SessionTokenProvider
+import com.freshkitchen.app.data.repository.ChatRepository
+import com.freshkitchen.app.data.repository.RecipeConsumeResolver
+import com.freshkitchen.app.data.repository.toChatMessage
+import com.google.gson.Gson
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import com.freshkitchen.app.data.auth.AuthTokenStore
 import com.freshkitchen.app.data.auth.TokenDataStore
-import com.freshkitchen.app.data.remote.ChatRetrofitProvider
-import com.google.gson.Gson
 import com.freshkitchen.app.data.remote.dto.ChatRoomSectionsDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomSummaryDto
 import com.freshkitchen.app.BuildConfig
 import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.data.remote.dto.SendMessageRequest
 import com.freshkitchen.app.data.remote.dto.SendMessageResponseDto
-import com.freshkitchen.app.data.repository.ChatRepository
-import com.freshkitchen.app.data.repository.RecipeConsumeResolver
-import com.freshkitchen.app.data.repository.toChatMessage
 import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.InquiryApiType
 import com.freshkitchen.app.network.InquiryRepository
 import com.freshkitchen.app.network.IngredientRepository
+import com.freshkitchen.app.network.UserRepository
 import com.freshkitchen.app.ui.screens.chat.ChatMessage
+import com.freshkitchen.app.ui.screens.chat.ChatQuickReply
 import com.freshkitchen.app.ui.screens.chat.RecipeMatchedItemUi
 import com.freshkitchen.app.ui.screens.chat.Sender
 import com.freshkitchen.app.ui.screens.chat.SideMenuItem
+import com.freshkitchen.app.ui.screens.chat.buildChatQuickReplies
+import com.freshkitchen.app.ui.screens.chat.fixedChatQuickReplies
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,22 +66,18 @@ data class AiChatUiState(
     val aiSetting: AiSettingDto? = null,
     val isLoadingAiSetting: Boolean = false,
     val isSavingAiSetting: Boolean = false,
+    val quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
 )
 
-class AiChatViewModel(
+@HiltViewModel
+class AiChatViewModel @Inject constructor(
     application: Application,
+    private val repository: ChatRepository,
+    private val inquiryRepository: InquiryRepository,
+    private val ingredientRepository: IngredientRepository,
+    private val userRepository: UserRepository,
+    private val debugGson: Gson,
 ) : AndroidViewModel(application) {
-
-    private val repository = ChatRepository(
-        ChatRetrofitProvider.chatApi(SessionTokenProvider),
-    )
-
-    private val inquiryRepository = InquiryRepository()
-
-    private val ingredientRepository = IngredientRepository()
-
-
-    private val debugGson: Gson = ChatRetrofitProvider.gson()
 
     private val _uiState = MutableStateFlow(AiChatUiState())
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()
@@ -87,6 +87,7 @@ class AiChatViewModel(
 
     init {
         refreshRooms(selectFirstAfterLoad = true)
+        loadQuickReplies()
     }
 
     /**
@@ -99,6 +100,7 @@ class AiChatViewModel(
     fun onAiChatScreenVisible() {
         viewModelScope.launch {
             hydrateTokenFromStore()
+            loadQuickReplies()
             val s = _uiState.value
             if (s.error != null || s.sideMenuItems.isEmpty()) {
                 refreshRooms(selectFirstAfterLoad = s.currentRoomId == null && s.sideMenuItems.isEmpty())
@@ -122,6 +124,22 @@ class AiChatViewModel(
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /** GET `/api/v1/users/me/profile` — preferred food styles for quick-reply chips. */
+    private fun loadQuickReplies() {
+        viewModelScope.launch {
+            try {
+                val response = userRepository.getProfile()
+                if (response.code == "COMMON-200" && response.data != null) {
+                    val replies = buildChatQuickReplies(response.data.foodStyles)
+                    _uiState.update { it.copy(quickReplies = replies) }
+                    Log.i(LOG_TAG, "[loadQuickReplies] foodStyles=${response.data.foodStyles}, chips=${replies.size}")
+                }
+            } catch (e: Exception) {
+                logFailure("loadQuickReplies", e)
+            }
+        }
     }
 
     fun dismissSupportError() {
@@ -470,7 +488,7 @@ class AiChatViewModel(
     /** Refresh inventory and map aiPayload matched rows to consumable UI rows. */
     suspend fun enrichRecipeMatchedItems(items: List<RecipeMatchedItemUi>): List<RecipeMatchedItemUi> {
         if (items.isEmpty()) return emptyList()
-        val inventory = ingredientRepository.getIngredients()
+        val inventory = ingredientRepository.getIngredients().getOrDefault(emptyList())
         return RecipeConsumeResolver.enrichMatchedItems(items, inventory)
     }
 
@@ -484,7 +502,7 @@ class AiChatViewModel(
         if (selectedRows.isEmpty()) {
             return Result.failure(IllegalArgumentException("선택된 재료가 없습니다."))
         }
-        val inventory = ingredientRepository.getIngredients()
+        val inventory = ingredientRepository.getIngredients().getOrDefault(emptyList())
         val ids = RecipeConsumeResolver.resolveConsumeIdsForRows(selectedRows, inventory)
         if (ids.isEmpty()) {
             return Result.failure(IllegalStateException("저장소에서 선택한 재료를 찾을 수 없습니다."))

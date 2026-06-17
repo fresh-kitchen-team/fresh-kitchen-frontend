@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.network.IngredientRepository
 import com.freshkitchen.app.network.ItemCreateRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,8 +23,9 @@ data class ManualAddUiState(
     val error: String? = null,
 )
 
-class ManualAddViewModel(
-    private val repository: IngredientRepository = IngredientRepository(),
+@HiltViewModel
+class ManualAddViewModel @Inject constructor(
+    private val repository: IngredientRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ManualAddUiState())
@@ -77,6 +80,16 @@ class ManualAddViewModel(
         val storageType = s.selectedStorage.toApiStorageType()
         if (storageType == null) {
             _uiState.value = s.copy(error = "보관 장소를 선택해주세요")
+            return
+        }
+
+        // 날짜 부분 입력 방지 — 0자(미입력)는 허용, 8자리 완성 시에만 서버 전송
+        if (s.expiryDate.isNotEmpty() && s.expiryDate.length != 8) {
+            _uiState.value = s.copy(error = "유통기한을 8자리로 입력해주세요 (예: 20261231)")
+            return
+        }
+        if (s.purchaseDate.isNotEmpty() && s.purchaseDate.length != 8) {
+            _uiState.value = s.copy(error = "구매일을 8자리로 입력해주세요 (예: 20260101)")
             return
         }
 

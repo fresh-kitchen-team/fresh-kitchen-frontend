@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.ui.screens.chat.ChatDesign
 import com.freshkitchen.app.ui.theme.BottomNavSelected
 import com.freshkitchen.app.ui.theme.MyFrigeLocalTheme
@@ -54,7 +54,7 @@ fun InquiryListScreen(
     onClose: () -> Unit,
     onAnsweredItemClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: InquiryListViewModel = viewModel(),
+    viewModel: InquiryListViewModel = hiltViewModel(),
 ) {
     BackHandler { onClose() }
 
@@ -155,32 +155,42 @@ private fun InquiryListTopBar(
     isRefreshing: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = ChatDesign.SurfaceWhite,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "뒤로",
-                tint = ChatDesign.TextPrimary,
-            )
-        }
-        Text(
-            text = "내 문의 내역",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = ChatDesign.TextPrimary,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onRefresh, enabled = !isRefreshing) {
-            Icon(
-                imageVector = Icons.Outlined.Refresh,
-                contentDescription = "새로고침",
-                tint = if (isRefreshing) ChatDesign.TextMuted else ChatDesign.TextSecondary,
-            )
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "뒤로",
+                        tint = ChatDesign.TextPrimary,
+                    )
+                }
+                Text(
+                    text = "내 문의 내역",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = ChatDesign.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onRefresh, enabled = !isRefreshing) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "새로고침",
+                        tint = if (isRefreshing) ChatDesign.TextMuted else ChatDesign.TextSecondary,
+                    )
+                }
+            }
+            androidx.compose.material3.HorizontalDivider(thickness = 1.dp, color = ChatDesign.BorderSoft)
         }
     }
 }

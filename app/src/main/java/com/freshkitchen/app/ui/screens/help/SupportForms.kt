@@ -46,7 +46,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -74,7 +76,8 @@ fun ContactSupportScreen(
     SupportFormScreen(
         title = "문의 보내기",
         ctaText = "문의 보내기",
-        ctaColor = BottomNavSelected,
+        ctaGradient = ChatDesign.BrandGradient,
+        accentColor = BottomNavSelected,
         placeholder = "예: 영양 균형 기반 추천은 어떤 식으로 추천하는건가요?",
         bodyLabel = "문의 내용",
         onClose = onClose,
@@ -100,7 +103,10 @@ fun ReportIssueScreen(
     SupportFormScreen(
         title = "문제 신고하기",
         ctaText = "신고 보내기",
-        ctaColor = Color(0xFFF79A86),
+        ctaGradient = Brush.linearGradient(
+            colors = listOf(Color(0xFFFB8C6E), Color(0xFFF4694A)),
+        ),
+        accentColor = Color(0xFFE24A4A),
         placeholder = "예: 레시피가 잘못 추천됩니다. 토마토가\n없는데 포함돼요.",
         bodyLabel = "신고 내용",
         onClose = onClose,
@@ -117,7 +123,8 @@ fun ReportIssueScreen(
 private fun SupportFormScreen(
     title: String,
     ctaText: String,
-    ctaColor: Color,
+    ctaGradient: Brush,
+    accentColor: Color,
     placeholder: String,
     bodyLabel: String,
     onClose: () -> Unit,
@@ -141,66 +148,48 @@ private fun SupportFormScreen(
         attachedImageUri = uri?.toString()
     }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(ChatDesign.ScreenBg),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = ChatDesign.TextPrimary,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "닫기",
-                        tint = ChatDesign.TextSecondary,
-                    )
-                }
-            }
-        }
+        SupportFormHeader(title = title, onClose = onClose)
 
-        item {
-            FormCard {
-                Text(
-                    text = "문의 유형",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF111827),
-                )
-                Spacer(modifier = Modifier.size(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TypeChip(
-                        text = "레시피 관련",
-                        selected = type == SupportType.Recipe,
-                        onClick = { type = SupportType.Recipe },
-                        selectedColor = BottomNavSelected,
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                FormCard {
+                    Text(
+                        text = "문의 유형",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color(0xFF111827),
                     )
-                    TypeChip(
-                        text = "AI 관련",
-                        selected = type == SupportType.Ai,
-                        onClick = { type = SupportType.Ai },
-                        selectedColor = BottomNavSelected,
-                    )
-                    TypeChip(
-                        text = "기타",
-                        selected = type == SupportType.Other,
-                        onClick = { type = SupportType.Other },
-                        selectedColor = BottomNavSelected,
-                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        TypeChip(
+                            text = "레시피 관련",
+                            selected = type == SupportType.Recipe,
+                            onClick = { type = SupportType.Recipe },
+                            selectedColor = accentColor,
+                        )
+                        TypeChip(
+                            text = "AI 관련",
+                            selected = type == SupportType.Ai,
+                            onClick = { type = SupportType.Ai },
+                            selectedColor = accentColor,
+                        )
+                        TypeChip(
+                            text = "기타",
+                            selected = type == SupportType.Other,
+                            onClick = { type = SupportType.Other },
+                            selectedColor = accentColor,
+                        )
+                    }
                 }
             }
-        }
 
         item {
             FormCard {
@@ -371,44 +360,91 @@ private fun SupportFormScreen(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.size(6.dp))
-            val canSubmit = !isSubmitting && successMessage == null && message.trim().isNotEmpty()
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clickable(
-                        enabled = canSubmit,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        if (!canSubmit) return@clickable
-                        onSubmit(
-                            when (type) {
-                                SupportType.Recipe -> "레시피 관련"
-                                SupportType.Ai -> "AI 관련"
-                                SupportType.Other -> "기타"
-                            },
-                            message,
-                            attachedImageUri,
-                        )
-                    },
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = ctaColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            ) {
+            item {
+                Spacer(modifier = Modifier.size(6.dp))
+                val canSubmit = !isSubmitting && successMessage == null && message.trim().isNotEmpty()
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(ctaGradient)
+                        .alpha(if (canSubmit) 1f else 0.45f)
+                        .clickable(
+                            enabled = canSubmit,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            onSubmit(
+                                when (type) {
+                                    SupportType.Recipe -> "레시피 관련"
+                                    SupportType.Ai -> "AI 관련"
+                                    SupportType.Other -> "기타"
+                                },
+                                message,
+                                attachedImageUri,
+                            )
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = if (isSubmitting) "전송 중..." else ctaText,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF111827).copy(alpha = if (canSubmit) 1f else 0.45f),
+                        color = Color.White,
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SupportFormHeader(
+    title: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = ChatDesign.SurfaceWhite,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .padding(start = 18.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = ChatDesign.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(ChatDesign.ScreenBg)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClose,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "닫기",
+                        tint = ChatDesign.TextSecondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            androidx.compose.material3.HorizontalDivider(thickness = 1.dp, color = ChatDesign.BorderSoft)
         }
     }
 }
@@ -439,8 +475,8 @@ private fun TypeChip(
     selectedColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (selected) selectedColor else Color(0xFFE5E7EB)
-    val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
+    val bg = if (selected) selectedColor else Color(0xFFF1F3F2)
+    val fg = if (selected) Color.White else Color(0xFF6B7280)
 
     Box(
         modifier = modifier

@@ -1,5 +1,6 @@
-﻿package com.freshkitchen.app.data.remote
+package com.freshkitchen.app.data.remote
 
+import com.freshkitchen.app.network.ApiResponse
 import com.freshkitchen.app.data.remote.dto.ChatRoomDetailDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomSectionsDto
 import com.freshkitchen.app.data.remote.dto.CreateChatRoomResponseDto

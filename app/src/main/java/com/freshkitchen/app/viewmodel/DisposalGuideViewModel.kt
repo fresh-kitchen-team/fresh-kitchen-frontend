@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.RecyclingTipDto
 import com.freshkitchen.app.network.TipsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,8 +41,9 @@ data class DisposalGuideUiState(
 // ───────────────────────────────────────────
 // DisposalGuideViewModel
 // ───────────────────────────────────────────
-class DisposalGuideViewModel(
-    private val repository: TipsRepository = TipsRepository(),
+@HiltViewModel
+class DisposalGuideViewModel @Inject constructor(
+    private val repository: TipsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DisposalGuideUiState())

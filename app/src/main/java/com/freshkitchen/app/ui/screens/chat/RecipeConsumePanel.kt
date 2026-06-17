@@ -52,7 +52,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.freshkitchen.app.ui.components.FoodItemThumbnail
 import com.freshkitchen.app.ui.theme.MyFrigeLocalTheme
+import com.freshkitchen.app.viewmodel.FoodItem
+import com.freshkitchen.app.viewmodel.FoodStatus
+import com.freshkitchen.app.viewmodel.StorageType
 import kotlinx.coroutines.launch
 
 private val PanelShape = RoundedCornerShape(16.dp)
@@ -471,29 +475,13 @@ private fun MatchedItemRow(
             ),
         )
 
-        val emoji = item.emoji
-        if (!emoji.isNullOrBlank()) {
-            Text(
-                text = emoji,
-                fontSize = 20.sp,
-                modifier = Modifier.padding(end = 8.dp),
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF6F8F7)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = item.name.take(1),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = ChatDesign.TextSecondary,
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
+        FoodItemThumbnail(
+            item = item.toThumbnailFoodItem(),
+            size = 32.dp,
+            emojiSize = 20.sp,
+            cornerRadius = 8.dp,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -580,6 +568,19 @@ private fun ConsumeErrorBanner(
         )
     }
 }
+
+private fun RecipeMatchedItemUi.toThumbnailFoodItem(): FoodItem =
+    FoodItem(
+        id = itemId.toInt().coerceAtLeast(0),
+        name = name,
+        category = "",
+        storage = StorageType.FRIDGE,
+        amount = "",
+        expiryDate = "",
+        status = FoodStatus.FRESH,
+        emoji = emoji ?: "🍽️",
+        representativeImage = representativeImage,
+    )
 
 @Preview(showBackground = true, widthDp = 360)
 @Composable

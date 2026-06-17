@@ -19,10 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.freshkitchen.app.navigation.AppNavHost
+import com.freshkitchen.app.navigation.AppRoutes
 import com.freshkitchen.app.navigation.ScanNav
 import com.freshkitchen.app.ui.components.MyFridgeBottomNavigationBar
 import com.freshkitchen.app.ui.theme.FreshGreenDark
@@ -30,7 +31,7 @@ import com.freshkitchen.app.viewmodel.MainScaffoldViewModel
 
 @Composable
 fun MainScaffold(
-    mainScaffoldViewModel: MainScaffoldViewModel = viewModel(),
+    mainScaffoldViewModel: MainScaffoldViewModel = hiltViewModel(),
     isLoggedIn: Boolean = false,
 ) {
     val navController = rememberNavController()
@@ -49,19 +50,8 @@ fun MainScaffold(
         }
     }
 
-    // 하단 바 / FAB 숨길 화면
-    val noNavBarRoutes = setOf(
-        "onboarding",
-        "login",
-        "onboarding_setup",
-        "profile",
-        "settings",
-        "search",
-        "manual_add",
-        ScanNav.routeResult,
-    )
-
-    val showBottomBar = currentRoute !in noNavBarRoutes
+    // 하단 바 / FAB 숨길 화면 (푸시·전체화면·분석 상세 포함)
+    val showBottomBar = !AppRoutes.hidesBottomBar(currentRoute)
 
     // FAB는 홈 / 인벤토리 리스트에서만 표시, 선택 모드일 때는 숨김
     val showFab = (currentRoute == "home" ||

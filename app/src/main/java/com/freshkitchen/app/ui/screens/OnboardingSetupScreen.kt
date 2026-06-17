@@ -23,7 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshkitchen.app.ui.theme.FreshGreen
 import com.freshkitchen.app.ui.theme.FreshGreenDark
 import com.freshkitchen.app.viewmodel.OnboardingSetupViewModel
@@ -32,20 +32,32 @@ import com.freshkitchen.app.viewmodel.OnboardingSetupViewModel
 // 온보딩 설정 메인 스크린
 // ───────────────────────────────────────────
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun OnboardingSetupScreen(
     onFinish: () -> Unit = {},
     onBackToLogin: () -> Unit = {},   // 뒤로가기 → 로그인 화면
-    viewModel: OnboardingSetupViewModel = viewModel()
+    viewModel: OnboardingSetupViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    // submitError 발생 시 스낵바 표시
+    LaunchedEffect(state.submitError) {
+        state.submitError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSubmitError()
+        }
+    }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.White
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             // ── 상단 헤더 (뒤로가기 + 건너뛰기) ──
             SetupHeader(
                 currentStep = state.currentStep,

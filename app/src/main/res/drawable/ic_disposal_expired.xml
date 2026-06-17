@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Container -->
+    <path
+        android:fillColor="#B0BEC5"
+        android:pathData="M12,20h24c2,0 3.5,1.5 3.5,3.5v14c0,2 -1.5,3.5 -3.5,3.5H12c-2,0 -3.5,-1.5 -3.5,-3.5v-14C8.5,21.5 10,20 12,20z" />
+    <path
+        android:fillColor="#90A4AE"
+        android:pathData="M10,24h28v2H10z" />
+    <!-- Spoiled food -->
+    <path
+        android:fillColor="#A1887F"
+        android:pathData="M16,28c0,-2 2,-3.5 4,-3.5s4,1.5 4,3.5v6c0,1.5 -1.2,2.5 -2.8,2.5h-2.4C17.2,36.5 16,35.5 16,34V28z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M26,27c0,-1.8 1.5,-3 3,-3s3,1.2 3,3v7c0,1.2 -1,2.2 -2.2,2.2h-1.6C27,36.2 26,35.2 26,34V27z" />
+    <!-- Clock badge -->
+    <path
+        android:fillColor="#EF5350"
+        android:pathData="M32,10m7,0a7,7 0,1 1,-14 0a7,7 0,1 1,14 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,14v-3h2v4h-3v-2H32z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,10m1,0a1,1 0,1 1,-2 0a1,1 0,1 1,2 0" />
+</vector>

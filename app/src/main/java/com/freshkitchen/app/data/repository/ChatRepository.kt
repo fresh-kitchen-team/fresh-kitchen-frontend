@@ -1,8 +1,8 @@
-﻿package com.freshkitchen.app.data.repository
+package com.freshkitchen.app.data.repository
 
-import com.freshkitchen.app.data.remote.ApiResponse
+import com.freshkitchen.app.network.ApiResponse
 import com.freshkitchen.app.data.remote.ChatApiService
-import com.freshkitchen.app.data.remote.isBusinessSuccess
+import com.freshkitchen.app.network.isBusinessSuccess
 import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomDetailDto
 import com.freshkitchen.app.data.remote.dto.ChatRoomSectionsDto

@@ -1,4 +1,4 @@
-﻿package com.freshkitchen.app.ui.screens.chat
+package com.freshkitchen.app.ui.screens.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,12 +33,16 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,12 +55,14 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -65,8 +71,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.freshkitchen.app.R
 import com.freshkitchen.app.data.remote.dto.AiSettingDto
 import com.freshkitchen.app.ui.theme.BottomNavUnselected
@@ -151,6 +160,7 @@ fun ChatScreen(
     isSavingAiSetting: Boolean = false,
     onLoadAiSettings: () -> Unit = {},
     onSaveAiSettings: (AiSettingDto, (Boolean) -> Unit) -> Unit = { _, _ -> },
+    quickReplies: List<ChatQuickReply> = fixedChatQuickReplies,
     onEnrichRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> List<RecipeMatchedItemUi> = { it },
     onConsumeRecipeMatchedItems: suspend (List<RecipeMatchedItemUi>) -> Result<Int> = {
         Result.failure(UnsupportedOperationException())
@@ -211,7 +221,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(ChatDesign.ScreenBg)
+                .background(ChatDesign.ConversationBg)
                 .zIndex(0f),
         ) {
             ChatTopBar(
@@ -266,30 +276,39 @@ fun ChatScreen(
                 }
             }
 
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 8.dp,
-                    bottom = 20.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                items(messages, key = { it.id }) { message ->
-                    ChatMessageItem(
-                        message = message,
-                        onEnrichRecipeMatchedItems = onEnrichRecipeMatchedItems,
-                        onConsumeRecipeMatchedItems = onConsumeRecipeMatchedItems,
-                    )
+            if (messages.isEmpty() && !isLoadingMessages && !isLoadingRooms) {
+                ChatWelcomeState(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 20.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    items(messages, key = { it.id }) { message ->
+                        ChatMessageItem(
+                            message = message,
+                            onEnrichRecipeMatchedItems = onEnrichRecipeMatchedItems,
+                            onConsumeRecipeMatchedItems = onConsumeRecipeMatchedItems,
+                        )
+                    }
                 }
             }
 
             ChatQuickRepliesRow(
                 enabled = !isSending,
+                quickReplies = quickReplies,
                 onQuickReplyClick = { message ->
                     keyboardController?.hide()
                     onSendMessage(message)
@@ -476,50 +495,26 @@ private fun AiSettingsScreen(
 ) {
     // NOTE: Don't show arbitrary defaults before GET succeeds.
     if (settings == null) {
-        Box(
+        Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFFF3F4F6)),
+                .background(ChatDesign.ScreenBg),
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.size(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            AiSettingsHeader(onClose = onClose, enabled = !isSaving)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 70.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = ChatDesign.ChatPrimary)
+                } else {
                     Text(
-                        text = "AI 설정",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF111827),
+                        text = "설정을 불러오지 못했습니다.",
+                        color = ChatDesign.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = onClose, enabled = !isSaving) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "닫기",
-                            tint = Color(0xFF111827),
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 70.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(color = ChatDesign.ChatPrimary)
-                    } else {
-                        Text(
-                            text = "설정을 불러오지 못했습니다.",
-                            color = Color(0xFF6B7280),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
                 }
             }
         }
@@ -539,94 +534,81 @@ private fun AiSettingsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F4F6)),
+            .background(ChatDesign.ScreenBg),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            AiSettingsHeader(onClose = onClose, enabled = !isSaving)
+
             val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 18.dp),
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Spacer(modifier = Modifier.size(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Spacer(modifier = Modifier.size(2.dp))
+
+                SettingsHeroCard()
+
+                SettingsSection(
+                    icon = Icons.Outlined.AutoAwesome,
+                    iconBg = ChatDesign.MintSoft,
+                    iconTint = ChatDesign.BrandGreenDeep,
+                    title = "AI 기능",
+                    subtitle = "답변에 포함할 내용을 선택하세요",
                 ) {
-                    Text(
-                        text = "AI 설정",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF111827),
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "닫기",
-                            tint = Color(0xFF111827),
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.size(8.dp))
-
-                SettingsCard {
-                    SettingsSectionTitle("AI 기능")
                     SettingsToggleRow(
-                        label = "추가 정보 제공 (영양, 팁 등)",
+                        label = "추가 정보 제공",
+                        description = "영양 정보, 조리 팁 등을 함께 안내",
                         checked = extraInfo,
                         onCheckedChange = { extraInfo = it },
                     )
                 }
 
-                Spacer(modifier = Modifier.size(14.dp))
-
-                SettingsCard {
-                    SettingsSectionTitle("추천 기준")
-                    Text(
-                        text = "(여러 개 선택 가능)",
-                        color = Color(0xFF9CA3AF),
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
-                    )
+                SettingsSection(
+                    icon = Icons.Outlined.Tune,
+                    iconBg = Color(0xFFEAF2FF),
+                    iconTint = Color(0xFF3B82F6),
+                    title = "추천 기준",
+                    subtitle = "여러 개를 함께 선택할 수 있어요",
+                ) {
                     SettingsToggleRow(
                         label = "유통기한 우선 추천",
+                        description = "소비 임박 재료를 먼저 활용해요",
                         checked = recommendExpiryFirst,
                         onCheckedChange = { recommendExpiryFirst = it },
                     )
+                    SettingsDivider()
                     SettingsToggleRow(
                         label = "영양 균형 기반 추천",
+                        description = "영양이 고르게 갖춰진 레시피 위주",
                         checked = recommendNutritionBalanced,
                         onCheckedChange = { recommendNutritionBalanced = it },
                     )
+                    SettingsDivider()
                     SettingsToggleRow(
                         label = "자주 사용하는 재료 우선",
+                        description = "평소 즐겨 쓰는 재료를 반영해요",
                         checked = recommendFavoriteIngredients,
                         onCheckedChange = { recommendFavoriteIngredients = it },
                     )
                 }
 
-                Spacer(modifier = Modifier.size(14.dp))
-
-                SettingsCard {
-                    SettingsSectionTitle("AI 응답 설정")
-                    Text(
-                        text = "응답 스타일",
-                        color = Color(0xFF6B7280),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
-                    )
-
+                SettingsSection(
+                    icon = Icons.Outlined.ChatBubbleOutline,
+                    iconBg = Color(0xFFFFF1E6),
+                    iconTint = Color(0xFFF97316),
+                    title = "AI 응답 설정",
+                    subtitle = "답변 말투를 선택하세요",
+                ) {
                     ResponseStyleSegment(
                         selected = responseStyle,
                         onSelect = { responseStyle = it },
                     )
                 }
 
-                Spacer(modifier = Modifier.size(22.dp))
+                Spacer(modifier = Modifier.size(8.dp))
             }
 
             AiSettingsBottomActions(
@@ -651,13 +633,161 @@ private fun AiSettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0x66000000)),
+                    .background(Color(0x33000000)),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = ChatDesign.ChatPrimary)
             }
         }
     }
+}
+
+@Composable
+private fun AiSettingsHeader(
+    onClose: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = ChatDesign.SurfaceWhite,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .padding(start = 18.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "AI 설정",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = ChatDesign.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(ChatDesign.ScreenBg)
+                        .clickable(
+                            enabled = enabled,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClose,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "닫기",
+                        tint = ChatDesign.TextSecondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            HorizontalDivider(thickness = 1.dp, color = ChatDesign.BorderSoft)
+        }
+    }
+}
+
+@Composable
+private fun SettingsHeroCard(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(ChatDesign.BrandGradient)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.SmartToy,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "나만의 AI 비서 맞춤 설정",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "추천 기준과 말투를 설정하면 더 잘 맞는\n레시피를 받을 수 있어요.",
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                    color = Color.White.copy(alpha = 0.92f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    SettingsCard(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = ChatDesign.TextPrimary,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ChatDesign.TextMuted,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.size(8.dp))
+        content()
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 2.dp),
+        thickness = 1.dp,
+        color = ChatDesign.BorderSoft,
+    )
 }
 
 @Composable
@@ -670,15 +800,15 @@ private fun AiSettingsBottomActions(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color(0xFFF3F4F6),
-        shadowElevation = 0.dp,
+        color = ChatDesign.SurfaceWhite,
+        shadowElevation = 10.dp,
         tonalElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutlinedButton(
@@ -686,29 +816,32 @@ private fun AiSettingsBottomActions(
                 enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(24.dp),
+                    .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF111827),
+                    contentColor = ChatDesign.TextPrimary,
                 ),
             ) {
                 Text(
                     text = "취소",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 )
             }
-            Button(
-                onClick = onSave,
-                enabled = enabled,
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ChatDesign.ChatPrimary,
-                    contentColor = Color.White,
-                ),
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(ChatDesign.BrandGradient)
+                    .alpha(if (enabled) 1f else 0.5f)
+                    .clickable(
+                        enabled = enabled,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onSave,
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
@@ -719,6 +852,7 @@ private fun AiSettingsBottomActions(
                 } else {
                     Text(
                         text = "저장",
+                        color = Color.White,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     )
                 }
@@ -729,28 +863,21 @@ private fun AiSettingsBottomActions(
 
 @Composable
 private fun SettingsCard(
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         color = Color.White,
         tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth(),
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
             content()
         }
     }
-}
-
-@Composable
-private fun SettingsSectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        color = Color(0xFF111827),
-    )
 }
 
 @Composable
@@ -758,19 +885,30 @@ private fun SettingsToggleRow(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    description: String? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF111827),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = ChatDesign.TextPrimary,
+            )
+            if (description != null) {
+                Spacer(modifier = Modifier.size(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ChatDesign.TextMuted,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.size(12.dp))
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -791,26 +929,27 @@ private fun ResponseStyleSegment(
 ) {
     Surface(
         shape = RoundedCornerShape(24.dp),
-        color = Color(0xFFF3F4F6),
+        color = Color(0xFFF1F3F2),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp),
+            .height(48.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SegmentOption(
-                text = "친절",
+                text = "친절하게",
                 selected = selected == AiResponseStyle.Friendly,
                 onClick = { onSelect(AiResponseStyle.Friendly) },
                 modifier = Modifier.weight(1f),
             )
             SegmentOption(
-                text = "간단",
+                text = "간단하게",
                 selected = selected == AiResponseStyle.Simple,
                 onClick = { onSelect(AiResponseStyle.Simple) },
                 modifier = Modifier.weight(1f),
@@ -826,14 +965,17 @@ private fun SegmentOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (selected) ChatDesign.ChatPrimary else Color.Transparent
-    val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
-
     Box(
         modifier = modifier
             .fillMaxHeight()
             .clip(RoundedCornerShape(20.dp))
-            .background(bg)
+            .then(
+                if (selected) {
+                    Modifier.background(ChatDesign.BrandGradient)
+                } else {
+                    Modifier
+                },
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -843,7 +985,7 @@ private fun SegmentOption(
     ) {
         Text(
             text = text,
-            color = fg,
+            color = if (selected) Color.White else ChatDesign.TextSecondary,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
         )
     }
@@ -858,23 +1000,21 @@ fun ChatTopBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = ChatDesign.SurfaceWhite,
-        shadowElevation = 2.dp,
+        shadowElevation = 0.dp,
         tonalElevation = 0.dp,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-        ) {
-            Row(
+        Column {
+            Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 4.dp),
             ) {
                 IconButton(
                     onClick = onMenuClick,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Menu,
@@ -883,25 +1023,74 @@ fun ChatTopBar(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                val brandTitle = "AI 주방 비서"
+                val iconSize = 40.dp
+                val iconTextGap = 14.dp
+                var titleWidthPx by remember { mutableIntStateOf(0) }
+                var titleAnchorPx by remember { mutableIntStateOf(0) }
+                val density = LocalDensity.current
+                val iconSizePx = with(density) { iconSize.roundToPx() }
+                val gapPx = with(density) { iconTextGap.roundToPx() }
 
-                Image(
-                    painter = painterResource(id = R.drawable.ic_fresh_kitchen),
-                    contentDescription = "FreshKitchen",
-                    modifier = Modifier.size(40.dp),
-                    contentScale = ContentScale.Fit,
+                Text(
+                    text = brandTitle,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset {
+                            val textOffsetPx = (titleWidthPx / 2f - titleAnchorPx).roundToInt()
+                            IntOffset(textOffsetPx, 0)
+                        },
+                    onTextLayout = { layout ->
+                        titleWidthPx = layout.size.width
+                        val juIdx = brandTitle.indexOf('주')
+                        val bangIdx = brandTitle.indexOf('방')
+                        titleAnchorPx = if (juIdx >= 0 && bangIdx >= 0) {
+                            val juBox = layout.getBoundingBox(juIdx)
+                            val bangBox = layout.getBoundingBox(bangIdx)
+                            ((juBox.left + bangBox.right) / 2f).roundToInt()
+                        } else {
+                            layout.size.width / 2
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                    ),
+                    color = ChatDesign.TextPrimary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
-            }
 
-            Text(
-                text = title,
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                ),
-                color = ChatDesign.TextPrimary,
-                textAlign = TextAlign.Center,
+                if (titleAnchorPx > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset {
+                                IntOffset(
+                                    -(titleAnchorPx + gapPx + iconSizePx / 2),
+                                    0,
+                                )
+                            }
+                            .size(iconSize)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White)
+                            .border(1.dp, ChatDesign.BorderSoft, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fresh_kitchen),
+                            contentDescription = "FreshKitchen",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(1.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = ChatDesign.BorderSoft,
             )
         }
     }
@@ -923,19 +1112,19 @@ fun ChatMessageItem(
             modifier = modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top,
         ) {
-            Surface(
-                modifier = Modifier.size(32.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = ChatDesign.AiAvatarBg,
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ChatDesign.BrandGradient),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.SmartToy,
-                        contentDescription = "AI",
-                        tint = ChatDesign.AiAvatarTint,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.SmartToy,
+                    contentDescription = "AI",
+                    tint = Color.White,
+                    modifier = Modifier.size(19.dp),
+                )
             }
 
             Spacer(modifier = Modifier.size(10.dp))
@@ -949,6 +1138,7 @@ fun ChatMessageItem(
                     text = "AI 주방 비서",
                     color = ChatDesign.TextMuted,
                     style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 4.dp),
                 )
 
                 Spacer(modifier = Modifier.size(6.dp))
@@ -971,16 +1161,17 @@ fun ChatMessageItem(
                         modifier = Modifier.fillMaxWidth(ChatDesign.BubbleMaxWidthFraction),
                         shape = ChatDesign.BubbleAiShape,
                         color = ChatDesign.SurfaceWhite,
-                        shadowElevation = 2.dp,
+                        shadowElevation = 3.dp,
                         tonalElevation = 0.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ChatDesign.BorderSoft),
                     ) {
                         Text(
                             text = message.text,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
                             color = ChatDesign.TextPrimary,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = 15.sp,
-                                lineHeight = 22.sp,
+                                lineHeight = 23.sp,
                             ),
                         )
                     }
@@ -1001,23 +1192,23 @@ fun ChatMessageItem(
                     text = "나",
                     color = ChatDesign.TextMuted,
                     style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(end = 4.dp),
                 )
 
                 Spacer(modifier = Modifier.size(6.dp))
 
-                Surface(
-                    shape = ChatDesign.BubbleUserShape,
-                    color = ChatDesign.UserBubble,
-                    shadowElevation = 1.dp,
-                    tonalElevation = 0.dp,
+                Box(
+                    modifier = Modifier
+                        .clip(ChatDesign.BubbleUserShape)
+                        .background(ChatDesign.UserBubbleGradient),
                 ) {
                     Text(
                         text = message.text,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
                         color = ChatDesign.UserBubbleText,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 15.sp,
-                            lineHeight = 22.sp,
+                            lineHeight = 23.sp,
                         ),
                     )
                 }
@@ -1026,20 +1217,65 @@ fun ChatMessageItem(
             Spacer(modifier = Modifier.size(10.dp))
 
             Surface(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(34.dp),
                 shape = CircleShape,
-                color = Color(0xFFE8ECE9),
+                color = Color(0xFFEDF1EF),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.AccountCircle,
                         contentDescription = "User avatar",
                         tint = ChatDesign.TextSecondary,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(23.dp),
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChatWelcomeState(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(ChatDesign.BrandGradient),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.SmartToy,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(40.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.size(20.dp))
+
+        Text(
+            text = "무엇을 요리해 볼까요?",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = ChatDesign.TextPrimary,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(modifier = Modifier.size(8.dp))
+
+        Text(
+            text = "냉장고 속 재료로 만들 수 있는 레시피를\n추천해 드릴게요. 아래 버튼으로 시작해 보세요.",
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp),
+            color = ChatDesign.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -1118,21 +1354,24 @@ fun ChatInputBar(
                 ),
             )
 
-            IconButton(
-                onClick = { if (sendEnabled) onSend(inputValue) },
-                enabled = sendEnabled,
+            Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(
-                        ChatDesign.UserBubble.copy(alpha = sendButtonAlpha),
-                        CircleShape,
+                    .background(ChatDesign.BrandGradient)
+                    .alpha(sendButtonAlpha)
+                    .clickable(
+                        enabled = sendEnabled,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onSend(inputValue) },
                     ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.Send,
                     contentDescription = "전송",
-                    tint = Color.White.copy(alpha = sendButtonAlpha.coerceAtLeast(0.7f)),
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp),
                 )
             }

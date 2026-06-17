@@ -5,10 +5,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshkitchen.app.data.auth.AuthTokenStore
+import com.freshkitchen.app.data.auth.SettingsDataStore
 import com.freshkitchen.app.data.auth.TokenDataStore
+import com.freshkitchen.app.network.AppVersionApiService
 import com.freshkitchen.app.network.AuthRepository
-import com.freshkitchen.app.network.RetrofitClient
+import com.freshkitchen.app.network.LegalApiService
 import com.freshkitchen.app.network.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +25,7 @@ import kotlinx.coroutines.launch
 // ───────────────────────────────────────────
 data class SettingsUiState(
     val expiryAlarmEnabled: Boolean = true,   // 유통기한 알림 (FCM 서버 관리)
-    val photoAlarmEnabled: Boolean = false,   // 사진 등록 알림
+    val inquiryAlarmEnabled: Boolean = true, // 문의 답변 알림
     val isWithdrawing: Boolean = false,       // 탈퇴 처리 중
     val withdrawError: String? = null,        // 탈퇴 오류 메시지
     val loginProvider: String? = null,        // "GOOGLE" | "KAKAO"
@@ -35,13 +40,32 @@ data class SettingsUiState(
 // ───────────────────────────────────────────
 // 설정 ViewModel
 // ───────────────────────────────────────────
-class SettingsViewModel(
-    private val userRepository: UserRepository = UserRepository(),
-    private val authRepository: AuthRepository = AuthRepository()
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository,
+    private val appVersionApi: AppVersionApiService,
+    private val legalApi: LegalApiService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadAlarmSettings()
+    }
+
+    private fun loadAlarmSettings() {
+        viewModelScope.launch {
+            val expiryEnabled  = SettingsDataStore.getExpiryAlarmEnabled(appContext).first()
+            val inquiryEnabled = SettingsDataStore.getInquiryAlarmEnabled(appContext).first()
+            _uiState.value = _uiState.value.copy(
+                expiryAlarmEnabled  = expiryEnabled,
+                inquiryAlarmEnabled = inquiryEnabled
+            )
+        }
+    }
 
     // ───────────────────────────────────────────
     // 계정 정보 불러오기
@@ -70,7 +94,7 @@ class SettingsViewModel(
     fun loadAppVersion() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.appVersionApi.getAppVersion()
+                val response = appVersionApi.getAppVersion()
                 if (response.data != null) {
                     _uiState.value = _uiState.value.copy(appVersion = response.data.latestVersion)
                 }
@@ -86,7 +110,7 @@ class SettingsViewModel(
     fun loadLegalUrls() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.legalApi.getLegal()
+                val response = legalApi.getLegal()
                 response.data?.let { data ->
                     _uiState.value = _uiState.value.copy(
                         termsUrl = data.termsUrl,
@@ -105,7 +129,7 @@ class SettingsViewModel(
     fun loadAgreementStatus() {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.legalApi.getAgreement()
+                val response = legalApi.getAgreement()
                 response.data?.let { data ->
                     _uiState.value = _uiState.value.copy(
                         termsAgreedAt = data.termsAgreedAt,
@@ -119,12 +143,17 @@ class SettingsViewModel(
     }
 
     fun toggleExpiryAlarm(enabled: Boolean) {
-        // FCM 알림은 서버에서 관리 → UI 상태만 반영
         _uiState.value = _uiState.value.copy(expiryAlarmEnabled = enabled)
+        viewModelScope.launch {
+            SettingsDataStore.setExpiryAlarmEnabled(appContext, enabled)
+        }
     }
 
-    fun togglePhotoAlarm(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(photoAlarmEnabled = enabled)
+    fun toggleInquiryAlarm(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(inquiryAlarmEnabled = enabled)
+        viewModelScope.launch {
+            SettingsDataStore.setInquiryAlarmEnabled(appContext, enabled)
+        }
     }
 
     // ───────────────────────────────────────────
