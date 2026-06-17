@@ -204,7 +204,8 @@ data class ExpiringItemDto(
     val categoryDisplayName: String?,      // 화면 표시용 라벨 (예: "채소/과일")
     val expiresAt: String?,
     val dday: Int,
-    val storageType: String                // "FRIDGE" | "FREEZER" | "PANTRY"
+    val storageType: String,               // "FRIDGE" | "FREEZER" | "PANTRY"
+    val representativeImage: RepresentativeImageDto? = null,
 )
 
 // ───────────────────────────────────────────

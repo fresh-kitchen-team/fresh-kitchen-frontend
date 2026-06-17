@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,12 +53,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.freshkitchen.app.ui.components.FoodItemThumbnail
 import com.freshkitchen.app.ui.theme.BottomNavSelected
 import com.freshkitchen.app.navigation.requestHomeRefresh
 import com.freshkitchen.app.viewmodel.ConsumptionDdayTone
 import com.freshkitchen.app.viewmodel.ConsumptionItemUi
 import com.freshkitchen.app.viewmodel.ConsumptionStorageFilter
 import com.freshkitchen.app.viewmodel.ConsumptionViewModel
+import com.freshkitchen.app.viewmodel.FoodItem
+import com.freshkitchen.app.viewmodel.FoodStatus
+import com.freshkitchen.app.viewmodel.StorageType
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -341,7 +344,12 @@ private fun ConsumptionItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ItemEmojiBox(emoji = item.emoji)
+                FoodItemThumbnail(
+                    item = item.toThumbnailFoodItem(),
+                    size = 54.dp,
+                    emojiSize = 26.sp,
+                    cornerRadius = 14.dp,
+                )
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -389,34 +397,22 @@ private fun ConsumptionItemCard(
     }
 }
 
-@Composable
-private fun ItemEmojiBox(
-    emoji: String?,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(54.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFF1F3F5))
-            .border(1.dp, Color(0xFFE5EAEE), RoundedCornerShape(14.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (!emoji.isNullOrBlank()) {
-            Text(
-                text = emoji,
-                fontSize = 26.sp,
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Outlined.Image,
-                contentDescription = null,
-                tint = Color(0xFF9AA5AE),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
-}
+private fun ConsumptionItemUi.toThumbnailFoodItem(): FoodItem =
+    FoodItem(
+        id = id.toInt().coerceAtLeast(0),
+        name = name,
+        category = "",
+        storage = when (storageType.uppercase()) {
+            "FREEZER" -> StorageType.FREEZER
+            "PANTRY" -> StorageType.PANTRY
+            else -> StorageType.FRIDGE
+        },
+        amount = "",
+        expiryDate = expiryDate.orEmpty(),
+        status = FoodStatus.NEAR_EXPIRY,
+        emoji = emoji ?: "🍽️",
+        representativeImage = representativeImage,
+    )
 
 @Composable
 private fun DdayBadge(
