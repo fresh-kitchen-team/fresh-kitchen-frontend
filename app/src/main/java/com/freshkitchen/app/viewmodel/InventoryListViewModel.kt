@@ -247,10 +247,14 @@ class InventoryListViewModel @Inject constructor(
             InventoryFilter.EXPIRED  -> allItems.filter { it.status == FoodStatus.EXPIRED }
         }
 
-        // 유통기한 오름차순 정렬 (임박순), 유통기한 없는 항목은 맨 뒤
-        val sorted = filtered.sortedWith(compareBy(nullsLast()) {
-            it.expiryDate.takeIf { d -> d.isNotBlank() }
-        })
+        // RECENT는 최근 추가 순(서버 반환 역순) 유지, 나머지는 유통기한 오름차순 정렬
+        val sorted = if (filter == InventoryFilter.RECENT) {
+            filtered.reversed()
+        } else {
+            filtered.sortedWith(compareBy(nullsLast()) {
+                it.expiryDate.takeIf { d -> d.isNotBlank() }
+            })
+        }
 
         _uiState.value = InventoryListUiState(
             selectedFilter = filter,
