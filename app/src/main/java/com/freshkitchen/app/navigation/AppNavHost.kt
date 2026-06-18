@@ -162,8 +162,12 @@ fun AppNavHost(
             arguments = listOf(navArgument("filter") { type = NavType.StringType; defaultValue = "all" })
         ) { backStackEntry ->
             val filter = backStackEntry.arguments?.getString("filter") ?: "all"
+            val refreshInventoryTrigger by backStackEntry.savedStateHandle
+                .getStateFlow("refresh_inventory", 0L)
+                .collectAsStateWithLifecycle()
             InventoryListScreen(
                 initialFilter = filter,
+                refreshTrigger = refreshInventoryTrigger,
                 onBackClick = {
                     navController.requestHomeRefresh()
                     navController.popBackStack()
@@ -181,6 +185,10 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() },
                 onAddSuccess = {
                     navController.requestHomeRefresh()
+                    // inventory_list 화면이 back stack에 있으면 목록도 갱신
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh_inventory", System.currentTimeMillis())
                     navController.popBackStack()
                 }
             )

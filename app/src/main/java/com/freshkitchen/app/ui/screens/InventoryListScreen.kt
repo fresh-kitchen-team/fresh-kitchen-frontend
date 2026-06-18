@@ -43,6 +43,7 @@ import com.freshkitchen.app.viewmodel.*
 @Composable
 fun InventoryListScreen(
     initialFilter: String = "all",
+    refreshTrigger: Long = 0L,
     onBackClick: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
@@ -55,6 +56,11 @@ fun InventoryListScreen(
     // 선택 모드 변경 시 상위(MainScaffold)에 알림 → FAB 숨김/표시 제어
     LaunchedEffect(uiState.isSelectMode) {
         onSelectModeChange(uiState.isSelectMode)
+    }
+
+    // manual_add 등에서 돌아왔을 때 목록 갱신
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0L) viewModel.refresh()
     }
 
     LaunchedEffect(initialFilter) {

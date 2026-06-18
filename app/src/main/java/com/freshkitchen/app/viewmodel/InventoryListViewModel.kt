@@ -182,13 +182,17 @@ class InventoryListViewModel @Inject constructor(
                 id = updatedItem.id.toLong(),
                 request = ItemUpdateRequest(
                     name = updatedItem.name,
-                    category = updatedItem.category.ifEmpty { null },
+                    // "기타"는 백엔드 null 카테고리를 프론트에서 치환한 값 — 서버에 보내지 않음
+                    category = updatedItem.category.takeIf { it.isNotEmpty() && it != "기타" },
                     expiryDate = updatedItem.expiryDate.ifEmpty { null },
                     purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
                     memo = updatedItem.memo.ifEmpty { null },
-                    storageId =
-                        updatedItem.storageId.takeIf { it > 0L }
-                            ?: storageIdMap[updatedItem.storage],
+                    storageType = when (updatedItem.storage) {
+                        StorageType.FRIDGE  -> "FRIDGE"
+                        StorageType.FREEZER -> "FREEZER"
+                        StorageType.PANTRY  -> "PANTRY"
+                        StorageType.ALL     -> null
+                    },
                 )
             )
             if (!success) {
@@ -203,6 +207,10 @@ class InventoryListViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun refresh() {
+        loadIngredients()
     }
 
     private fun loadIngredients() {

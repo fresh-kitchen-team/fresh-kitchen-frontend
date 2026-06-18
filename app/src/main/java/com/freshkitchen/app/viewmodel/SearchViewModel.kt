@@ -63,11 +63,16 @@ class SearchViewModel @Inject constructor(
                 id = updatedItem.id.toLong(),
                 request = ItemUpdateRequest(
                     name = updatedItem.name,
-                    category = updatedItem.category.ifEmpty { null },
+                    category = updatedItem.category.takeIf { it.isNotEmpty() && it != "기타" },
                     expiryDate = updatedItem.expiryDate.ifEmpty { null },
                     purchaseDate = updatedItem.purchaseDate.ifEmpty { null },
                     memo = updatedItem.memo.ifEmpty { null },
-                    storageId = updatedItem.storageId.takeIf { it > 0L }
+                    storageType = when (updatedItem.storage) {
+                        com.freshkitchen.app.viewmodel.StorageType.FRIDGE  -> "FRIDGE"
+                        com.freshkitchen.app.viewmodel.StorageType.FREEZER -> "FREEZER"
+                        com.freshkitchen.app.viewmodel.StorageType.PANTRY  -> "PANTRY"
+                        com.freshkitchen.app.viewmodel.StorageType.ALL     -> null
+                    }
                 )
             )
         }
