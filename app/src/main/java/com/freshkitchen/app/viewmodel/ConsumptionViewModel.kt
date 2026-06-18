@@ -6,11 +6,13 @@ import com.freshkitchen.app.logging.ApiLog
 import com.freshkitchen.app.network.AnalyticsRepository
 import com.freshkitchen.app.network.ExpiringItemDto
 import com.freshkitchen.app.network.IngredientRepository
+import com.freshkitchen.app.network.RepresentativeImageDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -37,6 +39,7 @@ data class ConsumptionItemUi(
     val id: Long,
     val name: String,
     val emoji: String?,
+    val representativeImage: RepresentativeImageDto? = null,
     val storageType: String,        // "FRIDGE" | "FREEZER" | "PANTRY"
     val storageLabel: String,       // "냉장실" | "냉동실" | "팬트리"
     val expiryDate: String?,        // 화면에 보일 "2026-05-20" 형식
@@ -80,7 +83,10 @@ class ConsumptionViewModel @Inject constructor(
             ApiLog.i(TAG, "loadExpiringItems() START maxDDay=$MAX_DDAY")
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val data = repository.getExpiringItems(maxDDay = MAX_DDAY)
+            val expiringDeferred = async { repository.getExpiringItems(maxDDay = MAX_DDAY) }
+            val inventoryDeferred = async { ingredientRepository.getIngredients().getOrNull() }
+            val data = expiringDeferred.await()
+            val inventoryById = inventoryDeferred.await()?.associateBy { it.id }.orEmpty()
             if (data == null) {
                 ApiLog.w(TAG, "loadExpiringItems() FAILED")
                 _uiState.value = ConsumptionUiState(
@@ -92,7 +98,7 @@ class ConsumptionViewModel @Inject constructor(
 
             val today = LocalDate.now()
             val items = data
-                .map { dto -> dto.toUi(today) }
+                .map { dto -> dto.toUi(today, inventoryById[dto.id]?.representativeImage) }
                 .filter { it.dday <= MAX_DDAY }    // 백엔드가 7 일 초과 항목을 섞어 줘도 클라에서 한 번 더 필터
                 .sortedWith(compareBy({ it.dday }, { it.name }))
 
@@ -160,7 +166,10 @@ class ConsumptionViewModel @Inject constructor(
         }
     }
 
-    private fun ExpiringItemDto.toUi(today: LocalDate): ConsumptionItemUi {
+    private fun ExpiringItemDto.toUi(
+        today: LocalDate,
+        inventoryRepresentativeImage: RepresentativeImageDto?,
+    ): ConsumptionItemUi {
         val computedDday = computeDday(today)
         val tone = when {
             computedDday <= 1 -> ConsumptionDdayTone.Critical
@@ -171,6 +180,7 @@ class ConsumptionViewModel @Inject constructor(
             id = id,
             name = name,
             emoji = emoji,
+            representativeImage = representativeImage ?: inventoryRepresentativeImage,
             storageType = storageType,
             storageLabel = storageType.toKoreanStorageLabel(),
             expiryDate = expiresAt?.substringBefore("T"),

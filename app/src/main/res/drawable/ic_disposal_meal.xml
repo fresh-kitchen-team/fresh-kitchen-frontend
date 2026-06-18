@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Bowl -->
+    <path
+        android:fillColor="#FFCC80"
+        android:pathData="M10,22c0,-2 2,-4 5,-4h18c3,0 5,2 5,4v2c0,6 -5,10 -14,10S10,30 10,24V22z" />
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M12,26c2,4 6,6 12,6s10,-2 12,-6c-2,5 -7,8 -12,8S14,31 12,26z" />
+    <!-- Rice -->
+    <path
+        android:fillColor="#FFF8E1"
+        android:pathData="M16,20c2,-1 4,-1.5 6,-1.5s4,0.5 6,1.5c-1.5,2 -3.5,3 -6,3S17.5,22 16,20z" />
+    <!-- Soup bowl small -->
+    <path
+        android:fillColor="#EF5350"
+        android:pathData="M30,14h8c1,0 2,1 2,2v1c0,2 -1.5,3.5 -3.5,3.5H30c-1.5,0 -2.5,-1 -2.5,-2.5V16C27.5,15 28.5,14 30,14z" />
+    <path
+        android:fillColor="#FFCDD2"
+        android:pathData="M29,17h6v1.5c0,0.8 -0.7,1.5 -1.5,1.5h-3c-0.8,0 -1.5,-0.7 -1.5,-1.5V17z" />
+    <!-- Banchan dish -->
+    <path
+        android:fillColor="#81C784"
+        android:pathData="M10,14h10c1.5,0 2.5,1 2.5,2.5v1c0,1.5 -1,2.5 -2.5,2.5H10c-1,0 -2,-1 -2,-2.5v-1C8,15 9,14 10,14z" />
+</vector>

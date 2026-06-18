@@ -1,0 +1,34 @@
+package com.freshkitchen.app.ui.screens
+
+import androidx.annotation.DrawableRes
+import com.freshkitchen.app.R
+
+/**
+ * 폐기 가이드 품목명 → 로컬 아이콘.
+ * API에 이미지 필드가 없어 [name] 키워드로 매핑하고, 없으면 null(이모지 fallback).
+ * 더 구체적인 키워드를 먼저 검사합니다.
+ */
+@DrawableRes
+fun recyclingItemIconRes(name: String): Int? {
+    val n = name.trim()
+    if (n.isEmpty()) return null
+
+    return when {
+        n.contains("달걀") || n.contains("계란") -> R.drawable.ic_disposal_egg
+        n.contains("뼈") -> R.drawable.ic_disposal_bone
+        n.contains("조개") || n.contains("게") -> R.drawable.ic_disposal_shellfish
+        n.contains("파인애플") -> R.drawable.ic_disposal_pineapple
+        n.contains("코코넛") -> R.drawable.ic_disposal_coconut
+        n.contains("양파") || n.contains("마늘") -> R.drawable.ic_disposal_onion
+        n.contains("옥수수") -> R.drawable.ic_disposal_corn
+        n.contains("고추") || n.contains("고춧대") -> R.drawable.ic_disposal_chili
+        n.contains("유통기한") -> R.drawable.ic_disposal_expired
+        n.contains("밥") || n.contains("국") || n.contains("반찬") -> R.drawable.ic_disposal_meal
+        n.contains("채소") && n.contains("자투리") -> R.drawable.ic_disposal_veg_scraps
+        n.contains("과일") && n.contains("씨") -> R.drawable.ic_disposal_fruit_seed
+        n.contains("과일") || n.contains("과육") -> R.drawable.ic_disposal_fruit_soft
+        n.contains("씨") || n.contains("씨앗") -> R.drawable.ic_disposal_seed
+        n.contains("채소") || n.contains("껍질") -> R.drawable.ic_disposal_veg
+        else -> null
+    }
+}
