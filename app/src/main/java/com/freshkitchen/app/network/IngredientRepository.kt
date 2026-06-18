@@ -59,8 +59,10 @@ class IngredientRepository(
     suspend fun updateItem(id: Long, request: ItemUpdateRequest): Boolean {
         return try {
             val response = api.updateItem(id, request)
-            response.code == "COMMON-200"
+            Log.d("IngredientRepo", "updateItem 응답 code=${response.code} status=${response.status}, id=$id")
+            response.isBusinessSuccess()
         } catch (e: Exception) {
+            Log.e("IngredientRepo", "updateItem 예외: ${e.message}, id=$id")
             e.printStackTrace()
             false
         }
